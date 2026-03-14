@@ -1,4 +1,5 @@
 import BackdropDomain
+import CollectionKit
 import SwiftUI
 
 struct Column: Identifiable {
