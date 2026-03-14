@@ -13,24 +13,14 @@ extension LaunchAgentManager {
     }
 
     public func install() throws {
-        let argsXML = programArguments
-            .map { "            <string>\($0)</string>" }
-            .joined(separator: "\n")
-        let plist = """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
-            <dict>
-                <key>Label</key><string>\(label)</string>
-                <key>ProgramArguments</key>
-                <array>
-            \(argsXML)
-                </array>
-                <key>RunAtLoad</key><true/>
-            </dict>
-            </plist>
-            """
+        let plistDict: [String: Any] = [
+            "Label": label,
+            "ProgramArguments": programArguments,
+            "RunAtLoad": true,
+        ]
+        let plistData = try PropertyListSerialization.data(
+            fromPropertyList: plistDict, format: .xml, options: 0
+        )
 
         ProcessManager.stopExisting()
 
@@ -39,7 +29,7 @@ extension LaunchAgentManager {
 
         runLaunchctl(["bootout", "\(target)/\(label)"])
 
-        try plist.write(to: plistPath, atomically: true, encoding: .utf8)
+        try plistData.write(to: plistPath)
 
         let status = runLaunchctl(["bootstrap", target, plistPath.path])
         guard status == 0 else {
