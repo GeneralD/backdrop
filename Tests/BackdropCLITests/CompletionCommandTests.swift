@@ -32,6 +32,25 @@ struct CompletionCommandTests {
     }
 }
 
+@Suite("VersionCommand E2E")
+struct VersionCommandTests {
+    @Test("--version output matches version.txt")
+    func versionFlag() throws {
+        let output = try runBackdrop(arguments: ["--version"])
+        let expected = try String(contentsOfFile: resourcePath("version.txt"), encoding: .utf8)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines)
+            == expected.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    @Test("version subcommand output matches version.txt")
+    func versionSubcommand() throws {
+        let output = try runBackdrop(arguments: ["version"])
+        let expected = try String(contentsOfFile: resourcePath("version.txt"), encoding: .utf8)
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines)
+            == expected.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+}
+
 private func runBackdrop(arguments: [String]) throws -> String {
     let process = Process()
     process.executableURL = binaryURL()

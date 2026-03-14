@@ -8,6 +8,7 @@ _backdrop() {
         'restart:Stop and start the overlay'
         'service:Manage login item service'
         'completion:Output shell completion script'
+        'version:Show version'
     )
 
     local -a service_commands
@@ -22,7 +23,7 @@ _backdrop() {
         'bash:Output bash completion script'
     )
 
-    _arguments -C '1:command:->cmd' '*::arg:->args'
+    _arguments -C '(--version)-h[Show help information]' '(-h)--version[Show version]' '1:command:->cmd' '*::arg:->args'
 
     case $state in
     cmd)
