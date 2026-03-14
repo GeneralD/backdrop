@@ -9,8 +9,10 @@ public enum LaunchAgentManager {
     }
 
     public static func install() throws {
-        let resolvedPath = installedPath()
-            ?? URL(fileURLWithPath: Bundle.main.executablePath ?? CommandLine.arguments[0]).standardizedFileURL.path
+        let programArgs = programArguments()
+        let argsXML = programArgs
+            .map { "            <string>\($0)</string>" }
+            .joined(separator: "\n")
         let plist = """
             <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" \
@@ -20,8 +22,7 @@ public enum LaunchAgentManager {
                 <key>Label</key><string>\(label)</string>
                 <key>ProgramArguments</key>
                 <array>
-                    <string>\(resolvedPath)</string>
-                    <string>daemon</string>
+            \(argsXML)
                 </array>
                 <key>RunAtLoad</key><true/>
             </dict>
@@ -33,7 +34,6 @@ public enum LaunchAgentManager {
         let uid = getuid()
         let target = "gui/\(uid)"
 
-        // Bootout first in case already registered
         runLaunchctl(["bootout", "\(target)/\(label)"])
 
         try plist.write(to: plistPath, atomically: true, encoding: .utf8)
@@ -70,11 +70,30 @@ public enum LaunchAgentManager {
 }
 
 extension LaunchAgentManager {
+    private static func programArguments() -> [String] {
+        guard let mintPath = mintRunPath() else {
+            let binary = installedPath()
+                ?? URL(fileURLWithPath: Bundle.main.executablePath ?? CommandLine.arguments[0]).standardizedFileURL.path
+            return [binary, "daemon"]
+        }
+        return [mintPath, "run", "GeneralD/backdrop", "daemon"]
+    }
+
+    private static func mintRunPath() -> String? {
+        let execPath = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL.path
+        guard execPath.contains("/.mint/") else { return nil }
+        return whichCommand("mint")
+    }
+
     private static func installedPath() -> String? {
         let binaryName = URL(fileURLWithPath: CommandLine.arguments[0]).lastPathComponent
+        return whichCommand(binaryName)
+    }
+
+    private static func whichCommand(_ name: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = [binaryName]
+        process.arguments = [name]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
