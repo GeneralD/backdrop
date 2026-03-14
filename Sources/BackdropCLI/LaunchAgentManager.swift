@@ -71,19 +71,22 @@ public enum LaunchAgentManager {
 
 extension LaunchAgentManager {
     private static func installedPath() -> String? {
+        let binaryName = URL(fileURLWithPath: CommandLine.arguments[0]).lastPathComponent
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = ["backdrop"]
+        process.arguments = [binaryName]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         guard (try? process.run()) != nil else { return nil }
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return nil }
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let path = output, !path.isEmpty else { return nil }
-        return URL(fileURLWithPath: path).standardizedFileURL.path
+        guard let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !output.isEmpty else { return nil }
+        let resolved = URL(fileURLWithPath: output).standardizedFileURL.path
+        guard FileManager.default.isExecutableFile(atPath: resolved) else { return nil }
+        return resolved
     }
 }
 
