@@ -1,4 +1,5 @@
 import BackdropDomain
+import CollectionKit
 import Dependencies
 import Foundation
 
@@ -10,7 +11,7 @@ public struct LRCLibClient: LyricsRepository, Sendable {
         let candidates = parser.generateCandidates(title: title, artist: artist)
 
         let getResults = await candidates
-            .filter { !$0.artist.isEmpty }
+            .unless(\.artist.isEmpty)
             .asyncCompactMap { await get(title: $0.title, artist: $0.artist, duration: duration) }
             .filter { $0.plainLyrics != nil }
 

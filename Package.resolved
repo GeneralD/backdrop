@@ -1,6 +1,15 @@
 {
-  "originHash" : "aa036ed99e00772b6eb690d09a52c9ed397f5cca08b99c457ab69bc875fcc482",
+  "originHash" : "92fd719f3c20d4f930222f020b215be494c417398c0a2c88d1b54796de2a872a",
   "pins" : [
+    {
+      "identity" : "collectionkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/GeneralD/CollectionKit",
+      "state" : {
+        "revision" : "e1ae3fef8fd3be72c309fd20d7e56e9db30827db",
+        "version" : "1.0.1"
+      }
+    },
     {
       "identity" : "combine-schedulers",
       "kind" : "remoteSourceControl",

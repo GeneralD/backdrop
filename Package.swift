@@ -14,6 +14,7 @@ let package = Package(
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
         .package(url: "https://github.com/LebJe/TOMLKit", from: "0.6.0"),
         .package(url: "https://github.com/thii/SwiftHEXColors", from: "1.4.1"),
+        .package(url: "https://github.com/GeneralD/CollectionKit", from: "1.0.0"),
     ],
     targets: [
         // Core domain — zero external dependencies except swift-dependencies
@@ -22,6 +23,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
+                .product(name: "CollectionKit", package: "CollectionKit"),
             ]
         ),
 
@@ -43,7 +45,10 @@ let package = Package(
         ),
         .target(
             name: "BackdropLRCLib",
-            dependencies: ["BackdropDomain"]
+            dependencies: [
+                "BackdropDomain",
+                .product(name: "CollectionKit", package: "CollectionKit"),
+            ]
         ),
         .target(
             name: "BackdropPersistence",
@@ -70,6 +75,7 @@ let package = Package(
                 "BackdropDomain",
                 "BackdropConfig",
                 .product(name: "SwiftHEXColors", package: "SwiftHEXColors"),
+                .product(name: "CollectionKit", package: "CollectionKit"),
             ]
         ),
 
