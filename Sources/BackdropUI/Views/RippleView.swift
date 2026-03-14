@@ -1,6 +1,7 @@
 import AppKit
 import BackdropDomain
 import Dependencies
+import SwiftHEXColors
 import SwiftUI
 
 @MainActor
@@ -17,7 +18,8 @@ public struct RippleView: View {
 
     public var body: some View {
         let rc = config.ripple
-        let baseNSColor = NSColor(hexString: rc.colorHex)
+        let baseNSColor = (NSColor(hexString: rc.colorHex) ?? .white)
+            .usingColorSpace(.deviceRGB) ?? .white
 
         TimelineView(.animation) { timeline in
             Canvas { context, size in
@@ -46,30 +48,5 @@ public struct RippleView: View {
                 }
             }
         }
-    }
-}
-
-extension NSColor {
-    convenience init(hexString: String) {
-        let h = hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString
-        guard h.count == 6 || h.count == 8,
-              let value = UInt64(h, radix: 16) else {
-            self.init(white: 1, alpha: 1)
-            return
-        }
-        let r, g, b, a: CGFloat
-        switch h.count {
-        case 8:
-            r = CGFloat((value >> 24) & 0xFF) / 255
-            g = CGFloat((value >> 16) & 0xFF) / 255
-            b = CGFloat((value >> 8) & 0xFF) / 255
-            a = CGFloat(value & 0xFF) / 255
-        default:
-            r = CGFloat((value >> 16) & 0xFF) / 255
-            g = CGFloat((value >> 8) & 0xFF) / 255
-            b = CGFloat(value & 0xFF) / 255
-            a = 1
-        }
-        self.init(red: r, green: g, blue: b, alpha: a)
     }
 }
