@@ -8,6 +8,7 @@ _backdrop() {
         'restart:Stop and start the overlay'
         'service:Manage login item service'
         'completion:Output shell completion script'
+        'version:Show version'
     )
 
     local -a service_commands

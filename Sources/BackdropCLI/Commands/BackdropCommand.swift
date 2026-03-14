@@ -11,10 +11,22 @@ public struct BackdropCommand: ParsableCommand {
             RestartCommand.self,
             ServiceCommand.self,
             CompletionCommand.self,
+            VersionCommand.self,
             DaemonCommand.self,
         ],
         defaultSubcommand: StartCommand.self
     )
 
     public init() {}
+}
+
+struct VersionCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "version",
+        abstract: "Show version"
+    )
+
+    func run() {
+        print(BackdropCommand.configuration.version ?? "unknown")
+    }
 }
