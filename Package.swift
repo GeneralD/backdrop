@@ -27,7 +27,8 @@ let package = Package(
         // Isolated unsafe code — no domain dependency
         .target(
             name: "BackdropMediaRemote",
-            dependencies: []
+            dependencies: [],
+            resources: [.copy("Resources/media-remote-helper.swift")]
         ),
 
         // Infrastructure
