@@ -1,5 +1,5 @@
 {
-  "originHash" : "df851d7378fa95184863e95559f31eb1fcad0e6f77dfdf2193b3fb9d0129000c",
+  "originHash" : "aa036ed99e00772b6eb690d09a52c9ed397f5cca08b99c457ab69bc875fcc482",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -62,6 +62,15 @@
       "state" : {
         "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
         "version" : "602.0.0"
+      }
+    },
+    {
+      "identity" : "swifthexcolors",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/thii/SwiftHEXColors",
+      "state" : {
+        "revision" : "1f886cb20fedda14a5ac75efd09bc99c95b43a18",
+        "version" : "1.4.1"
       }
     },
     {

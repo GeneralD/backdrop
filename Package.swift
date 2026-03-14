@@ -13,6 +13,7 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.6.0"),
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
         .package(url: "https://github.com/LebJe/TOMLKit", from: "0.6.0"),
+        .package(url: "https://github.com/thii/SwiftHEXColors", from: "1.4.1"),
     ],
     targets: [
         // Core domain — zero external dependencies except swift-dependencies
@@ -37,6 +38,7 @@ let package = Package(
             dependencies: [
                 "BackdropDomain",
                 .product(name: "TOMLKit", package: "TOMLKit"),
+                .product(name: "SwiftHEXColors", package: "SwiftHEXColors"),
             ]
         ),
         .target(
@@ -64,7 +66,11 @@ let package = Package(
         // Presentation
         .target(
             name: "BackdropUI",
-            dependencies: ["BackdropDomain", "BackdropConfig"]
+            dependencies: [
+                "BackdropDomain",
+                "BackdropConfig",
+                .product(name: "SwiftHEXColors", package: "SwiftHEXColors"),
+            ]
         ),
 
         // App wiring
