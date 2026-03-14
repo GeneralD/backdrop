@@ -41,16 +41,5 @@ public struct NowPlayingService: NowPlayingProvider, Sendable {
 // MARK: - DependencyKey
 
 extension NowPlayingProviderKey: DependencyKey {
-    public static let liveValue: any NowPlayingProvider = {
-        guard let bridge = MediaRemoteBridge() else {
-            return NoopNowPlayingProvider()
-        }
-        return NowPlayingService(bridge: bridge)
-    }()
-}
-
-private struct NoopNowPlayingProvider: NowPlayingProvider {
-    func stream() -> AsyncStream<NowPlaying?> {
-        AsyncStream { $0.finish() }
-    }
+    public static let liveValue: any NowPlayingProvider = NowPlayingService(bridge: MediaRemoteBridge())
 }
