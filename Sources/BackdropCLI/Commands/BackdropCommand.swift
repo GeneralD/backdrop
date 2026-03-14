@@ -4,6 +4,7 @@ public struct BackdropCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "backdrop",
         abstract: "Desktop backdrop — lyrics overlay, video wallpaper, and more",
+        version: "1.0.0",
         subcommands: [
             StartCommand.self,
             StopCommand.self,
