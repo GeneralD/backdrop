@@ -50,6 +50,7 @@ let package = Package(
                 "BackdropDomain",
                 .product(name: "CollectionKit", package: "CollectionKit"),
                 .product(name: "Alamofire", package: "Alamofire"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
         .target(
@@ -57,6 +58,7 @@ let package = Package(
             dependencies: [
                 "BackdropDomain",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 
