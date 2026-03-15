@@ -8,11 +8,12 @@ extension TitleParser: Sendable {}
 
 // MARK: - Noise patterns
 
-/// Bracket-like patterns to strip entirely
+/// Bracket-like patterns to strip entirely (noise brackets)
 private let bracketPatterns = [
-    "【[^】]*】", "「[^」]*」", "『[^』]*』",
+    "【[^】]*】",
     "\\([^)]*\\)", "（[^）]*）", "\\[[^\\]]*\\]",
 ]
+
 
 /// Content-aware bracket patterns (case-insensitive) — strip brackets containing these
 private let noiseBracketPatterns = [
@@ -88,9 +89,23 @@ extension TitleParser {
             .trimmingCharacters(in: .whitespaces)
     }
 
-    /// Parse "Artist - Title" structure from a raw title string
+    /// Parse artist and title from common formats:
+    /// - `Artist「Title」-suffix-`
+    /// - `Artist『Title』`
+    /// - `Artist - Title (noise)`
     public func parseArtistTitle(_ raw: String) -> (artist: String?, title: String) {
         let normalized = normalize(raw)
+
+        // Try Japanese quote brackets: Artist「Title」
+        if let match = normalized.firstMatch(of: /「([^」]+)」|『([^』]+)』/) {
+            let title = (match.output.1 ?? match.output.2)
+                .map(String.init) ?? normalized
+            let artist = normalized[..<match.range.lowerBound]
+                .trimmingCharacters(in: .whitespaces)
+            return (artist.isEmpty ? nil : artist, title)
+        }
+
+        // Try "Artist - Title"
         guard let dashRange = normalized.range(of: " - ") else {
             return (nil, normalized)
         }
