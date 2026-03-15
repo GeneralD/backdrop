@@ -17,8 +17,15 @@ extension NowPlayingService {
         return AsyncStream { continuation in
             let task = Task {
                 while !Task.isCancelled {
-                    let info = await bridge.poll()
-                    continuation.yield(info.map(NowPlaying.init(from:)))
+                    switch await bridge.poll() {
+                    case .info(let info):
+                        continuation.yield(NowPlaying(from: info))
+                    case .noInfo:
+                        continuation.yield(nil)
+                    case .eof:
+                        continuation.finish()
+                        return
+                    }
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
