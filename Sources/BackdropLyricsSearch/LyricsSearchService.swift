@@ -15,7 +15,7 @@ extension LyricsSearchService {
         let getResults = await candidates
             .unless(\.artist.isEmpty)
             .asyncCompactMap { c in await request(LyricsResult.self, from: .get(title: c.title, artist: c.artist, duration: duration)) }
-            .filter { $0.plainLyrics != nil }
+            .filter { $0.plainLyrics != nil || $0.syncedLyrics != nil }
 
         if let synced = getResults.first(where: { $0.syncedLyrics != nil }) { return synced }
         if let first = getResults.first { return first }
@@ -25,18 +25,21 @@ extension LyricsSearchService {
 
 private extension LyricsSearchService {
     func searchFallback(candidates: [SearchCandidate]) async -> LyricsResult? {
-        let results = await candidates
+        let matches = await candidates
             .map { $0.artist.isEmpty ? $0.title : "\($0.title) \($0.artist)" }
             .asyncCompactMap { await request([LyricsResult].self, from: .search(query: $0)) }
-            .compactMap { results in
-                results.first { $0.syncedLyrics != nil } ?? results.first { $0.plainLyrics != nil }
+            .compactMap { response in
+                response.first { $0.syncedLyrics != nil } ?? response.first { $0.plainLyrics != nil }
             }
-        return results.first { $0.syncedLyrics != nil }
-            ?? results.first
+        return matches.first { $0.syncedLyrics != nil }
+            ?? matches.first
     }
 
     func request<T: Decodable & Sendable>(_ type: T.Type, from api: LRCLibAPI) async -> T? {
-        await AF.request(api).serializingDecodable(type).response.value
+        await AF.request(api)
+            .validate(statusCode: 200 ..< 300)
+            .serializingDecodable(type)
+            .response.value
     }
 }
 
