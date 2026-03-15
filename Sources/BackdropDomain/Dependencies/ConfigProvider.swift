@@ -89,7 +89,7 @@ public struct ResolvedTextStyle: Sendable {
 
     public init(
         spacing: Double = 6,
-        fontName: String = "Zen Maru Gothic",
+        fontName: String = ".AppleSystemUIFont",
         fontSize: Double = 12,
         fontWeight: String = "regular",
         color: ColorStyle = .solid("#FFFFFFD9"),
