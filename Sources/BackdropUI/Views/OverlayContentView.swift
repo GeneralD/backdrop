@@ -15,8 +15,8 @@ public struct OverlayContentView: View {
         ZStack {
             RippleView(rippleState: rippleState, screenOrigin: state.screenOrigin)
             VStack(alignment: .leading, spacing: 32) {
-                HeaderView(title: state.title, artist: state.artist, artworkData: state.artworkData)
-                LyricsColumnView(lyrics: state.lyrics, activeLineIndex: state.activeLineIndex)
+                HeaderView(state: state)
+                LyricsColumnView(state: state)
             }
             .padding(48)
             .padding(.bottom, 32)

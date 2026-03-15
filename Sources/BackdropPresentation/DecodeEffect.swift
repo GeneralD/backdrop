@@ -22,46 +22,43 @@ extension ResolvedDecodeEffectConfig {
     }
 }
 
-/// Manages the decode animation state for a single string.
-/// Characters flicker randomly, then lock into place with exponential acceleration.
-@MainActor @Observable
-public final class DecodeEffectState {
-    public private(set) var displayText: String = ""
+@MainActor
+final class DecodeEffectState {
+    private(set) var displayText: String = ""
+    private(set) var isAnimating: Bool = false
+    var onUpdate: ((String) -> Void)?
     private var targetText: String = ""
     private var lockedIndices: Set<Int> = []
     private var timer: Timer?
     private let config: ResolvedDecodeEffectConfig
 
-    public init(config: ResolvedDecodeEffectConfig) {
+    init(config: ResolvedDecodeEffectConfig) {
         self.config = config
     }
 }
 
 extension DecodeEffectState {
-    /// Start flickering with placeholder text while loading
-    public func startLoading(placeholderLength: Int = 12) {
+    func startLoading(placeholderLength: Int = 12) {
         stop()
-        targetText = ""
-        lockedIndices = []
-        displayText = (0 ..< placeholderLength)
-            .map { _ in String(config.randomCharacter()) }
-            .joined()
+        isAnimating = true
+        updateDisplay((0 ..< placeholderLength).map { _ in String(config.randomCharacter()) }.joined())
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tickLoading() }
         }
     }
 
-    /// Received the real text — begin decode animation
-    public func decode(to text: String) {
+    func decode(to text: String, onComplete: (() -> Void)? = nil) {
         stop()
+        isAnimating = true
         targetText = text
         lockedIndices = []
-        displayText = String(text.map { _ in config.randomCharacter() })
+        updateDisplay(String(text.map { _ in config.randomCharacter() }))
 
         let totalChars = text.count
         guard totalChars > 0 else {
-            displayText = text
+            updateDisplay(text)
+            finish(onComplete)
             return
         }
 
@@ -85,33 +82,45 @@ extension DecodeEffectState {
                 self.tickDecode()
 
                 guard self.lockedIndices.count >= totalChars else { return }
-                self.displayText = self.targetText
-                self.stop()
+                self.updateDisplay(self.targetText)
+                self.finish(onComplete)
             }
         }
     }
 
-    /// Set text immediately without animation
-    public func set(_ text: String) {
+    func set(_ text: String) {
         stop()
-        targetText = text
-        displayText = text
-        lockedIndices = Set(0 ..< text.count)
+        updateDisplay(text)
     }
 
-    public func stop() {
+    func stop() {
         timer?.invalidate()
         timer = nil
+        isAnimating = false
+    }
+}
+
+extension DecodeEffectState {
+    private func finish(_ onComplete: (() -> Void)?) {
+        stop()
+        onComplete?()
+    }
+
+    private func updateDisplay(_ text: String) {
+        displayText = text
+        onUpdate?(text)
     }
 
     private func tickLoading() {
-        displayText = displayText.map { _ in String(config.randomCharacter()) }.joined()
+        updateDisplay(displayText.map { _ in String(config.randomCharacter()) }.joined())
     }
 
     private func tickDecode() {
         let chars = Array(targetText)
-        displayText = chars.enumerated()
-            .map { lockedIndices.contains($0.offset) ? String($0.element) : String(config.randomCharacter()) }
-            .joined()
+        updateDisplay(
+            chars.enumerated()
+                .map { lockedIndices.contains($0.offset) ? String($0.element) : String(config.randomCharacter()) }
+                .joined()
+        )
     }
 }

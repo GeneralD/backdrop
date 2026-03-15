@@ -1,36 +1,34 @@
 import BackdropDomain
+import BackdropPresentation
 import CollectionKit
 import SwiftUI
 
 private struct Column: Identifiable {
     let id: Int
-    let entries: [(index: Int, text: String)]
+    let entries: [(index: Int, displayText: String, sourceText: String)]
     let highlightIndex: Int?
 }
 
 @MainActor
 public struct LyricsColumnView: View {
-    let lyrics: FetchState<LyricsContent>
-    let activeLineIndex: Int?
+    let state: OverlayState
 
-    public init(lyrics: FetchState<LyricsContent>, activeLineIndex: Int?) {
-        self.lyrics = lyrics
-        self.activeLineIndex = activeLineIndex
+    public init(state: OverlayState) {
+        self.state = state
     }
 
     public var body: some View {
         GeometryReader { geo in
             let layout = ColumnLayout(width: geo.size.width, lyricsHeight: geo.size.height)
-            if let content = lyrics.value {
+            if let content = state.lyrics.value {
                 let cols = columns(from: content, layout: layout)
                 HStack(alignment: .top, spacing: layout.columnGap) {
                     ForEach(cols) { column in
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(column.entries, id: \.index) { entry in
                                 LyricLineView(
-                                    text: entry.text,
-                                    isActive: entry.index == column.highlightIndex,
-                                    isRevealing: lyrics.isRevealing
+                                    text: entry.displayText,
+                                    isActive: entry.index == column.highlightIndex
                                 )
                             }
                             Spacer()
@@ -43,16 +41,23 @@ public struct LyricsColumnView: View {
     }
 
     private func columns(from content: LyricsContent, layout: ColumnLayout) -> [Column] {
-        let (texts, highlightIndex): ([String], Int?) = switch content {
-        case let .timed(lines): (lines.map(\.text), activeLineIndex)
-        case let .plain(lines): (lines, nil)
+        let sourceTexts: [String] = switch content {
+        case let .timed(lines): lines.map(\.text)
+        case let .plain(lines): lines
+        }
+        let displayTexts = state.displayLyricLines
+        let highlightIndex: Int? = switch content {
+        case .timed: state.activeLineIndex
+        case .plain: nil
         }
         let lpc = layout.linesPerColumn
-        let count = layout.columnsNeeded(for: texts.count)
+        let count = layout.columnsNeeded(for: sourceTexts.count)
         return (0 ..< count).map { col in
             let start = col * lpc
-            let end = min(start + lpc, texts.count)
-            let entries = (start ..< end).map { i in (index: i, text: texts[i]) }
+            let end = min(start + lpc, sourceTexts.count)
+            let entries = (start ..< end).map { i in
+                (index: i, displayText: i < displayTexts.count ? displayTexts[i] : sourceTexts[i], sourceText: sourceTexts[i])
+            }
             return Column(id: col, entries: entries, highlightIndex: highlightIndex)
         }
     }

@@ -3,21 +3,25 @@ import BackdropLyrics
 import Dependencies
 import Foundation
 
-/// Manages NowPlaying observation, lyrics fetching, and state transitions.
-/// Separated from window management to keep UI layer thin.
 @MainActor
 public final class OverlayController {
     public let state = OverlayState()
     private var lastTrackKey: (String?, String?) = (nil, nil)
     private var fetchGeneration: Int = 0
-    private var revealTimers: [AnyHashable: Timer] = [:]
     private var nowPlayingTask: Task<Void, Never>?
 
-    @Dependency(\.nowPlayingProvider) private var nowPlayingProvider
+    private var titleEffect: DecodeEffectState
+    private var artistEffect: DecodeEffectState
+    private var lyricEffects: [DecodeEffectState] = []
+
     @Dependency(\.config) private var config
     private let lyricsService = LyricsService()
 
-    public init() {}
+    public init() {
+        @Dependency(\.config) var cfg
+        titleEffect = DecodeEffectState(config: cfg.text.decodeEffect)
+        artistEffect = DecodeEffectState(config: cfg.text.decodeEffect)
+    }
 }
 
 extension OverlayController {
@@ -37,8 +41,9 @@ extension OverlayController {
 
     public func stop() {
         nowPlayingTask?.cancel()
-        revealTimers.values.forEach { $0.invalidate() }
-        revealTimers.removeAll()
+        titleEffect.stop()
+        artistEffect.stop()
+        lyricEffects.forEach { $0.stop() }
     }
 }
 
@@ -46,6 +51,10 @@ extension OverlayController {
     private func clearIfNeeded() {
         guard lastTrackKey != (nil, nil) else { return }
         lastTrackKey = (nil, nil)
+        titleEffect.stop()
+        artistEffect.stop()
+        lyricEffects.forEach { $0.stop() }
+        lyricEffects = []
         state.reset()
     }
 
@@ -59,12 +68,14 @@ extension OverlayController {
         guard trackKey != lastTrackKey else { return }
 
         lastTrackKey = trackKey
-        reveal(\.title, to: info.title)
-        reveal(\.artist, to: info.artist)
         state.activeLineIndex = nil
         state.lyrics = .loading
         fetchGeneration += 1
         let generation = fetchGeneration
+
+        // Title/artist from MediaRemote (immediate)
+        revealTitle(info.title)
+        revealArtist(info.artist)
 
         let service = lyricsService
         Task {
@@ -73,12 +84,18 @@ extension OverlayController {
                 return await service.fetch(title: title, artist: artist, duration: info.duration)
             }()
             guard generation == self.fetchGeneration else { return }
-            if let trackName = result?.trackName { reveal(\.title, to: trackName) }
-            if let artistName = result?.artistName { reveal(\.artist, to: artistName) }
+
+            // Update title/artist if LRCLib has better names
+            if let trackName = result?.trackName { revealTitle(trackName) }
+            if let artistName = result?.artistName { revealArtist(artistName) }
+
             if let content = LyricsContent(from: result) {
                 revealLyrics(content)
             } else {
                 state.lyrics = .failure
+                lyricEffects.forEach { $0.stop() }
+                lyricEffects = []
+                state.displayLyricLines = []
             }
             state.activeLineIndex = nil
         }
@@ -93,30 +110,56 @@ extension OverlayController {
     }
 }
 
-// MARK: - Reveal transition
+// MARK: - Reveal animations
 
 extension OverlayController {
-    private func reveal(_ keyPath: ReferenceWritableKeyPath<OverlayState, FetchState<String>>, to text: String?) {
+    private func revealTitle(_ text: String?) {
         guard let text else { return }
-        let key = keyPath.hashValue
-        revealTimers[key]?.invalidate()
-        state[keyPath: keyPath] = .revealing(text)
-        revealTimers[key] = Timer.scheduledTimer(withTimeInterval: config.text.decodeEffect.duration, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.state[keyPath: keyPath] = .success(text)
-                self?.revealTimers.removeValue(forKey: key)
-            }
+        state.title = .revealing(text)
+        titleEffect.onUpdate = { [weak self] displayText in
+            self?.state.displayTitle = displayText
+        }
+        titleEffect.decode(to: text) { [weak self] in
+            self?.state.title = .success(text)
+        }
+    }
+
+    private func revealArtist(_ text: String?) {
+        guard let text else { return }
+        state.artist = .revealing(text)
+        artistEffect.onUpdate = { [weak self] displayText in
+            self?.state.displayArtist = displayText
+        }
+        artistEffect.decode(to: text) { [weak self] in
+            self?.state.artist = .success(text)
         }
     }
 
     private func revealLyrics(_ content: LyricsContent) {
-        let key = "lyrics"
-        revealTimers[key]?.invalidate()
         state.lyrics = .revealing(content)
-        revealTimers[key] = Timer.scheduledTimer(withTimeInterval: config.text.decodeEffect.duration, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.state.lyrics = .success(content)
-                self?.revealTimers.removeValue(forKey: key)
+        let texts: [String] = switch content {
+        case .timed(let lines): lines.map(\.text)
+        case .plain(let lines): lines
+        }
+
+        lyricEffects.forEach { $0.stop() }
+        lyricEffects = texts.enumerated().map { index, text in
+            let effect = DecodeEffectState(config: config.text.decodeEffect)
+            effect.onUpdate = { [weak self] displayText in
+                guard let self, index < state.displayLyricLines.count else { return }
+                state.displayLyricLines[index] = displayText
+            }
+            return effect
+        }
+
+        state.displayLyricLines = texts.map { _ in " " }
+
+        for (index, text) in texts.enumerated() {
+            lyricEffects[index].decode(to: text) { [weak self] in
+                guard let self else { return }
+                // All lines done?
+                guard lyricEffects.allSatisfy({ !$0.isAnimating }) else { return }
+                state.lyrics = .success(content)
             }
         }
     }
