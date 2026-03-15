@@ -2,7 +2,7 @@ import Alamofire
 import Foundation
 
 enum MusicBrainzAPI {
-    case searchRecording(title: String, artist: String, duration: TimeInterval?)
+    case searchRecording(title: String, artist: String?, duration: TimeInterval?)
 }
 
 extension MusicBrainzAPI: URLRequestConvertible {
@@ -25,10 +25,11 @@ private extension MusicBrainzAPI {
     var parameters: [String: String] {
         switch self {
         case .searchRecording(let title, let artist, let duration):
-            var query = "\(title) AND artist:\(artist)"
+            var query = title
+            if let artist { query += " AND artist:\(artist)" }
             if let duration {
                 let ms = Int(duration * 1000)
-                query += " AND dur:[\(ms - 3000) TO \(ms + 3000)]"
+                query += " AND dur:[\(ms - 15000) TO \(ms + 15000)]"
             }
             return ["query": query, "fmt": "json", "limit": "5"]
         }

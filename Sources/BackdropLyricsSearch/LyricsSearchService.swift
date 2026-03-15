@@ -35,10 +35,13 @@ extension LyricsSearchService {
 
 private extension LyricsSearchService {
     func fetchViaMusicBrainz(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? {
-        let normalized = TitleParser().stripBrackets(title)
+        let parser = TitleParser()
+        let parsed = parser.parseArtistTitle(title)
+        let normalized = parsed.title
+        let normalizedArtist = parser.normalizeArtist(parsed.artist ?? artist)
 
         // Check cache first
-        if let cached = await metadataCache.read(title: normalized, artist: artist) {
+        if let cached = await metadataCache.read(title: normalized, artist: normalizedArtist) {
             let result = await lrclib(LyricsResult.self, from: .get(
                 title: cached.title, artist: cached.artist, duration: cached.duration
             ))
@@ -47,25 +50,38 @@ private extension LyricsSearchService {
             }
         }
 
-        // Query MusicBrainz
-        guard let response: MusicBrainzResponse = await musicbrainz(.searchRecording(
-            title: normalized, artist: artist, duration: duration
-        )) else { return nil }
+        // Query MusicBrainz: first precise, then relaxed (no artist/duration)
+        for query: MusicBrainzAPI in [
+            .searchRecording(title: normalized, artist: normalizedArtist, duration: duration),
+            .searchRecording(title: normalized, artist: nil, duration: nil),
+        ] {
+            guard let response: MusicBrainzResponse = await musicbrainz(query) else { continue }
+            if let result = await matchRecording(from: response, cacheKey: (normalized, normalizedArtist)) {
+                return result
+            }
+        }
+        return nil
+    }
 
+    func matchRecording(from response: MusicBrainzResponse, cacheKey: (title: String, artist: String)) async -> LyricsResult? {
+        let parser = TitleParser()
         for recording in response.recordings {
             guard let artistName = recording.artistName else { continue }
-            let result = await lrclib(LyricsResult.self, from: .get(
-                title: recording.title, artist: artistName, duration: recording.duration
-            ))
-            guard let result, result.plainLyrics != nil || result.syncedLyrics != nil else { continue }
+            // Try both raw and normalized MusicBrainz title
+            let titles = Set([recording.title, parser.normalize(recording.title), parser.stripBrackets(recording.title)])
+            for title in titles {
+                let result = await lrclib(LyricsResult.self, from: .get(
+                    title: title, artist: artistName, duration: nil
+                ))
+                guard let result, result.plainLyrics != nil || result.syncedLyrics != nil else { continue }
 
-            // Cache the successful match
-            let metadata = ResolvedMetadata(
-                title: recording.title, artist: artistName,
-                duration: recording.duration, musicbrainzId: recording.id
-            )
-            try? await metadataCache.write(queryTitle: normalized, queryArtist: artist, metadata: metadata)
-            return result
+                let metadata = ResolvedMetadata(
+                    title: title, artist: artistName,
+                    duration: recording.duration, musicbrainzId: recording.id
+                )
+                try? await metadataCache.write(queryTitle: cacheKey.title, queryArtist: cacheKey.artist, metadata: metadata)
+                return result
+            }
         }
         return nil
     }

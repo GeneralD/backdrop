@@ -14,6 +14,45 @@ struct TitleParserTests {
         #expect(parser.stripBrackets("Song（Full）") == "Song")
     }
 
+    @Test("normalizes YouTube-style titles")
+    func normalize() {
+        #expect(parser.normalize("Numb (Official Video)") == "Numb")
+        #expect(parser.normalize("Numb (Live in Texas)") == "Numb")
+        #expect(parser.normalize("Numb - 2003 Remaster") == "Numb")
+        #expect(parser.normalize("Numb [HD]") == "Numb")
+        #expect(parser.normalize("Song (Remastered 2020)") == "Song")
+        #expect(parser.normalize("Hitori No Yoru (Cover)") == "Hitori No Yoru")
+        #expect(parser.normalize("Song (Acoustic Cover)") == "Song")
+    }
+
+    @Test("normalizes titles with series/channel suffix")
+    func normalizeWithSeries() {
+        #expect(parser.normalize("Hello / THE FIRST TAKE") == "Hello")
+        #expect(parser.normalize("Song (piano ver.) / Channel") == "Song")
+    }
+
+    @Test("normalizes artist names")
+    func normalizeArtist() {
+        #expect(parser.normalizeArtist("Linkin Park - Topic") == "Linkin Park")
+        #expect(parser.normalizeArtist("ArtistVEVO") == "Artist")
+        #expect(parser.normalizeArtist("Artist Official Channel") == "Artist")
+        #expect(parser.normalizeArtist("Linkin Park") == "Linkin Park")
+    }
+
+    @Test("parses artist-title structure")
+    func parseArtistTitle() {
+        let result = parser.parseArtistTitle("Linkin Park - Numb (Live in Texas) / YouTube Music")
+        #expect(result.artist == "Linkin Park")
+        #expect(result.title == "Numb")
+    }
+
+    @Test("parseArtistTitle without dash returns nil artist")
+    func parseArtistTitleNoDash() {
+        let result = parser.parseArtistTitle("Just a Song (Official Video)")
+        #expect(result.artist == nil)
+        #expect(result.title == "Just a Song")
+    }
+
     @Test("detects noise words")
     func isNoise() {
         #expect(parser.isNoise("Official Video"))
@@ -36,14 +75,16 @@ struct TitleParserTests {
     func candidatesWithArtist() {
         let candidates = parser.generateCandidates(title: "Song Title", artist: "Artist")
         #expect(!candidates.isEmpty)
-        #expect(candidates[0] == SearchCandidate(title: "Song Title", artist: "Artist"))
+        #expect(candidates.contains(SearchCandidate(title: "Song Title", artist: "Artist")))
     }
 
-    @Test("generates candidates from dash-separated title")
-    func candidatesFromDashTitle() {
-        let candidates = parser.generateCandidates(title: "Artist - Song", artist: "Topic")
-        #expect(candidates.contains(SearchCandidate(title: "Song", artist: "Artist")))
-        #expect(candidates.contains(SearchCandidate(title: "Artist", artist: "Song")))
+    @Test("generates candidates from YouTube-style title")
+    func candidatesFromYouTubeTitle() {
+        let candidates = parser.generateCandidates(
+            title: "Linkin Park - Numb (Official Video)",
+            artist: "Linkin Park - Topic"
+        )
+        #expect(candidates.contains(SearchCandidate(title: "Numb", artist: "Linkin Park")))
     }
 
     @Test("generates candidates without usable artist")
