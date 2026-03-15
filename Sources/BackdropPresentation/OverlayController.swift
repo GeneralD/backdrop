@@ -26,7 +26,7 @@ public final class OverlayController {
     }
 }
 
-private extension OverlayController {
+extension OverlayController {
     public func start() {
         nowPlayingTask = Task { [weak self] in
             guard let self else { return }
