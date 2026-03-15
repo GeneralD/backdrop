@@ -15,6 +15,8 @@ install: build
 uninstall:
 	rm -f $(PREFIX)/bin/$(BINARY)
 	rm -rf $(PREFIX)/bin/backdrop_*.bundle
+	-launchctl bootout gui/$$(id -u)/com.generald.backdrop 2>/dev/null
+	rm -f $(HOME)/Library/LaunchAgents/com.generald.backdrop.plist
 
 test:
 	swift test
