@@ -18,8 +18,10 @@ public struct RippleView: View {
 
     public var body: some View {
         let rc = config.ripple
-        let baseNSColor = (NSColor(hexString: rc.colorHex) ?? .white)
-            .usingColorSpace(.deviceRGB) ?? .white
+        let baseNSColor: NSColor = {
+            guard case .solid(let hex) = rc.color else { return .white }
+            return (NSColor(hexString: hex) ?? .white).usingColorSpace(.deviceRGB) ?? .white
+        }()
 
         TimelineView(.animation) { timeline in
             Canvas { context, size in
