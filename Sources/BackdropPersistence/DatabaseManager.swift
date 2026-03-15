@@ -49,6 +49,19 @@ public final class DatabaseManager: Sendable {
             }
         }
 
+        migrator.registerMigration("v2_musicbrainzCache") { db in
+            try db.create(table: "musicbrainz_cache", ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("query_title", .text).notNull()
+                t.column("query_artist", .text).notNull()
+                t.column("resolved_title", .text).notNull()
+                t.column("resolved_artist", .text).notNull()
+                t.column("duration", .double)
+                t.column("musicbrainz_id", .text).notNull()
+                t.uniqueKey(["query_title", "query_artist"])
+            }
+        }
+
         migrator.registerMigration("v1_removeLegacyCache") { _ in
             let cacheDir = URL(fileURLWithPath:
                 ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]
