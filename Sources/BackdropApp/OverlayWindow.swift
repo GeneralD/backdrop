@@ -90,6 +90,7 @@ public final class OverlayWindow {
 
         let driver = DisplayLinkDriver { [weak self] in
             self?.rippleState.idle()
+            self?.controller.updateActiveLineTick()
         }
         self.displayLinkDriver = driver
 

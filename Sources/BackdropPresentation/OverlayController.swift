@@ -9,6 +9,8 @@ public final class OverlayController {
     private var lastTrackKey: (String?, String?) = (nil, nil)
     private var fetchGeneration: Int = 0
     private var nowPlayingTask: Task<Void, Never>?
+    private var fetchTask: Task<Void, Never>?
+    private var latestNowPlaying: NowPlaying?
 
     private var titleEffect: DecodeEffectState
     private var artistEffect: DecodeEffectState
@@ -32,6 +34,7 @@ extension OverlayController {
             for await info in provider.stream() {
                 guard !Task.isCancelled else { break }
                 guard let info else { clearIfNeeded(); continue }
+                latestNowPlaying = info
                 updateArtwork(from: info)
                 updateTrack(from: info)
                 updateActiveLineIndex(from: info)
@@ -41,9 +44,16 @@ extension OverlayController {
 
     public func stop() {
         nowPlayingTask?.cancel()
+        fetchTask?.cancel()
         titleEffect.stop()
         artistEffect.stop()
         lyricEffects.forEach { $0.stop() }
+    }
+
+    /// Called from DisplayLink to keep activeLineIndex in sync at frame rate
+    public func updateActiveLineTick() {
+        guard let info = latestNowPlaying else { return }
+        updateActiveLineIndex(from: info)
     }
 }
 
@@ -51,6 +61,8 @@ extension OverlayController {
     private func clearIfNeeded() {
         guard lastTrackKey != (nil, nil) else { return }
         lastTrackKey = (nil, nil)
+        latestNowPlaying = nil
+        fetchTask?.cancel()
         titleEffect.stop()
         artistEffect.stop()
         lyricEffects.forEach { $0.stop() }
@@ -68,24 +80,24 @@ extension OverlayController {
         guard trackKey != lastTrackKey else { return }
 
         lastTrackKey = trackKey
+        fetchTask?.cancel()
         state.activeLineIndex = nil
         state.lyrics = .loading
-        fetchGeneration += 1
-        let generation = fetchGeneration
 
-        // Title/artist from MediaRemote (immediate)
         revealTitle(info.title)
         revealArtist(info.artist)
 
+        fetchGeneration += 1
+        let generation = fetchGeneration
         let service = lyricsService
-        Task {
+
+        fetchTask = Task { [weak self] in
             let result: LyricsResult? = await {
                 guard let title = info.title, let artist = info.artist else { return nil }
                 return await service.fetch(title: title, artist: artist, duration: info.duration)
             }()
-            guard generation == self.fetchGeneration else { return }
+            guard !Task.isCancelled, let self, generation == fetchGeneration else { return }
 
-            // Update title/artist if LRCLib has better names
             if let trackName = result?.trackName { revealTitle(trackName) }
             if let artistName = result?.artistName { revealArtist(artistName) }
 
@@ -114,7 +126,11 @@ extension OverlayController {
 
 extension OverlayController {
     private func revealTitle(_ text: String?) {
-        guard let text else { return }
+        guard let text else {
+            state.title = .idle
+            state.displayTitle = " "
+            return
+        }
         state.title = .revealing(text)
         titleEffect.onUpdate = { [weak self] displayText in
             self?.state.displayTitle = displayText
@@ -125,7 +141,11 @@ extension OverlayController {
     }
 
     private func revealArtist(_ text: String?) {
-        guard let text else { return }
+        guard let text else {
+            state.artist = .idle
+            state.displayArtist = " "
+            return
+        }
         state.artist = .revealing(text)
         artistEffect.onUpdate = { [weak self] displayText in
             self?.state.displayArtist = displayText
@@ -157,7 +177,6 @@ extension OverlayController {
         for (index, text) in texts.enumerated() {
             lyricEffects[index].decode(to: text) { [weak self] in
                 guard let self else { return }
-                // All lines done?
                 guard lyricEffects.allSatisfy({ !$0.isAnimating }) else { return }
                 state.lyrics = .success(content)
             }

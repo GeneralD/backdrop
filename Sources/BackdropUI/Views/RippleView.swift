@@ -1,5 +1,4 @@
 import AppKit
-import BackdropConfig
 import BackdropDomain
 import Dependencies
 import SwiftHEXColors

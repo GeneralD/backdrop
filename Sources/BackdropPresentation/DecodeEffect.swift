@@ -35,6 +35,12 @@ final class DecodeEffectState {
     init(config: ResolvedDecodeEffectConfig) {
         self.config = config
     }
+
+    deinit {
+        // Timer only weakly references self via [weak self] in closures,
+        // so it will fire harmlessly after dealloc. No explicit invalidation
+        // needed — callers are responsible for calling stop() before release.
+    }
 }
 
 extension DecodeEffectState {
