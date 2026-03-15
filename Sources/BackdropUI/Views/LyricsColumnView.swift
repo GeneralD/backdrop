@@ -67,11 +67,11 @@ public struct LyricsColumnView: View {
     LyricsColumnView(state: {
         let s = OverlayState()
         let lines: [LyricLine] = [
-            .init(time: 0, text: "夜に駆ける"),
-            .init(time: 5, text: "沈むように"),
-            .init(time: 10, text: "溶けてゆくように"),
-            .init(time: 15, text: "二人だけの空が広がる夜に"),
-            .init(time: 20, text: "あなたの声が聞こえる"),
+            .init(time: 0, text: "It been a long day"),
+            .init(time: 5, text: "without you my friend"),
+            .init(time: 10, text: "And I will tell you all about it"),
+            .init(time: 15, text: "when I see you again"),
+            .init(time: 20, text: "We have come a long way"),
         ]
         s.lyrics = .success(.timed(lines))
         s.displayLyricLines = lines.map(\.text)

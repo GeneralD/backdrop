@@ -29,14 +29,14 @@ public struct OverlayContentView: View {
 #Preview("Overlay") {
     OverlayContentView(state: {
         let s = OverlayState()
-        s.title = .success("Rusty Nail")
-        s.artist = .success("X JAPAN")
-        s.displayTitle = "Rusty Nail"
-        s.displayArtist = "X JAPAN"
+        s.title = .success("See You Again")
+        s.artist = .success("Wiz Khalifa")
+        s.displayTitle = "See You Again"
+        s.displayArtist = "Wiz Khalifa"
         let lines: [LyricLine] = [
-            .init(time: 0, text: "錆びついた釘を"),
-            .init(time: 5, text: "抜き取るように"),
-            .init(time: 10, text: "心の痛みを"),
+            .init(time: 0, text: "It been a long day"),
+            .init(time: 5, text: "without you my friend"),
+            .init(time: 10, text: "And I will tell you all about it"),
         ]
         s.lyrics = .success(.timed(lines))
         s.displayLyricLines = lines.map(\.text)

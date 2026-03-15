@@ -46,13 +46,13 @@ func makeFont(style: ResolvedTextStyle) -> Font {
 }
 
 #Preview("Normal") {
-    LyricLineView(text: "夜に駆ける", isActive: false)
+    LyricLineView(text: "It been a long day without you my friend", isActive: false)
         .padding()
         .background(.black)
 }
 
 #Preview("Active") {
-    LyricLineView(text: "夜に駆ける", isActive: true)
+    LyricLineView(text: "It been a long day without you my friend", isActive: true)
         .padding()
         .background(.black)
 }
