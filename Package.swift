@@ -58,6 +58,7 @@ let package = Package(
             dependencies: [
                 "BackdropDomain",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 

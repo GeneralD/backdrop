@@ -67,11 +67,13 @@ private extension LyricsSearchService {
         let parser = TitleParser()
         for recording in response.recordings {
             guard let artistName = recording.artistName else { continue }
-            // Try both raw and normalized MusicBrainz title
-            let titles = Set([recording.title, parser.normalize(recording.title), parser.stripBrackets(recording.title)])
+            // Try raw, normalized, and stripped titles in deterministic order
+            var seen = Set<String>()
+            let titles = [recording.title, parser.normalize(recording.title), parser.stripBrackets(recording.title)]
+                .filter { seen.insert($0).inserted }
             for title in titles {
                 let result = await lrclib(LyricsResult.self, from: .get(
-                    title: title, artist: artistName, duration: nil
+                    title: title, artist: artistName, duration: recording.duration
                 ))
                 guard let result, result.plainLyrics != nil || result.syncedLyrics != nil else { continue }
 

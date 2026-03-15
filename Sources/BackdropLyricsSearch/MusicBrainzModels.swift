@@ -13,7 +13,7 @@ struct MusicBrainzRecording {
     let artistCredit: [ArtistCredit]?
 
     var artistName: String? {
-        artistCredit?.map(\.name).joined(separator: ", ")
+        artistCredit?.first?.name
     }
 
     var duration: TimeInterval? {
