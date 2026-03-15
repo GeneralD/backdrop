@@ -10,7 +10,7 @@ struct TitleParserTests {
         #expect(parser.stripBrackets("Song (feat. Artist)") == "Song")
         #expect(parser.stripBrackets("Song【Official】") == "Song")
         #expect(parser.stripBrackets("Song [MV]") == "Song")
-        #expect(parser.stripBrackets("Song「Live」") == "Song")
+        #expect(parser.stripBrackets("Song「Live」") == "Song「Live」")
         #expect(parser.stripBrackets("Song（Full）") == "Song")
     }
 
@@ -44,6 +44,20 @@ struct TitleParserTests {
         let result = parser.parseArtistTitle("Linkin Park - Numb (Live in Texas) / YouTube Music")
         #expect(result.artist == "Linkin Park")
         #expect(result.title == "Numb")
+    }
+
+    @Test("parses Japanese bracket title format")
+    func parseJapaneseBracketTitle() {
+        let result = parser.parseArtistTitle("L'Arc～en～Ciel「Driver's High」-Music Clip-")
+        #expect(result.artist == "L'Arc～en～Ciel")
+        #expect(result.title == "Driver's High")
+    }
+
+    @Test("parses double bracket format")
+    func parseDoubleBracketTitle() {
+        let result = parser.parseArtistTitle("Artist『Song Title』")
+        #expect(result.artist == "Artist")
+        #expect(result.title == "Song Title")
     }
 
     @Test("parseArtistTitle without dash returns nil artist")
