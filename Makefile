@@ -10,9 +10,11 @@ build:
 install: build
 	install -d $(PREFIX)/bin
 	install $(BUILD_DIR)/$(BINARY) $(PREFIX)/bin/$(BINARY)
+	find $(BUILD_DIR) -name '*.bundle' -exec cp -R {} $(PREFIX)/bin/ \;
 
 uninstall:
 	rm -f $(PREFIX)/bin/$(BINARY)
+	rm -rf $(PREFIX)/bin/backdrop_*.bundle
 
 test:
 	swift test
