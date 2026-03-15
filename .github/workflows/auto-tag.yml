@@ -29,10 +29,12 @@ jobs:
 
       - name: Create tag if new
         id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          EXISTING=$(git rev-parse "refs/tags/${TAG}" 2>/dev/null || echo "")
-          if [ -n "$EXISTING" ]; then
-            echo "Tag ${TAG} already exists, skipping"
+          # Check remote via API (not local git) to avoid stale refs
+          if gh api "repos/${{ github.repository }}/git/refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists on remote, skipping"
             echo "created=false" >> "$GITHUB_OUTPUT"
           else
             git tag "$TAG"
