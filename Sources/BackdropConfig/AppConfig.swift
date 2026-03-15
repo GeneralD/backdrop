@@ -274,7 +274,7 @@ extension AppConfig {
 extension TextStyleConfig {
     @MainActor
     func resolve() -> ResolvedTextStyle {
-        let fontName = font ?? "Zen Maru Gothic"
+        let fontName = font ?? NSFont.systemFont(ofSize: 0).familyName ?? ".AppleSystemUIFont"
         let fontSize = size ?? 12
         let fontWeight = weight ?? "regular"
         let spacing = spacing ?? 6
