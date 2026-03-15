@@ -7,6 +7,10 @@ Displays synced lyrics from [LRCLIB](https://lrclib.net) over your desktop, with
 ## Install
 
 ```sh
+# via Homebrew
+brew tap generald/tap
+brew install backdrop
+
 # via Mint
 mint install GeneralD/backdrop
 
