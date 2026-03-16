@@ -24,7 +24,7 @@ make install
 lyra start       # start as background daemon
 lyra stop        # stop the daemon
 lyra restart     # restart
- daemon      # run in foreground (debug)
+lyra daemon      # run in foreground (debug)
 lyra version     # show version
 ```
 
