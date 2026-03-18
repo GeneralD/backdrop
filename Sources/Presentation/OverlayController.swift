@@ -97,12 +97,13 @@ private extension OverlayController {
 
             let result: LyricsResult? = await {
                 guard let title = info.title, let artist = info.artist else { return nil }
-                return await service.fetch(title: title, artist: artist, duration: info.duration)
+                return await service.fetch(title: title, artist: artist, duration: info.duration) { [weak self] candidate in
+                    guard let self, generation == self.fetchGeneration else { return }
+                    self.revealTitle(candidate.title)
+                    if !candidate.artist.isEmpty { self.revealArtist(candidate.artist) }
+                }
             }()
             guard generation == self.fetchGeneration else { return }
-
-            if let trackName = result?.trackName { self.revealTitle(trackName) }
-            if let artistName = result?.artistName { self.revealArtist(artistName) }
 
             if let content = LyricsContent(from: result) {
                 self.revealLyrics(content)

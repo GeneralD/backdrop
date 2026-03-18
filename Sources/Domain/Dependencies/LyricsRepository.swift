@@ -2,7 +2,10 @@ import Dependencies
 import Foundation
 
 public protocol LyricsRepository: Sendable {
-    func fetch(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult?
+    func fetch(
+        title: String, artist: String, duration: TimeInterval?,
+        onMetadataResolved: @MainActor @Sendable (SearchCandidate) -> Void
+    ) async -> LyricsResult?
 }
 
 public enum LyricsRepositoryKey: TestDependencyKey {
@@ -17,7 +20,7 @@ extension DependencyValues {
 }
 
 private struct UnimplementedLyricsRepository: LyricsRepository {
-    func fetch(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? {
+    func fetch(title: String, artist: String, duration: TimeInterval?, onMetadataResolved: @MainActor @Sendable (SearchCandidate) -> Void) async -> LyricsResult? {
         nil
     }
 }

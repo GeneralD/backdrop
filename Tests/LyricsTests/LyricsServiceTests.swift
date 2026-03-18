@@ -14,7 +14,7 @@ struct LyricsServiceTests {
             $0.lyricsRepository = MockLyricsRepository(result: expected)
         } operation: {
             let service = LyricsService()
-            let result = await service.fetch(title: "Test", artist: "Artist", duration: nil)
+            let result = await service.fetch(title: "Test", artist: "Artist", duration: nil) { _ in }
             #expect(result.id == 2)
         }
     }
@@ -25,7 +25,7 @@ struct LyricsServiceTests {
             $0.lyricsRepository = MockLyricsRepository(result: nil)
         } operation: {
             let service = LyricsService()
-            let result = await service.fetch(title: "Unknown", artist: "Nobody", duration: nil)
+            let result = await service.fetch(title: "Unknown", artist: "Nobody", duration: nil) { _ in }
             #expect(result == .empty)
         }
     }
@@ -36,5 +36,5 @@ struct LyricsServiceTests {
 private struct MockLyricsRepository: LyricsRepository {
     let result: LyricsResult?
 
-    func fetch(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? { result }
+    func fetch(title: String, artist: String, duration: TimeInterval?, onMetadataResolved: @MainActor @Sendable (SearchCandidate) -> Void) async -> LyricsResult? { result }
 }
