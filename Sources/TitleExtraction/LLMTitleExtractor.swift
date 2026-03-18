@@ -32,10 +32,19 @@ private extension LLMTitleExtractor {
         guard let request = try? api.chatCompletion(rawTitle: rawTitle, rawArtist: rawArtist) else { return nil }
 
         let data: Data
+        let urlResponse: URLResponse
         do {
-            (data, _) = try await URLSession.shared.data(for: request)
+            (data, urlResponse) = try await URLSession.shared.data(for: request)
         } catch {
             fputs("lyra: AI extraction failed: \(error)\n", stderr)
+            return nil
+        }
+
+        guard let httpResponse = urlResponse as? HTTPURLResponse,
+              (200 ..< 300).contains(httpResponse.statusCode)
+        else {
+            let code = (urlResponse as? HTTPURLResponse)?.statusCode ?? -1
+            fputs("lyra: AI extraction failed with HTTP \(code)\n", stderr)
             return nil
         }
 
