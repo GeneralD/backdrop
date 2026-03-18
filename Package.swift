@@ -48,7 +48,6 @@ let package = Package(
             dependencies: [
                 "Domain",
                 "TitleExtraction",
-                .product(name: "CollectionKit", package: "CollectionKit"),
                 .product(name: "Alamofire", package: "Alamofire"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]

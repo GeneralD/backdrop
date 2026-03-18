@@ -39,8 +39,8 @@ struct LyricsSearchServiceTests {
             }
         }
 
-        @Test("does not call titleExtractors — independent from fetchLyrics")
-        func independentFromLyrics() async {
+        @Test("calls titleExtractors exactly once per invocation")
+        func callsExtractorOnce() async {
             nonisolated(unsafe) var extractorCallCount = 0
 
             await withDependencies {

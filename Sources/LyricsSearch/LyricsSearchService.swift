@@ -1,5 +1,4 @@
 import Alamofire
-import CollectionKit
 import Domain
 import TitleExtraction
 import Dependencies
