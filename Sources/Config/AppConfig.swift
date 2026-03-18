@@ -158,15 +158,11 @@ extension RippleConfig: Codable {
 
 // MARK: - AI Config
 
-struct AIConfig {
+struct AIConfig: Codable, Sendable {
     let endpoint: String
     let model: String
     let apiKey: String
-}
 
-extension AIConfig: Sendable {}
-
-extension AIConfig: Codable {
     enum CodingKeys: String, CodingKey {
         case endpoint, model
         case apiKey = "api_key"
