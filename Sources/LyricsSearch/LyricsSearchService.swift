@@ -6,12 +6,20 @@ import Foundation
 
 public struct LyricsSearchService: LyricsRepository {
     @Dependency(\.metadataCache) private var metadataCache
+    @Dependency(\.aiTitleExtractor) private var aiExtractor
 
     public init() {}
 }
 
 extension LyricsSearchService {
     public func fetch(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? {
+        // Stage 0: AI-based title/artist extraction → LRCLIB get (cancellation-safe)
+        let extractor = aiExtractor
+        let aiResult = await Task.detached {
+            await fetchViaAI(title: title, artist: artist, duration: duration, extractor: extractor)
+        }.value
+        if let aiResult { return aiResult }
+
         // Stage 1: Try MusicBrainz (cached or remote) for accurate metadata → LRCLIB get
         if let result = await fetchViaMusicBrainz(title: title, artist: artist, duration: duration) {
             return result
@@ -29,6 +37,21 @@ extension LyricsSearchService {
         if let first = getResults.first { return first }
         return await searchFallback(candidates: candidates)
     }
+}
+
+// MARK: - AI → LRCLIB pipeline
+
+private func fetchViaAI(title: String, artist: String, duration: TimeInterval?, extractor: any AITitleExtractor) async -> LyricsResult? {
+    guard let candidate = await extractor.extract(rawTitle: title, rawArtist: artist),
+          !candidate.title.isEmpty
+    else { return nil }
+
+    let result = await AF.request(LRCLibAPI.get(title: candidate.title, artist: candidate.artist, duration: duration))
+        .validate(statusCode: 200 ..< 300)
+        .serializingDecodable(LyricsResult.self)
+        .response.value
+    guard let result, result.plainLyrics != nil || result.syncedLyrics != nil else { return nil }
+    return result
 }
 
 // MARK: - MusicBrainz → LRCLIB pipeline

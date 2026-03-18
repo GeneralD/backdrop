@@ -54,6 +54,13 @@ let package = Package(
             ]
         ),
         .target(
+            name: "AIMetadata",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
             name: "Persistence",
             dependencies: [
                 "Domain",
@@ -69,7 +76,7 @@ let package = Package(
         ),
         .target(
             name: "Lyrics",
-            dependencies: ["Domain", "LyricsSearch", "Persistence"]
+            dependencies: ["Domain", "LyricsSearch", "Persistence", "AIMetadata"]
         ),
 
         // Presentation logic
@@ -147,6 +154,21 @@ let package = Package(
             name: "PresentationTests",
             dependencies: [
                 "Presentation",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
+            name: "ConfigTests",
+            dependencies: [
+                "Config",
+                .product(name: "TOMLKit", package: "TOMLKit"),
+            ]
+        ),
+        .testTarget(
+            name: "AIMetadataTests",
+            dependencies: [
+                "AIMetadata",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]

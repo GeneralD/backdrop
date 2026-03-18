@@ -62,6 +62,27 @@ public final class DatabaseManager: Sendable {
             }
         }
 
+        migrator.registerMigration("v3_aiMetadataCache") { db in
+            try db.create(table: "ai_metadata_cache", ifNotExists: true) { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("raw_input", .text).notNull().unique()
+                t.column("resolved_title", .text).notNull()
+                t.column("resolved_artist", .text).notNull()
+            }
+        }
+
+        migrator.registerMigration("v4_aiMetadataCacheAddRawArtist") { db in
+            try db.drop(table: "ai_metadata_cache")
+            try db.create(table: "ai_metadata_cache") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("raw_title", .text).notNull()
+                t.column("raw_artist", .text).notNull()
+                t.column("resolved_title", .text).notNull()
+                t.column("resolved_artist", .text).notNull()
+                t.uniqueKey(["raw_title", "raw_artist"])
+            }
+        }
+
         migrator.registerMigration("v1_removeLegacyCache") { _ in
             let cacheDir = URL(fileURLWithPath:
                 ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]
