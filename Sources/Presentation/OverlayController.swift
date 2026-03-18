@@ -105,6 +105,10 @@ private extension OverlayController {
             }()
             guard generation == self.fetchGeneration else { return }
 
+            // Update title/artist from result (covers cache hit path)
+            if let trackName = result?.trackName { self.revealTitle(trackName) }
+            if let artistName = result?.artistName { self.revealArtist(artistName) }
+
             if let content = LyricsContent(from: result) {
                 self.revealLyrics(content)
             } else {

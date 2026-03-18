@@ -139,6 +139,8 @@ let package = Package(
             name: "LyricsTests",
             dependencies: [
                 "Lyrics",
+                "LyricsSearch",
+                "TitleExtraction",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
