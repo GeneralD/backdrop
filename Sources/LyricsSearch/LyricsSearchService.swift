@@ -14,12 +14,10 @@ public struct LyricsSearchService: LyricsRepository {
 
 extension LyricsSearchService {
     public func fetch(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? {
-        // Stage 0: Title extractors (AI → Regex) — run in detached task to survive cancellation
-        let extractors = titleExtractors
-        let extractorResult = await Task.detached {
-            await fetchViaTitleExtractors(title: title, artist: artist, duration: duration, extractors: extractors)
-        }.value
-        if let extractorResult { return extractorResult }
+        // Stage 0: Title extractors (AI cache → Regex candidates) → LRCLIB get
+        if let result = await fetchViaTitleExtractors(
+            title: title, artist: artist, duration: duration, extractors: titleExtractors
+        ) { return result }
 
         // Stage 1: Try MusicBrainz (cached or remote) for accurate metadata → LRCLIB get
         if let result = await fetchViaMusicBrainz(title: title, artist: artist, duration: duration) {

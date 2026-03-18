@@ -62,7 +62,7 @@ private extension OverlayController {
         guard lastTrackKey != (nil, nil) else { return }
         lastTrackKey = (nil, nil)
         latestNowPlaying = nil
-        fetchTask?.cancel()
+        fetchGeneration += 1
         titleEffect.stop()
         artistEffect.stop()
         lyricEffects.forEach { $0.stop() }
@@ -80,7 +80,6 @@ private extension OverlayController {
         guard trackKey != lastTrackKey else { return }
 
         lastTrackKey = trackKey
-        fetchTask?.cancel()
         state.activeLineIndex = nil
         state.lyrics = .loading
 
@@ -96,7 +95,7 @@ private extension OverlayController {
                 guard let title = info.title, let artist = info.artist else { return nil }
                 return await service.fetch(title: title, artist: artist, duration: info.duration)
             }()
-            guard !Task.isCancelled, let self, generation == fetchGeneration else { return }
+            guard let self, generation == fetchGeneration else { return }
 
             if let trackName = result?.trackName { revealTitle(trackName) }
             if let artistName = result?.artistName { revealArtist(artistName) }
