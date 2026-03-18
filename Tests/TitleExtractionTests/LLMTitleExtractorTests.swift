@@ -37,9 +37,78 @@ struct LLMTitleExtractorTests {
     }
 }
 
+@Suite("TitleExtractor pipeline")
+struct TitleExtractorPipelineTests {
+    @Test("Falls back to regex when AI returns empty")
+    func aiFallbackToRegex() async {
+        let aiExtractor = FailingTitleExtractor()
+        let regexExtractor = StubTitleExtractor(candidates: [
+            SearchCandidate(title: "Regex Title", artist: "Regex Artist"),
+        ])
+
+        let extractors: [any TitleExtractor] = [aiExtractor, regexExtractor]
+        var result: [SearchCandidate] = []
+        for extractor in extractors {
+            result = await extractor.extract(rawTitle: "raw", rawArtist: "raw")
+            guard result.isEmpty else { break }
+        }
+        #expect(result == [SearchCandidate(title: "Regex Title", artist: "Regex Artist")])
+    }
+
+    @Test("Uses AI result when available, skips regex")
+    func aiSuccessSkipsRegex() async {
+        let aiExtractor = StubTitleExtractor(candidates: [
+            SearchCandidate(title: "AI Title", artist: "AI Artist"),
+        ])
+        let regexExtractor = StubTitleExtractor(candidates: [
+            SearchCandidate(title: "Regex Title", artist: "Regex Artist"),
+        ])
+
+        let extractors: [any TitleExtractor] = [aiExtractor, regexExtractor]
+        var result: [SearchCandidate] = []
+        for extractor in extractors {
+            result = await extractor.extract(rawTitle: "raw", rawArtist: "raw")
+            guard result.isEmpty else { break }
+        }
+        #expect(result == [SearchCandidate(title: "AI Title", artist: "AI Artist")])
+    }
+
+    @Test("LLM unconfigured returns empty, enabling fallback")
+    func unconfiguredLLMFallsThrough() async {
+        let result = await withDependencies {
+            $0.config = ResolvedConfig(ai: nil)
+            $0.titleExtractors = [LLMTitleExtractor(), RegexTitleExtractor()]
+        } operation: { () -> [SearchCandidate] in
+            @Dependency(\.titleExtractors) var extractors
+            for extractor in extractors {
+                let candidates = await extractor.extract(
+                    rawTitle: "Artist - Song Title",
+                    rawArtist: "SomeChannel"
+                )
+                guard candidates.isEmpty else { return candidates }
+            }
+            return []
+        }
+        #expect(!result.isEmpty)
+        #expect(result.first?.title == "Song Title")
+        #expect(result.first?.artist == "Artist")
+    }
+}
+
+// MARK: - Test helpers
+
 private struct StubAIMetadataCache: AIMetadataCacheRepository {
     let stubbedResult: SearchCandidate?
 
     func read(rawTitle: String, rawArtist: String) async -> SearchCandidate? { stubbedResult }
     func write(rawTitle: String, rawArtist: String, candidate: SearchCandidate) async throws {}
+}
+
+private struct FailingTitleExtractor: TitleExtractor {
+    func extract(rawTitle: String, rawArtist: String) async -> [SearchCandidate] { [] }
+}
+
+private struct StubTitleExtractor: TitleExtractor {
+    let candidates: [SearchCandidate]
+    func extract(rawTitle: String, rawArtist: String) async -> [SearchCandidate] { candidates }
 }
