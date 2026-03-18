@@ -135,7 +135,7 @@ let package = Package(
         ),
 
         // Tests
-.testTarget(
+        .testTarget(
             name: "LyricsTests",
             dependencies: [
                 "Lyrics",

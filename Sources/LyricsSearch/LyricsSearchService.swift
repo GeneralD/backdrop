@@ -32,26 +32,23 @@ extension LyricsSearchService {
 
 // MARK: - Title extractors → LRCLIB pipeline
 
-private func fetchViaTitleExtractors(
-    title: String, artist: String, duration: TimeInterval?,
-    extractors: [any TitleExtractor]
-) async -> LyricsResult? {
-    for extractor in extractors {
-        let candidates = await extractor.extract(rawTitle: title, rawArtist: artist)
-        let results = await candidates
-            .unless(\.artist.isEmpty)
-            .asyncCompactMap { c in
-                await AF.request(LRCLibAPI.get(title: c.title, artist: c.artist, duration: duration))
-                    .validate(statusCode: 200 ..< 300)
-                    .serializingDecodable(LyricsResult.self)
-                    .response.value
-            }
-            .filter { $0.plainLyrics != nil || $0.syncedLyrics != nil }
+private extension LyricsSearchService {
+    func fetchViaTitleExtractors(
+        title: String, artist: String, duration: TimeInterval?,
+        extractors: [any TitleExtractor]
+    ) async -> LyricsResult? {
+        for extractor in extractors {
+            let candidates = await extractor.extract(rawTitle: title, rawArtist: artist)
+            let results = await candidates
+                .unless(\.artist.isEmpty)
+                .asyncCompactMap { c in await lrclib(LyricsResult.self, from: .get(title: c.title, artist: c.artist, duration: duration)) }
+                .filter { $0.plainLyrics != nil || $0.syncedLyrics != nil }
 
-        if let synced = results.first(where: { $0.syncedLyrics != nil }) { return synced }
-        if let first = results.first { return first }
+            if let synced = results.first(where: { $0.syncedLyrics != nil }) { return synced }
+            if let first = results.first { return first }
+        }
+        return nil
     }
-    return nil
 }
 
 // MARK: - MusicBrainz → LRCLIB pipeline

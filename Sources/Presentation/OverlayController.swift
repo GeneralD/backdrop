@@ -44,7 +44,7 @@ public extension OverlayController {
 
     func stop() {
         nowPlayingTask?.cancel()
-        fetchTask?.cancel()
+        fetchGeneration += 1
         titleEffect.stop()
         artistEffect.stop()
         lyricEffects.forEach { $0.stop() }
