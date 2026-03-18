@@ -91,24 +91,28 @@ private extension OverlayController {
         let service = lyricsService
 
         fetchTask = Task { [weak self] in
+            // Debounce: wait for title/artist to stabilize
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, generation == self.fetchGeneration else { return }
+
             let result: LyricsResult? = await {
                 guard let title = info.title, let artist = info.artist else { return nil }
                 return await service.fetch(title: title, artist: artist, duration: info.duration)
             }()
-            guard let self, generation == fetchGeneration else { return }
+            guard generation == self.fetchGeneration else { return }
 
-            if let trackName = result?.trackName { revealTitle(trackName) }
-            if let artistName = result?.artistName { revealArtist(artistName) }
+            if let trackName = result?.trackName { self.revealTitle(trackName) }
+            if let artistName = result?.artistName { self.revealArtist(artistName) }
 
             if let content = LyricsContent(from: result) {
-                revealLyrics(content)
+                self.revealLyrics(content)
             } else {
-                state.lyrics = .failure
-                lyricEffects.forEach { $0.stop() }
-                lyricEffects = []
-                state.displayLyricLines = []
+                self.state.lyrics = .failure
+                self.lyricEffects.forEach { $0.stop() }
+                self.lyricEffects = []
+                self.state.displayLyricLines = []
             }
-            state.activeLineIndex = nil
+            self.state.activeLineIndex = nil
         }
     }
 
