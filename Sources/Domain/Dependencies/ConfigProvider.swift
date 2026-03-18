@@ -40,19 +40,22 @@ public struct ResolvedConfig: Sendable {
     public let ripple: ResolvedRippleConfig
     public let screen: ScreenSelector
     public let wallpaperURL: URL?
+    public let ai: ResolvedAIConfig?
 
     public init(
         text: ResolvedTextConfig = .init(),
         artwork: ResolvedArtworkConfig = .init(),
         ripple: ResolvedRippleConfig = .init(),
         screen: ScreenSelector = .main,
-        wallpaperURL: URL? = nil
+        wallpaperURL: URL? = nil,
+        ai: ResolvedAIConfig? = nil
     ) {
         self.text = text
         self.artwork = artwork
         self.ripple = ripple
         self.screen = screen
         self.wallpaperURL = wallpaperURL
+        self.ai = ai
     }
 }
 
@@ -154,6 +157,18 @@ public struct ResolvedDecodeEffectConfig: Sendable {
     ) {
         self.duration = duration
         self.charsets = charsets
+    }
+}
+
+public struct ResolvedAIConfig: Sendable {
+    public let endpoint: String
+    public let model: String
+    public let apiKey: String
+
+    public init(endpoint: String, model: String, apiKey: String) {
+        self.endpoint = endpoint
+        self.model = model
+        self.apiKey = apiKey
     }
 }
 

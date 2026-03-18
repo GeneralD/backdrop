@@ -6,13 +6,13 @@ public struct LaunchAgentManager {
     public init() {}
 }
 
-private extension LaunchAgentManager {
-    var plistPath: URL {
+extension LaunchAgentManager {
+    private var plistPath: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/LaunchAgents/\(label).plist")
     }
 
-    public func install() throws {
+    func install() throws {
         let plistDict: [String: Any] = [
             "Label": label,
             "ProgramArguments": programArguments,
@@ -38,7 +38,7 @@ private extension LaunchAgentManager {
         print("Installed and started: \(plistPath.path)")
     }
 
-    public func uninstall() throws {
+    func uninstall() throws {
         guard FileManager.default.fileExists(atPath: plistPath.path) else {
             print("Not installed")
             return

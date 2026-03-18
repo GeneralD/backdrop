@@ -44,7 +44,7 @@ public extension OverlayController {
 
     func stop() {
         nowPlayingTask?.cancel()
-        fetchTask?.cancel()
+        fetchGeneration += 1
         titleEffect.stop()
         artistEffect.stop()
         lyricEffects.forEach { $0.stop() }
@@ -62,7 +62,7 @@ private extension OverlayController {
         guard lastTrackKey != (nil, nil) else { return }
         lastTrackKey = (nil, nil)
         latestNowPlaying = nil
-        fetchTask?.cancel()
+        fetchGeneration += 1
         titleEffect.stop()
         artistEffect.stop()
         lyricEffects.forEach { $0.stop() }
@@ -80,7 +80,6 @@ private extension OverlayController {
         guard trackKey != lastTrackKey else { return }
 
         lastTrackKey = trackKey
-        fetchTask?.cancel()
         state.activeLineIndex = nil
         state.lyrics = .loading
 
@@ -92,24 +91,35 @@ private extension OverlayController {
         let service = lyricsService
 
         fetchTask = Task { [weak self] in
-            let result: LyricsResult? = await {
-                guard let title = info.title, let artist = info.artist else { return nil }
-                return await service.fetch(title: title, artist: artist, duration: info.duration)
-            }()
-            guard !Task.isCancelled, let self, generation == fetchGeneration else { return }
+            // Debounce: wait for title/artist to stabilize
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, generation == self.fetchGeneration else { return }
+            guard let title = info.title, let artist = info.artist else { return }
 
-            if let trackName = result?.trackName { revealTitle(trackName) }
-            if let artistName = result?.artistName { revealArtist(artistName) }
+            // Step 1: Resolve metadata (fast)
+            if let resolved = await service.resolveMetadata(title: title, artist: artist) {
+                guard generation == self.fetchGeneration else { return }
+                self.revealTitle(resolved.title)
+                if !resolved.artist.isEmpty { self.revealArtist(resolved.artist) }
+            }
+            guard generation == self.fetchGeneration else { return }
+
+            // Step 2: Fetch lyrics (slow)
+            let result = await service.fetchLyrics(title: title, artist: artist, duration: info.duration)
+            guard generation == self.fetchGeneration else { return }
+
+            if let trackName = result.trackName { self.revealTitle(trackName) }
+            if let artistName = result.artistName { self.revealArtist(artistName) }
 
             if let content = LyricsContent(from: result) {
-                revealLyrics(content)
+                self.revealLyrics(content)
             } else {
-                state.lyrics = .failure
-                lyricEffects.forEach { $0.stop() }
-                lyricEffects = []
-                state.displayLyricLines = []
+                self.state.lyrics = .failure
+                self.lyricEffects.forEach { $0.stop() }
+                self.lyricEffects = []
+                self.state.displayLyricLines = []
             }
-            state.activeLineIndex = nil
+            self.state.activeLineIndex = nil
         }
     }
 

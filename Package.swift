@@ -24,7 +24,6 @@ let package = Package(
             dependencies: [
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
-                .product(name: "CollectionKit", package: "CollectionKit"),
             ]
         ),
 
@@ -48,8 +47,16 @@ let package = Package(
             name: "LyricsSearch",
             dependencies: [
                 "Domain",
-                .product(name: "CollectionKit", package: "CollectionKit"),
+                "TitleExtraction",
                 .product(name: "Alamofire", package: "Alamofire"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "TitleExtraction",
+            dependencies: [
+                "Domain",
+                .product(name: "CollectionKit", package: "CollectionKit"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -69,7 +76,7 @@ let package = Package(
         ),
         .target(
             name: "Lyrics",
-            dependencies: ["Domain", "LyricsSearch", "Persistence"]
+            dependencies: ["Domain", "LyricsSearch", "Persistence", "TitleExtraction"]
         ),
 
         // Presentation logic
@@ -128,13 +135,11 @@ let package = Package(
 
         // Tests
         .testTarget(
-            name: "DomainTests",
-            dependencies: ["Domain"]
-        ),
-        .testTarget(
             name: "LyricsTests",
             dependencies: [
                 "Lyrics",
+                "LyricsSearch",
+                "TitleExtraction",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
@@ -147,6 +152,21 @@ let package = Package(
             name: "PresentationTests",
             dependencies: [
                 "Presentation",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
+            name: "ConfigTests",
+            dependencies: [
+                "Config",
+                .product(name: "TOMLKit", package: "TOMLKit"),
+            ]
+        ),
+        .testTarget(
+            name: "TitleExtractionTests",
+            dependencies: [
+                "TitleExtraction",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]

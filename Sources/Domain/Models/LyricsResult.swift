@@ -29,6 +29,14 @@ public struct LyricsResult {
     }
 
     public static let empty = LyricsResult()
+
+    public func withDisplay(title: String, artist: String) -> LyricsResult {
+        LyricsResult(
+            id: id, trackName: title, artistName: artist, albumName: albumName,
+            duration: duration, instrumental: instrumental,
+            plainLyrics: plainLyrics, syncedLyrics: syncedLyrics
+        )
+    }
 }
 
 extension LyricsResult: Codable, Sendable, Equatable {}

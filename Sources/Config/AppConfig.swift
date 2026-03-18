@@ -156,15 +156,29 @@ extension RippleConfig: Codable {
     }
 }
 
+// MARK: - AI Config
+
+struct AIConfig: Codable, Sendable {
+    let endpoint: String
+    let model: String
+    let apiKey: String
+
+    enum CodingKeys: String, CodingKey {
+        case endpoint, model
+        case apiKey = "api_key"
+    }
+}
+
 // MARK: - AppConfig
 
-public struct AppConfig: Codable {
+public struct AppConfig: Decodable {
     public let text: TextConfig
     public let artwork: ArtworkConfig
     public let ripple: RippleConfig
     public let screen: ScreenSelector
     public let wallpaper: String?
     public let configDir: String?
+    let ai: AIConfig?
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -173,16 +187,18 @@ public struct AppConfig: Codable {
         ripple = try c.decodeIfPresent(RippleConfig.self, forKey: .ripple) ?? .init()
         screen = try c.decodeIfPresent(ScreenSelector.self, forKey: .screen) ?? .main
         wallpaper = try c.decodeIfPresent(String.self, forKey: .wallpaper)
+        ai = try? c.decodeIfPresent(AIConfig.self, forKey: .ai)
         configDir = nil
     }
 
-    public init(
+    init(
         text: TextConfig = .init(),
         artwork: ArtworkConfig = .init(),
         ripple: RippleConfig = .init(),
         screen: ScreenSelector = .main,
         wallpaper: String? = nil,
-        configDir: String? = nil
+        configDir: String? = nil,
+        ai: AIConfig? = nil
     ) {
         self.text = text
         self.artwork = artwork
@@ -190,10 +206,11 @@ public struct AppConfig: Codable {
         self.screen = screen
         self.wallpaper = wallpaper
         self.configDir = configDir
+        self.ai = ai
     }
 
     enum CodingKeys: String, CodingKey {
-        case text, artwork, ripple, screen, wallpaper
+        case text, artwork, ripple, screen, wallpaper, ai
     }
 }
 
@@ -217,10 +234,14 @@ extension AppConfig {
               let content = try? String(contentsOfFile: path, encoding: .utf8)
         else { return .init() }
 
+        let configDir = (path as NSString).deletingLastPathComponent
         let decoded: AppConfig?
         if path.hasSuffix(".toml") {
             do {
-                decoded = try TOMLDecoder().decode(AppConfig.self, from: content)
+                let table = try TOMLTable(string: content)
+                resolveIncludes(into: table, configDir: configDir)
+                table.remove(at: "includes")
+                decoded = try TOMLDecoder().decode(AppConfig.self, from: table)
             } catch {
                 notifyConfigError(path: path, error: error)
                 decoded = nil
@@ -237,7 +258,8 @@ extension AppConfig {
         return AppConfig(
             text: decoded.text, artwork: decoded.artwork, ripple: decoded.ripple,
             screen: decoded.screen, wallpaper: decoded.wallpaper,
-            configDir: (path as NSString).deletingLastPathComponent
+            configDir: configDir,
+            ai: decoded.ai
         )
     }
 }
@@ -247,7 +269,11 @@ extension AppConfig {
 extension AppConfig {
     @MainActor
     public func toResolvedConfig() -> ResolvedConfig {
-        ResolvedConfig(
+        let resolvedAI = ai.map {
+            ResolvedAIConfig(endpoint: $0.endpoint, model: $0.model, apiKey: $0.apiKey)
+        }
+
+        return ResolvedConfig(
             text: ResolvedTextConfig(
                 title: text.resolvedTitle,
                 artist: text.resolvedArtist,
@@ -266,7 +292,8 @@ extension AppConfig {
                 idle: ripple.idle
             ),
             screen: screen,
-            wallpaperURL: wallpaperURL
+            wallpaperURL: wallpaperURL,
+            ai: resolvedAI
         )
     }
 }
@@ -297,6 +324,35 @@ extension TextStyleConfig {
             shadow: .solid(shadow ?? "#000000E6"),
             lineHeight: lineHeight
         )
+    }
+}
+
+// MARK: - Include resolution
+
+func resolveIncludes(into table: TOMLTable, configDir: String) {
+    guard let paths = table["includes"]?.array else { return }
+
+    for element in paths {
+        guard let relativePath = element.string else { continue }
+        let absolutePath = relativePath.hasPrefix("/")
+            ? relativePath
+            : (configDir as NSString).appendingPathComponent(relativePath)
+        guard let content = try? String(contentsOfFile: absolutePath, encoding: .utf8),
+              let included = try? TOMLTable(string: content)
+        else { continue }
+        deepMerge(from: included, into: table)
+    }
+}
+
+private func deepMerge(from source: TOMLTable, into target: TOMLTable) {
+    for (key, value) in source {
+        guard let sourceTable = value.table,
+              let targetTable = target[key]?.table
+        else {
+            if target[key] == nil { target[key] = value }
+            continue
+        }
+        deepMerge(from: sourceTable, into: targetTable)
     }
 }
 

@@ -23,13 +23,13 @@ public final class OverlayWindow {
 
     @Dependency(\.config) private var resolvedConfig
 
-    public init() {
+    public init() async {
         @Dependency(\.config) var cfg
 
         controller = OverlayController()
         hasWallpaper = cfg.wallpaperURL != nil
 
-        let frames = Self.resolveFrames(
+        let frames = await Self.resolveFrames(
             selector: cfg.screen,
             wallpaperURL: cfg.wallpaperURL,
             hasWallpaper: hasWallpaper
@@ -102,7 +102,7 @@ public final class OverlayWindow {
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.recalculateLayout() }
+            Task { @MainActor in await self?.recalculateLayout() }
         }
 
         let ws = NSWorkspace.shared.notificationCenter
@@ -138,9 +138,9 @@ public final class OverlayWindow {
         window.close()
     }
 
-    private func recalculateLayout() {
+    private func recalculateLayout() async {
         let cfg = resolvedConfig
-        let frames = Self.resolveFrames(
+        let frames = await Self.resolveFrames(
             selector: cfg.screen,
             wallpaperURL: cfg.wallpaperURL,
             hasWallpaper: hasWallpaper
@@ -159,8 +159,8 @@ public final class OverlayWindow {
         selector: ScreenSelector,
         wallpaperURL: URL?,
         hasWallpaper: Bool
-    ) -> (window: NSRect, hosting: NSRect, origin: CGPoint) {
-        let screen = resolveScreen(selector: selector, wallpaperURL: wallpaperURL)
+    ) async -> (window: NSRect, hosting: NSRect, origin: CGPoint) {
+        let screen = await resolveScreen(selector: selector, wallpaperURL: wallpaperURL)
         let visibleFrame = screen.visibleFrame
         let fullFrame = screen.frame
         let windowRect = hasWallpaper ? fullFrame : visibleFrame
@@ -173,7 +173,7 @@ public final class OverlayWindow {
         return (windowRect, hostingFrame, CGPoint(x: visibleFrame.minX, y: visibleFrame.minY))
     }
 
-    private static func resolveScreen(selector: ScreenSelector, wallpaperURL: URL?) -> NSScreen {
+    private static func resolveScreen(selector: ScreenSelector, wallpaperURL: URL?) async -> NSScreen {
         let screens = NSScreen.screens
         guard !screens.isEmpty else { return NSScreen.main ?? NSScreen() }
         switch selector {
@@ -190,8 +190,11 @@ public final class OverlayWindow {
         case .match:
             guard let url = wallpaperURL else { return .main ?? screens[0] }
             let asset = AVURLAsset(url: url)
-            guard let track = asset.tracks(withMediaType: .video).first else { return .main ?? screens[0] }
-            let size = track.naturalSize.applying(track.preferredTransform)
+            guard let track = try? await asset.loadTracks(withMediaType: .video).first else { return .main ?? screens[0] }
+            let naturalSize = try? await track.load(.naturalSize)
+            let transform = try? await track.load(.preferredTransform)
+            guard let naturalSize, let transform else { return .main ?? screens[0] }
+            let size = naturalSize.applying(transform)
             let videoAspect = abs(size.width) / abs(size.height)
             return screens.min { a, b in
                 let aa = a.frame.width / a.frame.height

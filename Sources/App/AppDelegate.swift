@@ -9,10 +9,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
-        let overlayWindow = OverlayWindow()
-        overlayWindow.start()
-        overlay = overlayWindow
-
+        Task { @MainActor in
+            let overlayWindow = await OverlayWindow()
+            overlayWindow.start()
+            overlay = overlayWindow
+        }
         setupSignalHandlers()
     }
 

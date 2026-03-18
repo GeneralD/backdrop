@@ -1,9 +1,10 @@
+import Domain
 import Testing
-@testable import Domain
+@testable import TitleExtraction
 
-@Suite("TitleParser")
-struct TitleParserTests {
-    let parser = TitleParser()
+@Suite("RegexTitleExtractor")
+struct RegexTitleExtractorTests {
+    let parser = RegexTitleExtractor()
 
     @Test("strips brackets of all types")
     func stripBrackets() {
@@ -89,7 +90,7 @@ struct TitleParserTests {
     func candidatesWithArtist() {
         let candidates = parser.generateCandidates(title: "Song Title", artist: "Artist")
         #expect(!candidates.isEmpty)
-        #expect(candidates.contains(SearchCandidate(title: "Song Title", artist: "Artist")))
+        #expect(candidates.contains(ResolvedTrack(title: "Song Title", artist: "Artist")))
     }
 
     @Test("generates candidates from YouTube-style title")
@@ -98,14 +99,14 @@ struct TitleParserTests {
             title: "Linkin Park - Numb (Official Video)",
             artist: "Linkin Park - Topic"
         )
-        #expect(candidates.contains(SearchCandidate(title: "Numb", artist: "Linkin Park")))
+        #expect(candidates.contains(ResolvedTrack(title: "Numb", artist: "Linkin Park")))
     }
 
     @Test("generates candidates without usable artist")
     func candidatesWithoutArtist() {
         let candidates = parser.generateCandidates(title: "Just a Song", artist: "")
         #expect(!candidates.isEmpty)
-        #expect(candidates[0] == SearchCandidate(title: "Just a Song", artist: ""))
+        #expect(candidates[0] == ResolvedTrack(title: "Just a Song", artist: ""))
     }
 
     @Test("deduplicates candidates")
