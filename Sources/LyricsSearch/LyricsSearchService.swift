@@ -14,46 +14,56 @@ public struct LyricsSearchService: LyricsRepository {
 
 extension LyricsSearchService {
     public func fetch(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? {
-        // Stage 0: Title extractors (AI cache → Regex candidates) → LRCLIB get
-        if let result = await fetchViaTitleExtractors(
-            title: title, artist: artist, duration: duration, extractors: titleExtractors
-        ) { return result }
+        // Step 1: Resolve display title/artist via extractors (AI → Regex)
+        let resolved = await resolveMetadata(title: title, artist: artist)
 
-        // Stage 1: Try MusicBrainz (cached or remote) for accurate metadata → LRCLIB get
-        if let result = await fetchViaMusicBrainz(title: title, artist: artist, duration: duration) {
-            return result
-        }
+        // Step 2: Search lyrics using resolved metadata, then fallback stages
+        let lyrics = await fetchLyrics(resolved: resolved, rawTitle: title, rawArtist: artist, duration: duration)
 
-        // Stage 2: Fallback to free-text search using regex candidates
-        let candidates = RegexTitleExtractor().generateCandidates(title: title, artist: artist)
-        return await searchFallback(candidates: candidates)
+        // Always return resolved metadata, even without lyrics
+        guard let first = resolved.first else { return lyrics }
+        return (lyrics ?? .empty).withDisplay(title: first.title, artist: first.artist)
     }
 }
 
-// MARK: - Title extractors → LRCLIB pipeline
+// MARK: - Metadata resolution
 
 private extension LyricsSearchService {
-    func fetchViaTitleExtractors(
-        title: String, artist: String, duration: TimeInterval?,
-        extractors: [any TitleExtractor]
-    ) async -> LyricsResult? {
-        for extractor in extractors {
+    func resolveMetadata(title: String, artist: String) async -> [SearchCandidate] {
+        for extractor in titleExtractors {
             let candidates = await extractor.extract(rawTitle: title, rawArtist: artist)
             guard !candidates.isEmpty else { continue }
-
-            // Try precise .get first
-            let getResults = await candidates
-                .unless(\.artist.isEmpty)
-                .asyncCompactMap { c in await lrclib(LyricsResult.self, from: .get(title: c.title, artist: c.artist, duration: duration)) }
-                .filter { $0.plainLyrics != nil || $0.syncedLyrics != nil }
-
-            if let synced = getResults.first(where: { $0.syncedLyrics != nil }) { return synced }
-            if let first = getResults.first { return first }
-
-            // Fallback to free-text .search
-            if let result = await searchFallback(candidates: candidates) { return result }
+            return candidates
         }
-        return nil
+        return []
+    }
+}
+
+// MARK: - Lyrics search
+
+private extension LyricsSearchService {
+    func fetchLyrics(resolved: [SearchCandidate], rawTitle: String, rawArtist: String, duration: TimeInterval?) async -> LyricsResult? {
+        // Try resolved candidates via .get
+        for c in resolved where !c.artist.isEmpty {
+            guard let result = await lrclib(LyricsResult.self, from: .get(title: c.title, artist: c.artist, duration: duration)),
+                  result.plainLyrics != nil || result.syncedLyrics != nil
+            else { continue }
+            return result
+        }
+
+        // Try resolved candidates via .search
+        if !resolved.isEmpty, let result = await searchFallback(candidates: resolved) {
+            return result
+        }
+
+        // MusicBrainz fallback
+        if let result = await fetchViaMusicBrainz(title: rawTitle, artist: rawArtist, duration: duration) {
+            return result
+        }
+
+        // Regex free-text search fallback
+        let regexCandidates = RegexTitleExtractor().generateCandidates(title: rawTitle, artist: rawArtist)
+        return await searchFallback(candidates: regexCandidates)
     }
 }
 
