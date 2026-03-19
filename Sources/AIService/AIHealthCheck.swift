@@ -5,12 +5,21 @@ extension OpenAICompatibleAPI: HealthCheckable {
     public var serviceName: String { "AI endpoint" }
 
     public func healthCheck() async -> HealthCheckResult {
-        guard let url = URL(string: normalizedEndpoint + "/models") else {
+        guard let url = URL(string: normalizedEndpoint + "/chat/completions") else {
             return HealthCheckResult(status: .fail, detail: "invalid URL")
         }
         var request = URLRequest(url: url)
+        request.httpMethod = "POST"
         request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 10
+
+        let body: [String: Any] = [
+            "model": config.model,
+            "messages": [["role": "user", "content": "ping"]],
+            "max_tokens": 1,
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         let start = ContinuousClock.now
         do {

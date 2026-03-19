@@ -5,6 +5,7 @@ import Domain
 import LRCLibService
 import MusicBrainzService
 import Foundation
+import TOMLKit
 import os
 
 struct HealthcheckCommand: ParsableCommand {
@@ -34,15 +35,14 @@ struct HealthcheckCommand: ParsableCommand {
 
 private extension HealthcheckCommand {
     func runChecks() async -> Int32 {
-        let config = AppConfig.load()
-        printConfigStatus(config)
+        let (config, configFailed) = validateConfig()
 
         let services: [any HealthCheckable] = [
             LRCLibAPI.search(query: "test"),
             MusicBrainzAPI.searchRecording(title: "test", artist: nil, duration: nil),
         ]
 
-        var failed = 0
+        var failed = configFailed ? 1 : 0
 
         for service in services {
             let result = await service.healthCheck()
@@ -72,7 +72,7 @@ private extension HealthcheckCommand {
         }
     }
 
-    func printConfigStatus(_ config: AppConfig) {
+    func validateConfig() -> (config: AppConfig, failed: Bool) {
         let home = NSHomeDirectory()
         let xdgConfig = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] ?? "\(home)/.config"
         let candidates = [
@@ -81,9 +81,27 @@ private extension HealthcheckCommand {
             "\(xdgConfig)/lyra/config.json",
             "\(home)/.lyra/config.json",
         ]
-        let found = candidates.first { FileManager.default.fileExists(atPath: $0) }
-        let detail = found.map { "loaded (\($0))" } ?? "using defaults (no config file found)"
-        printResult(name: "Config", result: HealthCheckResult(status: .pass, detail: detail))
+        guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }) else {
+            printResult(name: "Config", result: HealthCheckResult(status: .pass, detail: "using defaults (no config file found)"))
+            return (AppConfig.load(), false)
+        }
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else {
+            printResult(name: "Config", result: HealthCheckResult(status: .fail, detail: "cannot read \(path)"))
+            return (AppConfig.load(), true)
+        }
+        do {
+            if path.hasSuffix(".toml") {
+                let table = try TOMLTable(string: content)
+                _ = try TOMLDecoder().decode(AppConfig.self, from: table)
+            } else {
+                _ = try JSONDecoder().decode(AppConfig.self, from: content.data(using: .utf8) ?? Data())
+            }
+            printResult(name: "Config", result: HealthCheckResult(status: .pass, detail: "loaded (\(path))"))
+            return (AppConfig.load(), false)
+        } catch {
+            printResult(name: "Config", result: HealthCheckResult(status: .fail, detail: "decode error in \(path): \(error.localizedDescription)"))
+            return (AppConfig.load(), true)
+        }
     }
 
     func printResult(name: String, result: HealthCheckResult) {
