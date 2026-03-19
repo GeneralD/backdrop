@@ -44,9 +44,29 @@ let package = Package(
             ]
         ),
         .target(
+            name: "LRCLibService",
+            dependencies: [
+                "Domain",
+                .product(name: "Alamofire", package: "Alamofire"),
+            ]
+        ),
+        .target(
+            name: "MusicBrainzService",
+            dependencies: [
+                "Domain",
+                .product(name: "Alamofire", package: "Alamofire"),
+            ]
+        ),
+        .target(
+            name: "AIService",
+            dependencies: ["Domain"]
+        ),
+        .target(
             name: "LyricsSearch",
             dependencies: [
                 "Domain",
+                "LRCLibService",
+                "MusicBrainzService",
                 "TitleExtraction",
                 .product(name: "Alamofire", package: "Alamofire"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
@@ -56,6 +76,7 @@ let package = Package(
             name: "TitleExtraction",
             dependencies: [
                 "Domain",
+                "AIService",
                 .product(name: "CollectionKit", package: "CollectionKit"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
@@ -119,7 +140,11 @@ let package = Package(
             dependencies: [
                 "App",
                 "Config",
+                "LRCLibService",
+                "MusicBrainzService",
+                "AIService",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "TOMLKit", package: "TOMLKit"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ],
             resources: [

@@ -1,21 +1,21 @@
 import Alamofire
 import Foundation
 
-enum LRCLibAPI {
+public enum LRCLibAPI {
     case get(title: String, artist: String, duration: TimeInterval?)
     case search(query: String)
 }
 
 extension LRCLibAPI: URLRequestConvertible {
-    func asURLRequest() throws -> URLRequest {
-        var request = try URLRequest(url: baseURL + path, method: .get)
+    public func asURLRequest() throws -> URLRequest {
+        var request = try URLRequest(url: Self.baseURL + path, method: .get)
         request.setValue("now-playing/1.0", forHTTPHeaderField: "User-Agent")
         return try URLEncoding.default.encode(request, with: parameters)
     }
 }
 
-private extension LRCLibAPI {
-    var baseURL: String { "https://lrclib.net/api" }
+extension LRCLibAPI {
+    static let baseURL = "https://lrclib.net/api"
 
     var path: String {
         switch self {

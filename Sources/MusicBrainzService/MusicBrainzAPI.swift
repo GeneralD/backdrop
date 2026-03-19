@@ -1,20 +1,20 @@
 import Alamofire
 import Foundation
 
-enum MusicBrainzAPI {
+public enum MusicBrainzAPI {
     case searchRecording(title: String, artist: String?, duration: TimeInterval?)
 }
 
 extension MusicBrainzAPI: URLRequestConvertible {
-    func asURLRequest() throws -> URLRequest {
-        var request = try URLRequest(url: baseURL + path, method: .get)
+    public func asURLRequest() throws -> URLRequest {
+        var request = try URLRequest(url: Self.baseURL + path, method: .get)
         request.setValue("lyra/1.0 (https://github.com/GeneralD/lyra)", forHTTPHeaderField: "User-Agent")
         return try URLEncoding.default.encode(request, with: parameters)
     }
 }
 
-private extension MusicBrainzAPI {
-    var baseURL: String { "https://musicbrainz.org/ws/2" }
+extension MusicBrainzAPI {
+    static let baseURL = "https://musicbrainz.org/ws/2"
 
     var path: String {
         switch self {

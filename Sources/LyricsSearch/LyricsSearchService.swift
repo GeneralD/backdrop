@@ -1,5 +1,7 @@
 import Alamofire
 import Domain
+import LRCLibService
+import MusicBrainzService
 import TitleExtraction
 import Dependencies
 import Foundation
