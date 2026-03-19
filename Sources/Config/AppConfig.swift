@@ -158,10 +158,10 @@ extension RippleConfig: Codable {
 
 // MARK: - AI Config
 
-struct AIConfig: Codable, Sendable {
-    let endpoint: String
-    let model: String
-    let apiKey: String
+public struct AIConfig: Codable, Sendable {
+    public let endpoint: String
+    public let model: String
+    public let apiKey: String
 
     enum CodingKeys: String, CodingKey {
         case endpoint, model
@@ -178,7 +178,7 @@ public struct AppConfig: Decodable {
     public let screen: ScreenSelector
     public let wallpaper: String?
     public let configDir: String?
-    let ai: AIConfig?
+    public let ai: AIConfig?
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)

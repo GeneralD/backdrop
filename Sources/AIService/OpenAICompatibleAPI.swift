@@ -1,19 +1,17 @@
 import Domain
 import Foundation
 
-struct OpenAICompatibleAPI {
-    private let config: ResolvedAIConfig
+public struct OpenAICompatibleAPI: Sendable {
+    let config: ResolvedAIConfig
 
-    init(config: ResolvedAIConfig) {
+    public init(config: ResolvedAIConfig) {
         self.config = config
     }
 }
 
 extension OpenAICompatibleAPI {
-    func chatCompletion(rawTitle: String, rawArtist: String) throws -> URLRequest {
-        let endpoint = config.endpoint.hasSuffix("/")
-            ? String(config.endpoint.dropLast())
-            : config.endpoint
+    public func chatCompletion(rawTitle: String, rawArtist: String) throws -> URLRequest {
+        let endpoint = normalizedEndpoint
         guard let url = URL(string: endpoint + "/chat/completions") else {
             throw URLError(.badURL)
         }
@@ -34,6 +32,12 @@ extension OpenAICompatibleAPI {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return request
+    }
+
+    var normalizedEndpoint: String {
+        config.endpoint.hasSuffix("/")
+            ? String(config.endpoint.dropLast())
+            : config.endpoint
     }
 }
 
