@@ -67,7 +67,7 @@ Alternative paths: `~/.lyra/config.toml`, `$XDG_CONFIG_HOME/lyra/config.toml`
 |---|---|---|---|
 | `screen` | string / int | `"main"` | Which display to use (see [Screen selection](#screen-selection)) |
 | `wallpaper` | string | — | Video file path. Relative to config dir or absolute |
-| `includes` | array | — | List of TOML files to merge (relative to config dir or absolute) |
+| `includes` | array | — | TOML-only: list of additional TOML files to merge (ignored for `config.json`; paths relative to config dir or absolute) |
 
 ### `[text.default]` — base text style
 
