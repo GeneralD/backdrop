@@ -10,13 +10,23 @@ public struct TextConfig: Sendable {
 }
 
 extension TextConfig {
-    static let defaults: TextConfig = {
-        let base = TextAppearanceConfig.defaults
-        let title = UnresolvedTextAppearance().resolve(defaults: .titleDefaults, filled: base)
-        let artist = UnresolvedTextAppearance().resolve(defaults: .artistDefaults, filled: base)
-        let highlight = UnresolvedTextAppearance().resolve(defaults: .highlightDefaults, filled: base)
-        return TextConfig(default: base, title: title, artist: artist, lyric: base, highlight: highlight, decodeEffect: .defaults)
-    }()
+    static let defaults = resolve()
+
+    static func resolve(
+        default unresolvedDefault: UnresolvedTextAppearance? = nil,
+        title unresolvedTitle: UnresolvedTextAppearance? = nil,
+        artist unresolvedArtist: UnresolvedTextAppearance? = nil,
+        lyric unresolvedLyric: UnresolvedTextAppearance? = nil,
+        highlight unresolvedHighlight: UnresolvedTextAppearance? = nil,
+        decodeEffect: DecodeEffectConfig = .defaults
+    ) -> TextConfig {
+        let base = unresolvedDefault.resolve(defaults: .defaults, filled: .defaults)
+        let title = unresolvedTitle.resolve(defaults: .titleDefaults, filled: base)
+        let artist = unresolvedArtist.resolve(defaults: .artistDefaults, filled: base)
+        let lyric = unresolvedLyric.resolve(filled: base)
+        let highlight = unresolvedHighlight.resolve(defaults: .highlightDefaults, filled: lyric)
+        return TextConfig(default: base, title: title, artist: artist, lyric: lyric, highlight: highlight, decodeEffect: decodeEffect)
+    }
 }
 
 extension TextConfig: Codable {
@@ -26,19 +36,14 @@ extension TextConfig: Codable {
     }
 
     public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let unresolvedDefault = try container.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .default)
-        let unresolvedTitle = try container.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .title)
-        let unresolvedArtist = try container.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .artist)
-        let unresolvedLyric = try container.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .lyric)
-        let unresolvedHighlight = try container.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .highlight)
-
-        `default` = unresolvedDefault.resolve(defaults: .defaults, filled: .defaults)
-        title = unresolvedTitle.resolve(defaults: .titleDefaults, filled: `default`)
-        artist = unresolvedArtist.resolve(defaults: .artistDefaults, filled: `default`)
-        lyric = unresolvedLyric.resolve(filled: `default`)
-        highlight = unresolvedHighlight.resolve(defaults: .highlightDefaults, filled: lyric)
-
-        decodeEffect = try container.decodeIfPresent(DecodeEffectConfig.self, forKey: .decodeEffect) ?? .defaults
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self = Self.resolve(
+            default: try c.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .default),
+            title: try c.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .title),
+            artist: try c.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .artist),
+            lyric: try c.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .lyric),
+            highlight: try c.decodeIfPresent(UnresolvedTextAppearance.self, forKey: .highlight),
+            decodeEffect: try c.decodeIfPresent(DecodeEffectConfig.self, forKey: .decodeEffect) ?? .defaults
+        )
     }
 }
