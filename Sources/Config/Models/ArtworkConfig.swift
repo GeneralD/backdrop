@@ -1,8 +1,6 @@
-import Foundation
-
 public struct ArtworkConfig: Sendable {
-    public let size: CGFloat
-    public let opacity: Double
+    public let size: FlexibleDouble
+    public let opacity: FlexibleDouble
 }
 
 extension ArtworkConfig {
@@ -12,7 +10,7 @@ extension ArtworkConfig {
 extension ArtworkConfig: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        size = try container.flexibleDouble(forKey: .size) ?? Self.defaults.size
-        opacity = try container.flexibleDouble(forKey: .opacity) ?? Self.defaults.opacity
+        size = try container.decodeIfPresent(FlexibleDouble.self, forKey: .size) ?? Self.defaults.size
+        opacity = try container.decodeIfPresent(FlexibleDouble.self, forKey: .opacity) ?? Self.defaults.opacity
     }
 }

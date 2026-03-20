@@ -37,17 +37,17 @@ extension AppConfig {
                 lyric: text.lyric.toTextAppearance(),
                 highlight: text.highlight.toTextAppearance(),
                 decodeEffect: DecodeEffect(
-                    duration: text.decodeEffect.duration,
+                    duration: text.decodeEffect.duration.value,
                     charsets: text.decodeEffect.charset
                 )
             ),
-            artwork: ArtworkStyle(size: artwork.size, opacity: artwork.opacity),
+            artwork: ArtworkStyle(size: artwork.size.value, opacity: artwork.opacity.value),
             ripple: RippleStyle(
                 enabled: ripple.enabled,
                 color: .solid(ripple.color),
-                radius: ripple.radius,
-                duration: ripple.duration,
-                idle: ripple.idle
+                radius: ripple.radius.value,
+                duration: ripple.duration.value,
+                idle: ripple.idle.value
             ),
             screen: screen,
             wallpaperURL: wallpaper.map { URL(fileURLWithPath: $0) },

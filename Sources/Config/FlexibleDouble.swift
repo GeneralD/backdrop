@@ -34,14 +34,3 @@ extension FlexibleDouble: ExpressibleByIntegerLiteral {
         self.value = Double(value)
     }
 }
-
-// MARK: - KeyedDecodingContainer helpers (for configs using raw Double)
-
-extension KeyedDecodingContainer {
-    func flexibleDouble(forKey key: Key) throws -> Double? {
-        guard contains(key) else { return nil }
-        if let d = try? decodeIfPresent(Double.self, forKey: key) { return d }
-        if let i = try? decodeIfPresent(Int.self, forKey: key) { return Double(i) }
-        return nil
-    }
-}

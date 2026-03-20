@@ -1,11 +1,9 @@
-import Foundation
-
 public struct RippleConfig: Sendable {
     public let enabled: Bool
     public let color: String
-    public let radius: Double
-    public let duration: Double
-    public let idle: Double
+    public let radius: FlexibleDouble
+    public let duration: FlexibleDouble
+    public let idle: FlexibleDouble
 }
 
 extension RippleConfig {
@@ -17,8 +15,8 @@ extension RippleConfig: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.defaults.enabled
         color = try container.decodeIfPresent(String.self, forKey: .color) ?? Self.defaults.color
-        radius = try container.flexibleDouble(forKey: .radius) ?? Self.defaults.radius
-        duration = try container.flexibleDouble(forKey: .duration) ?? Self.defaults.duration
-        idle = try container.flexibleDouble(forKey: .idle) ?? Self.defaults.idle
+        radius = try container.decodeIfPresent(FlexibleDouble.self, forKey: .radius) ?? Self.defaults.radius
+        duration = try container.decodeIfPresent(FlexibleDouble.self, forKey: .duration) ?? Self.defaults.duration
+        idle = try container.decodeIfPresent(FlexibleDouble.self, forKey: .idle) ?? Self.defaults.idle
     }
 }
