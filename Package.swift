@@ -71,7 +71,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "TitleExtraction",
+            name: "MetadataNormalization",
             dependencies: [
                 "Domain",
                 "AIService",
@@ -97,7 +97,7 @@ let package = Package(
         ),
         .target(
             name: "Lyrics",
-            dependencies: ["Domain", "LyricsSearch", "Persistence", "TitleExtraction"]
+            dependencies: ["Domain", "LyricsSearch", "Persistence", "MetadataNormalization"]
         ),
 
         // Presentation logic
@@ -164,7 +164,7 @@ let package = Package(
             dependencies: [
                 "Lyrics",
                 "LyricsSearch",
-                "TitleExtraction",
+                "MetadataNormalization",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
@@ -189,9 +189,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "TitleExtractionTests",
+            name: "MetadataNormalizationTests",
             dependencies: [
-                "TitleExtraction",
+                "MetadataNormalization",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]

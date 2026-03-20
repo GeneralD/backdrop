@@ -1,6 +1,6 @@
 import Domain
 import Testing
-@testable import TitleExtraction
+@testable import MetadataNormalization
 
 @Suite("RegexNormalizer")
 struct RegexNormalizerTests {
