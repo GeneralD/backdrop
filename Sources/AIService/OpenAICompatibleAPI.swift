@@ -1,3 +1,4 @@
+import AppInfo
 import Domain
 import Foundation
 
@@ -18,6 +19,7 @@ extension OpenAICompatibleAPI {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 10

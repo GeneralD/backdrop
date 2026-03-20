@@ -44,9 +44,15 @@ let package = Package(
             ]
         ),
         .target(
+            name: "AppInfo",
+            dependencies: [],
+            resources: [.copy("Resources/version.txt")]
+        ),
+        .target(
             name: "LRCLibService",
             dependencies: [
                 "Domain",
+                "AppInfo",
                 .product(name: "Alamofire", package: "Alamofire"),
             ]
         ),
@@ -54,12 +60,13 @@ let package = Package(
             name: "MusicBrainzService",
             dependencies: [
                 "Domain",
+                "AppInfo",
                 .product(name: "Alamofire", package: "Alamofire"),
             ]
         ),
         .target(
             name: "AIService",
-            dependencies: ["Domain"]
+            dependencies: ["Domain", "AppInfo"]
         ),
         .target(
             name: "LyricsSearch",
@@ -139,6 +146,7 @@ let package = Package(
             name: "CLI",
             dependencies: [
                 "App",
+                "AppInfo",
                 "Config",
                 "LRCLibService",
                 "MusicBrainzService",
@@ -146,9 +154,6 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "TOMLKit", package: "TOMLKit"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
-            ],
-            resources: [
-                .copy("Resources/version.txt"),
             ]
         ),
 

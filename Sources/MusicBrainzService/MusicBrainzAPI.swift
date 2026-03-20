@@ -1,4 +1,5 @@
 import Alamofire
+import AppInfo
 import Foundation
 
 public enum MusicBrainzAPI {
@@ -8,7 +9,7 @@ public enum MusicBrainzAPI {
 extension MusicBrainzAPI: URLRequestConvertible {
     public func asURLRequest() throws -> URLRequest {
         var request = try URLRequest(url: Self.baseURL + path, method: .get)
-        request.setValue("lyra/1.0 (https://github.com/GeneralD/lyra)", forHTTPHeaderField: "User-Agent")
+        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
         return try URLEncoding.default.encode(request, with: parameters)
     }
 }

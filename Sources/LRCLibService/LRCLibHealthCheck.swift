@@ -1,3 +1,4 @@
+import AppInfo
 import Domain
 import Foundation
 
@@ -9,7 +10,7 @@ extension LRCLibAPI: HealthCheckable {
             return HealthCheckResult(status: .fail, detail: "invalid URL")
         }
         var request = URLRequest(url: url)
-        request.setValue("now-playing/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         let start = ContinuousClock.now
