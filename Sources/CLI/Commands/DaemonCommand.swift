@@ -14,10 +14,10 @@ struct DaemonCommand: ParsableCommand {
     func run() {
         MainActor.assumeIsolated {
             let appConfig = AppConfig.load()
-            let resolvedConfig = appConfig.toResolvedConfig()
+            let resolvedConfig = appConfig.toAppStyle()
 
             withDependencies {
-                $0.config = resolvedConfig
+                $0.appStyle = resolvedConfig
             } operation: {
                 let app = NSApplication.shared
                 app.setActivationPolicy(.accessory)
