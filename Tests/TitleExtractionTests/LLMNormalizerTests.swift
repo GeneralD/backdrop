@@ -81,17 +81,17 @@ struct MetadataNormalizerPipelineTests {
             $0.metadataNormalizers = [LLMNormalizer(), RegexNormalizer()]
         } operation: { () -> [Track] in
             @Dependency(\.metadataNormalizers) var normalizers
-            for normalizer in normalizers {
-                let candidates = await normalizer.resolve(
-                    track: Track(title: "Artist - Song Title", artist: "SomeChannel")
-                )
-                guard candidates.isEmpty else { return candidates }
-            }
-            return []
+            let track = Track(title: "Artist - Song Title", artist: "SomeChannel")
+            // LLMNormalizer returns empty (no AI config) → RegexNormalizer produces candidates
+            let llmResult = await normalizers[0].resolve(track: track)
+            #expect(llmResult.isEmpty)
+            let regexResult = await normalizers[1].resolve(track: track)
+            #expect(!regexResult.isEmpty)
+            return regexResult
         }
         #expect(!result.isEmpty)
-        #expect(result.first?.title == "Song Title")
-        #expect(result.first?.artist == "Artist")
+        // RegexNormalizer parses "Artist - Song Title" → title: "Song Title", artist: "Artist"
+        #expect(result.contains(where: { $0.title == "Song Title" && $0.artist == "Artist" }))
     }
 }
 

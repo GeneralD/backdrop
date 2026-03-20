@@ -2,6 +2,7 @@ import Alamofire
 import CollectionKit
 import Dependencies
 import Domain
+import Foundation
 import MusicBrainzService
 
 public struct RegexNormalizer {
@@ -15,7 +16,7 @@ extension RegexNormalizer: Sendable {}
 extension RegexNormalizer: MetadataNormalizer {
     public func resolve(track: Track) async -> [Track] {
         let regexCandidates = generateCandidates(title: track.title, artist: track.artist)
-        let musicBrainzCandidates = await fetchMusicBrainzCandidates(title: track.title, artist: track.artist)
+        let musicBrainzCandidates = await fetchMusicBrainzCandidates(title: track.title, artist: track.artist, duration: nil)
 
         var seen = Set<String>()
         return (musicBrainzCandidates + regexCandidates)
@@ -26,34 +27,49 @@ extension RegexNormalizer: MetadataNormalizer {
 // MARK: - MusicBrainz refinement
 
 private extension RegexNormalizer {
-    func fetchMusicBrainzCandidates(title: String, artist: String) async -> [Track] {
+    func fetchMusicBrainzCandidates(title: String, artist: String, duration: TimeInterval?) async -> [Track] {
         let parsed = parseArtistTitle(title)
         let normalized = parsed.title
         let normalizedArtist = normalizeArtist(parsed.artist ?? artist)
 
-        var candidates: [Track] = []
-
         if let cached = await metadataCache.read(title: normalized, artist: normalizedArtist) {
-            candidates.append(Track(title: cached.title, artist: cached.artist))
+            return [Track(title: cached.title, artist: cached.artist)]
         }
 
         for query: MusicBrainzAPI in [
-            .searchRecording(title: normalized, artist: normalizedArtist, duration: nil),
+            .searchRecording(title: normalized, artist: normalizedArtist, duration: duration),
             .searchRecording(title: normalized, artist: nil, duration: nil),
         ] {
-            guard candidates.isEmpty else { break }
             guard let response: MusicBrainzResponse = await musicbrainz(query) else { continue }
-            for recording in response.recordings {
-                guard let artistName = recording.artistName else { continue }
-                var seen = Set<String>()
-                let titles = [recording.title, normalize(recording.title), stripBrackets(recording.title)]
-                    .filter { seen.insert($0).inserted }
-                for t in titles {
-                    candidates.append(Track(title: t, artist: artistName))
+            let candidates = matchRecordings(from: response, cacheKey: (normalized, normalizedArtist))
+            guard !candidates.isEmpty else { continue }
+            return candidates
+        }
+
+        return []
+    }
+
+    func matchRecordings(from response: MusicBrainzResponse, cacheKey: (title: String, artist: String)) -> [Track] {
+        var candidates: [Track] = []
+        for recording in response.recordings {
+            guard let artistName = recording.artistName else { continue }
+            var seen = Set<String>()
+            let titles = [recording.title, normalize(recording.title), stripBrackets(recording.title)]
+                .filter { seen.insert($0).inserted }
+            for t in titles {
+                candidates.append(Track(title: t, artist: artistName))
+            }
+            // Cache the first recording's metadata for future lookups
+            if candidates.count == titles.count {
+                let metadata = ResolvedMetadata(
+                    title: recording.title, artist: artistName,
+                    duration: recording.duration, musicbrainzId: recording.id
+                )
+                Task { [metadataCache] in
+                    try? await metadataCache.write(queryTitle: cacheKey.title, queryArtist: cacheKey.artist, metadata: metadata)
                 }
             }
         }
-
         return candidates
     }
 
