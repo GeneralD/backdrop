@@ -195,6 +195,7 @@ size = 120
 opacity = 0.9
 
 [ripple]
+# enabled = true
 color = "#AAAAFFFF"
 radius = 80
 duration = 0.4
