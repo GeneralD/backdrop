@@ -16,9 +16,9 @@ public struct AppConfig: Sendable, Decodable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        text = try c.decodeIfPresent(TextConfig.self, forKey: .text) ?? .init()
-        artwork = try c.decodeIfPresent(ArtworkConfig.self, forKey: .artwork) ?? .init()
-        ripple = try c.decodeIfPresent(RippleConfig.self, forKey: .ripple) ?? .init()
+        text = try c.decodeIfPresent(TextConfig.self, forKey: .text) ?? .defaults
+        artwork = try c.decodeIfPresent(ArtworkConfig.self, forKey: .artwork) ?? .defaults
+        ripple = try c.decodeIfPresent(RippleConfig.self, forKey: .ripple) ?? .defaults
         screen = try c.decodeIfPresent(ScreenSelector.self, forKey: .screen) ?? .main
         wallpaper = try c.decodeIfPresent(String.self, forKey: .wallpaper)
         ai = try? c.decodeIfPresent(AIConfig.self, forKey: .ai)
@@ -26,9 +26,9 @@ public struct AppConfig: Sendable, Decodable {
     }
 
     init(
-        text: TextConfig = .init(),
-        artwork: ArtworkConfig = .init(),
-        ripple: RippleConfig = .init(),
+        text: TextConfig = .defaults,
+        artwork: ArtworkConfig = .defaults,
+        ripple: RippleConfig = .defaults,
         screen: ScreenSelector = .main,
         wallpaper: String? = nil,
         configDir: String? = nil,
@@ -111,10 +111,10 @@ extension AppConfig {
     public func toResolvedConfig() -> ResolvedConfig {
         ResolvedConfig(
             text: ResolvedTextConfig(
-                title: text.resolvedTitle,
-                artist: text.resolvedArtist,
-                lyric: text.resolvedLyric,
-                highlight: text.resolvedHighlight,
+                title: text.title.resolve(),
+                artist: text.artist.resolve(),
+                lyric: text.lyric.resolve(),
+                highlight: text.highlight.resolve(),
                 decodeEffect: ResolvedDecodeEffectConfig(
                     duration: text.decodeEffect.duration,
                     charsets: text.decodeEffect.charset

@@ -6,25 +6,19 @@ public struct RippleConfig: Sendable {
     public let radius: Double
     public let duration: Double
     public let idle: Double
+}
 
-    public init(enabled: Bool = true, color: String = "#AAAAFFFF", radius: Double = 60, duration: Double = 0.6, idle: Double = 1) {
-        self.enabled = enabled
-        self.color = color
-        self.radius = radius
-        self.duration = duration
-        self.idle = idle
-    }
+extension RippleConfig {
+    static let defaults = RippleConfig(enabled: true, color: "#AAAAFFFF", radius: 60, duration: 0.6, idle: 1)
 }
 
 extension RippleConfig: Codable {
-    enum CodingKeys: String, CodingKey { case enabled, color, radius, duration, idle }
-
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
-        color = try c.decode(String.self, forKey: .color)
-        radius = try c.flexibleDoubleRequired(forKey: .radius)
-        duration = try c.flexibleDoubleRequired(forKey: .duration)
-        idle = try c.flexibleDoubleRequired(forKey: .idle)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? Self.defaults.enabled
+        color = try container.decodeIfPresent(String.self, forKey: .color) ?? Self.defaults.color
+        radius = try container.flexibleDouble(forKey: .radius) ?? Self.defaults.radius
+        duration = try container.flexibleDouble(forKey: .duration) ?? Self.defaults.duration
+        idle = try container.flexibleDouble(forKey: .idle) ?? Self.defaults.idle
     }
 }
