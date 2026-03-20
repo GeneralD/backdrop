@@ -65,9 +65,39 @@ jobs:
             // Update formula
             const { data: file } = await github.rest.repos.getContent({ owner, repo, path });
             const content = Buffer.from(file.content, 'base64').toString('utf8');
-            const updated = content
+            let updated = content
               .replace(/url ".*"/, `url "https://github.com/GeneralD/lyra/archive/refs/tags/${tag}.tar.gz"`)
               .replace(/sha256 ".*"/, `sha256 "${sha256}"`);
+
+            // Inject service block and caveats before `test do` if not already present
+            if (!updated.includes('service do')) {
+              const serviceBlock = [
+                '  service do',
+                '    run [opt_bin/"lyra", "daemon"]',
+                '    keep_alive true',
+                '    log_path var/"log/lyra.log"',
+                '    error_log_path var/"log/lyra.log"',
+                '  end',
+                '',
+                '  def caveats',
+                '    <<~EOS',
+                '      To start lyra as a background service:',
+                '        brew services start lyra',
+                '',
+                '      Or start manually:',
+                '        lyra start',
+                '    EOS',
+                '  end',
+                '',
+                '',
+              ].join('\n');
+              const injected = updated.replace(/(\n  test do\n)/, '\n' + serviceBlock + '  test do\n');
+              if (!injected.includes('service do')) {
+                core.warning('Could not inject service block: formula structure may have changed. Please add it manually.');
+              } else {
+                updated = injected;
+              }
+            }
 
             await github.rest.repos.createOrUpdateFileContents({
               owner, repo, path,
