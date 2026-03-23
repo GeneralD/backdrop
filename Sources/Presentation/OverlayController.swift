@@ -16,6 +16,7 @@ public final class OverlayController {
     private var lyricEffects: [DecodeEffectState] = []
 
     @Dependency(\.appStyle) private var config
+    @Dependency(\.playbackUseCase) private var playbackService
     @Dependency(\.lyricsUseCase) private var lyricsService
     @Dependency(\.metadataUseCase) private var metadataService
 
@@ -30,8 +31,7 @@ public extension OverlayController {
     func start() {
         nowPlayingTask = Task { [weak self] in
             guard let self else { return }
-            @Dependency(\.nowPlayingRepository) var provider
-            for await info in provider.stream() {
+            for await info in self.playbackService.observeNowPlaying() {
                 guard !Task.isCancelled else { break }
                 guard let info else { clearIfNeeded(); continue }
                 latestNowPlaying = info
