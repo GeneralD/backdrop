@@ -135,7 +135,6 @@ let package = Package(
             name: "MetadataRepository",
             dependencies: [
                 "Domain",
-                "MetadataDataSource",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
