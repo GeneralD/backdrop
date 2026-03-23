@@ -63,8 +63,8 @@ graph TD
 
     lyra --> CLI
     CLI --> App
-    CLI -.->|healthcheck| Config & LRCLibService & MusicBrainzService & AIService
     App --> Views & Presentation & Config
+    App -.->|healthcheck registration| LRCLibService & MusicBrainzService & AIService
     Views --> Presentation & Config & Domain
     Presentation --> Lyrics & NowPlaying & Domain
     Lyrics --> LyricsSearch & Persistence & MetadataNormalization & Domain
