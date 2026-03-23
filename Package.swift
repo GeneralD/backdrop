@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "lyra",
+    name: "Lyra",
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "lyra", targets: ["lyra"]),
