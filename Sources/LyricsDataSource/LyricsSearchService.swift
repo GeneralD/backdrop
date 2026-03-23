@@ -1,6 +1,6 @@
 import Alamofire
 import Domain
-import LRCLibService
+import LyricsDataSource
 import Dependencies
 import Foundation
 

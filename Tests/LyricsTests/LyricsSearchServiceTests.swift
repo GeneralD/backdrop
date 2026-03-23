@@ -4,7 +4,7 @@ import Foundation
 import Testing
 
 @testable import Lyrics
-@testable import LyricsSearch
+@testable import LyricsDataSource
 
 @Suite("LyricsSearchService")
 struct LyricsSearchServiceTests {

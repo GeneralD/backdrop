@@ -17,7 +17,7 @@ let package = Package(
         .package(url: "https://github.com/Alamofire/Alamofire", from: "5.10.0"),
     ],
     targets: [
-        // Core domain — zero external dependencies except swift-dependencies
+        // Core domain
         .target(
             name: "Domain",
             dependencies: [
@@ -26,14 +26,14 @@ let package = Package(
             ]
         ),
 
-        // Isolated unsafe code — no domain dependency
+        // Isolated
         .target(
             name: "MediaRemote",
             dependencies: [],
             resources: [.copy("Resources/media-remote-helper.swift")]
         ),
 
-        // Infrastructure
+        // DataSource
         .target(
             name: "ConfigDataSource",
             dependencies: [
@@ -42,10 +42,11 @@ let package = Package(
             ]
         ),
         .target(
-            name: "LRCLibService",
+            name: "LyricsDataSource",
             dependencies: [
                 "Domain",
                 .product(name: "Alamofire", package: "Alamofire"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
         .target(
@@ -60,15 +61,6 @@ let package = Package(
             dependencies: ["Domain"]
         ),
         .target(
-            name: "LyricsSearch",
-            dependencies: [
-                "Domain",
-                "LRCLibService",
-                .product(name: "Alamofire", package: "Alamofire"),
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-        .target(
             name: "MetadataNormalization",
             dependencies: [
                 "Domain",
@@ -79,6 +71,8 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
+
+        // DataStore
         .target(
             name: "SQLiteDataStore",
             dependencies: [
@@ -95,10 +89,10 @@ let package = Package(
         ),
         .target(
             name: "Lyrics",
-            dependencies: ["Domain", "LyricsSearch", "SQLiteDataStore", "MetadataNormalization"]
+            dependencies: ["Domain", "LyricsDataSource", "SQLiteDataStore", "MetadataNormalization"]
         ),
 
-        // Presentation logic
+        // Presentation
         .target(
             name: "Presentation",
             dependencies: [
@@ -126,7 +120,7 @@ let package = Package(
                 "Views",
                 "Presentation",
                 "ConfigDataSource",
-                "LRCLibService",
+                "LyricsDataSource",
                 "MusicBrainzService",
                 "AIService",
                 .product(name: "Dependencies", package: "swift-dependencies"),
@@ -146,7 +140,7 @@ let package = Package(
             ]
         ),
 
-        // Executable entry point
+        // Executable
         .executableTarget(
             name: "lyra",
             dependencies: ["CLI"]
@@ -157,7 +151,7 @@ let package = Package(
             name: "LyricsTests",
             dependencies: [
                 "Lyrics",
-                "LyricsSearch",
+                "LyricsDataSource",
                 "MetadataNormalization",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),

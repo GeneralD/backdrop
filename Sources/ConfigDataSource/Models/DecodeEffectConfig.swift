@@ -13,13 +13,21 @@ extension DecodeEffectConfig: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         duration = try container.decodeIfPresent(FlexibleDouble.self, forKey: .duration) ?? Self.defaults.duration
-        switch (try? container.decodeIfPresent([CharsetName].self, forKey: .charset), try? container.decodeIfPresent(CharsetName.self, forKey: .charset)) {
-        case let (.some(arr), _):
-            charset = Set(arr)
-        case let (_, .some(single)):
-            charset = [single]
-        default:
-            charset = Self.defaults.charset
-        }
+        charset = try container.decodeIfPresent(Set<CharsetName>.self, forKey: .charset) ?? Self.defaults.charset
+    }
+}
+
+extension Set: Encodable where Element: Encodable {
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(Array(self))
+    }
+}
+
+extension Set: Decodable where Element: Decodable {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let array = try container.decode([Element].self)
+        self = Set(array)
     }
 }

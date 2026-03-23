@@ -2,7 +2,7 @@ import AIService
 import ConfigDataSource
 import Dependencies
 import Domain
-import LRCLibService
+import LyricsDataSource
 import MusicBrainzService
 
 extension HealthCheckersKey: DependencyKey {
