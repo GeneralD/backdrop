@@ -64,7 +64,7 @@ graph TD
     end
 
     subgraph Isolated
-        MediaRemote[MediaRemote]
+        MediaRemoteDataSource[MediaRemoteDataSource]
     end
 
     lyra --> CLI
@@ -77,7 +77,7 @@ graph TD
     MetadataUseCase --> MetadataRepository & Domain
     LyricsRepository --> LyricsDataSource & SQLiteDataStore & Domain
     MetadataRepository --> MetadataDataSource & Domain
-    NowPlayingRepository --> MediaRemote & Domain
+    NowPlayingRepository --> MediaRemoteDataSource & Domain
     LyricsDataSource --> Domain
     MetadataDataSource --> Domain
     ConfigDataSource --> Domain
@@ -86,7 +86,7 @@ graph TD
     style Domain fill:#4a9,stroke:#333,color:#fff
     style LyricsUseCase fill:#59c,stroke:#333,color:#fff
     style MetadataUseCase fill:#59c,stroke:#333,color:#fff
-    style MediaRemote fill:#966,stroke:#333,color:#fff
+    style MediaRemoteDataSource fill:#966,stroke:#333,color:#fff
     style lyra fill:#333,stroke:#fff,color:#fff
 ```
 
@@ -104,7 +104,7 @@ graph TD
 | Repository | `LyricsRepository`, `MetadataRepository`, `NowPlayingRepository` | DataSource + DataStore, cache strategy |
 | DataSource | `LyricsDataSource`, `MetadataDataSource`, `ConfigDataSource` | API execution, file I/O |
 | DataStore | `SQLiteDataStore` | GRDB SQLite cache |
-| Isolated | `MediaRemote` | Private framework access via swift interpreter |
+| Isolated | `MediaRemoteDataSource` | Private framework access via swift interpreter |
 
 ### Key Design Decisions
 
