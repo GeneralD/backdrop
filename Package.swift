@@ -17,7 +17,61 @@ let package = Package(
         .package(url: "https://github.com/Alamofire/Alamofire", from: "5.10.0"),
     ],
     targets: [
-        // Core domain
+        // Executable
+        .executableTarget(
+            name: "lyra",
+            dependencies: ["CLI"]
+        ),
+
+        // CLI
+        .target(
+            name: "CLI",
+            dependencies: [
+                "App",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ],
+            resources: [
+                .copy("Resources/version.txt"),
+            ]
+        ),
+
+        // View
+        .target(
+            name: "Views",
+            dependencies: [
+                "Domain",
+                "Presentation",
+                .product(name: "CollectionKit", package: "CollectionKit"),
+            ]
+        ),
+
+        // Interactor (App wiring)
+        .target(
+            name: "App",
+            dependencies: [
+                "Views",
+                "Presentation",
+                "ConfigDataSource",
+                "LyricsDataSource",
+                "MetadataDataSource",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+
+        // Presenter
+        .target(
+            name: "Presentation",
+            dependencies: [
+                "Domain",
+                "LyricsUseCase",
+                "MetadataUseCase",
+                "NowPlayingRepository",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+
+        // Entity
         .target(
             name: "Domain",
             dependencies: [
@@ -26,45 +80,20 @@ let package = Package(
             ]
         ),
 
-        // Isolated
+        // UseCase
         .target(
-            name: "MediaRemote",
-            dependencies: [],
-            resources: [.copy("Resources/media-remote-helper.swift")]
-        ),
-
-        // DataSource
-        .target(
-            name: "ConfigDataSource",
+            name: "LyricsUseCase",
             dependencies: [
                 "Domain",
-                .product(name: "TOMLKit", package: "TOMLKit"),
-            ]
-        ),
-        .target(
-            name: "LyricsDataSource",
-            dependencies: [
-                "Domain",
-                .product(name: "Alamofire", package: "Alamofire"),
+                "LyricsRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
         .target(
-            name: "MetadataDataSource",
+            name: "MetadataUseCase",
             dependencies: [
                 "Domain",
-                .product(name: "Alamofire", package: "Alamofire"),
-                .product(name: "CollectionKit", package: "CollectionKit"),
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-
-        // DataStore
-        .target(
-            name: "SQLiteDataStore",
-            dependencies: [
-                "Domain",
-                .product(name: "GRDB", package: "GRDB.swift"),
+                "MetadataRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -87,83 +116,52 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
-
-        // Repository
         .target(
             name: "NowPlayingRepository",
             dependencies: ["Domain", "MediaRemote"]
         ),
 
-        // Use cases
+        // DataSource
         .target(
-            name: "LyricsUseCase",
+            name: "LyricsDataSource",
             dependencies: [
                 "Domain",
-                "LyricsRepository",
+                .product(name: "Alamofire", package: "Alamofire"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
         .target(
-            name: "MetadataUseCase",
+            name: "MetadataDataSource",
             dependencies: [
                 "Domain",
-                "MetadataRepository",
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-
-        // Presentation
-        .target(
-            name: "Presentation",
-            dependencies: [
-                "Domain",
-                "LyricsUseCase",
-                "MetadataUseCase",
-                "NowPlayingRepository",
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-
-        // Views
-        .target(
-            name: "Views",
-            dependencies: [
-                "Domain",
-                "Presentation",
+                .product(name: "Alamofire", package: "Alamofire"),
                 .product(name: "CollectionKit", package: "CollectionKit"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "ConfigDataSource",
+            dependencies: [
+                "Domain",
+                .product(name: "TOMLKit", package: "TOMLKit"),
             ]
         ),
 
-        // App wiring
+        // DataStore
         .target(
-            name: "App",
+            name: "SQLiteDataStore",
             dependencies: [
-                "Views",
-                "Presentation",
-                "ConfigDataSource",
-                "LyricsDataSource",
-                "MetadataDataSource",
+                "Domain",
+                .product(name: "GRDB", package: "GRDB.swift"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 
-        // CLI
+        // Isolated
         .target(
-            name: "CLI",
-            dependencies: [
-                "App",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ],
-            resources: [
-                .copy("Resources/version.txt"),
-            ]
-        ),
-
-        // Executable
-        .executableTarget(
-            name: "lyra",
-            dependencies: ["CLI"]
+            name: "MediaRemote",
+            dependencies: [],
+            resources: [.copy("Resources/media-remote-helper.swift")]
         ),
 
         // Tests
