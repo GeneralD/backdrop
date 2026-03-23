@@ -40,7 +40,6 @@ let package = Package(
             dependencies: [
                 "Domain",
                 .product(name: "TOMLKit", package: "TOMLKit"),
-                .product(name: "SwiftHEXColors", package: "SwiftHEXColors"),
             ]
         ),
         .target(
@@ -117,7 +116,6 @@ let package = Package(
             dependencies: [
                 "Domain",
                 "Presentation",
-                "Config",
                 .product(name: "SwiftHEXColors", package: "SwiftHEXColors"),
                 .product(name: "CollectionKit", package: "CollectionKit"),
             ]
