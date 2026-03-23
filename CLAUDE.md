@@ -57,14 +57,11 @@ graph TD
         LyricsDataSource[LyricsDataSource]
         MetadataDataSource[MetadataDataSource]
         ConfigDataSource[ConfigDataSource]
+        MediaRemoteDataSource[MediaRemoteDataSource]
     end
 
     subgraph DataStore
         SQLiteDataStore[SQLiteDataStore]
-    end
-
-    subgraph Isolated
-        MediaRemoteDataSource[MediaRemoteDataSource]
     end
 
     lyra --> CLI
@@ -102,9 +99,8 @@ graph TD
 | Entity | `Domain` | Protocols, models, DependencyKeys |
 | UseCase | `LyricsUseCase`, `MetadataUseCase` | Business logic only, no cross-UseCase deps |
 | Repository | `LyricsRepository`, `MetadataRepository`, `NowPlayingRepository` | DataSource + DataStore, cache strategy |
-| DataSource | `LyricsDataSource`, `MetadataDataSource`, `ConfigDataSource` | API execution, file I/O |
+| DataSource | `LyricsDataSource`, `MetadataDataSource`, `ConfigDataSource`, `MediaRemoteDataSource` | API execution, file I/O, private framework access |
 | DataStore | `SQLiteDataStore` | GRDB SQLite cache |
-| Isolated | `MediaRemoteDataSource` | Private framework access via swift interpreter |
 
 ### Key Design Decisions
 
