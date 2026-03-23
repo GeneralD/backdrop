@@ -1,18 +1,22 @@
-import ConfigDataSource
 import Dependencies
 import Domain
 import Foundation
 
 public struct ConfigRepositoryImpl {
     @Dependency(\.fontMetrics) private var fontMetrics
+    @Dependency(\.configDataSource) private var dataSource
 
     public init() {}
 }
 
-extension ConfigRepositoryImpl {
+extension ConfigRepositoryImpl: ConfigRepository {
     @MainActor
     public func loadAppStyle() -> AppStyle {
-        let config = ConfigLoader.shared.load()
+        guard let result = dataSource.load() else { return .init() }
+
+        let config = result.config
+        let wallpaper = config.wallpaper.map { resolveWallpaperPath($0, configDir: result.configDir) }
+
         return AppStyle(
             text: TextLayout(
                 title: config.text.title.toTextAppearance(fontMetrics: fontMetrics),
@@ -33,9 +37,51 @@ extension ConfigRepositoryImpl {
                 idle: config.ripple.idle.value
             ),
             screen: config.screen,
-            wallpaperURL: config.wallpaper.map { URL(fileURLWithPath: $0) },
+            wallpaperURL: wallpaper.map { URL(fileURLWithPath: $0) },
             ai: config.ai.map { AIEndpoint(endpoint: $0.endpoint, model: $0.model, apiKey: $0.apiKey) }
         )
+    }
+
+    public func validate() -> ConfigValidationResult {
+        do {
+            let path = try dataSource.tryDecode()
+            guard !path.isEmpty else { return .defaults }
+            return .loaded(path: path)
+        } catch {
+            return .decodeError(path: "config", error: error.localizedDescription)
+        }
+    }
+}
+
+extension ConfigRepositoryImpl: HealthCheckable {
+    public var serviceName: String { "Config" }
+
+    public func healthCheck() async -> HealthCheckResult {
+        switch validate() {
+        case .loaded(let path):
+            return HealthCheckResult(status: .pass, detail: "loaded (\(path))")
+        case .defaults:
+            return HealthCheckResult(status: .pass, detail: "using defaults (no config file found)")
+        case .unreadable(let path):
+            return HealthCheckResult(status: .fail, detail: "cannot read \(path)")
+        case .decodeError(let path, let error):
+            return HealthCheckResult(status: .fail, detail: "decode error in \(path): \(error)")
+        }
+    }
+}
+
+// MARK: - DependencyKey
+
+extension ConfigRepositoryKey: DependencyKey {
+    public static let liveValue: any ConfigRepository = ConfigRepositoryImpl()
+}
+
+// MARK: - Private
+
+private extension ConfigRepositoryImpl {
+    func resolveWallpaperPath(_ wallpaper: String, configDir: String) -> String {
+        guard !wallpaper.hasPrefix("/") else { return wallpaper }
+        return URL(fileURLWithPath: configDir).appendingPathComponent(wallpaper).path
     }
 }
 

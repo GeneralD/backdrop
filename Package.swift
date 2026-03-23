@@ -53,7 +53,7 @@ let package = Package(
                 "Views",
                 "Presentation",
                 "ConfigUseCase",
-                "ConfigDataSource",
+                "ConfigRepository",
                 "LyricsUseCase",
                 "MetadataUseCase",
                 "PlaybackUseCase",
@@ -87,7 +87,6 @@ let package = Package(
             name: "ConfigUseCase",
             dependencies: [
                 "Domain",
-                "ConfigRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -121,7 +120,6 @@ let package = Package(
             name: "ConfigRepository",
             dependencies: [
                 "Domain",
-                "ConfigDataSource",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -172,6 +170,7 @@ let package = Package(
             dependencies: [
                 "Domain",
                 .product(name: "TOMLKit", package: "TOMLKit"),
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 

@@ -1,4 +1,4 @@
-import ConfigDataSource
+import ConfigRepository
 import Dependencies
 import Domain
 import LyricsDataSource
@@ -9,7 +9,7 @@ extension HealthCheckersKey: DependencyKey {
         @Dependency(\.appStyle) var appStyle
 
         var checkers: [any HealthCheckable] = [
-            ConfigLoader.shared,
+            ConfigRepositoryImpl(),
             LRCLibAPI.search(query: "test"),
             MusicBrainzAPI.searchRecording(title: "test", artist: nil, duration: nil),
         ]
