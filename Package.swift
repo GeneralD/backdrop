@@ -249,6 +249,7 @@ let package = Package(
             name: "ConfigDataSourceTests",
             dependencies: [
                 "ConfigDataSource",
+                "Domain",
                 .product(name: "TOMLKit", package: "TOMLKit"),
             ]
         ),

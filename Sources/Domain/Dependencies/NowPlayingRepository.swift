@@ -1,5 +1,4 @@
 import Dependencies
-import DependenciesMacros
 import Foundation
 
 public protocol NowPlayingRepository: Sendable {
