@@ -2,7 +2,6 @@ import AppKit
 import ArgumentParser
 import App
 import Dependencies
-import Domain
 
 struct DaemonCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
