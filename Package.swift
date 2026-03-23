@@ -52,6 +52,7 @@ let package = Package(
             dependencies: [
                 "Views",
                 "Presentation",
+                "ConfigUseCase",
                 "ConfigDataSource",
                 "LyricsUseCase",
                 "MetadataUseCase",
@@ -83,6 +84,14 @@ let package = Package(
 
         // UseCase
         .target(
+            name: "ConfigUseCase",
+            dependencies: [
+                "Domain",
+                "ConfigRepository",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
             name: "LyricsUseCase",
             dependencies: [
                 "Domain",
@@ -108,6 +117,14 @@ let package = Package(
         ),
 
         // Repository
+        .target(
+            name: "ConfigRepository",
+            dependencies: [
+                "Domain",
+                "ConfigDataSource",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
         .target(
             name: "LyricsRepository",
             dependencies: [

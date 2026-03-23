@@ -1,12 +1,12 @@
-import MetadataDataSource
 import ConfigDataSource
 import Dependencies
 import Domain
 import LyricsDataSource
+import MetadataDataSource
 
 extension HealthCheckersKey: DependencyKey {
     public static let liveValue: [any HealthCheckable] = {
-        let config = ConfigLoader.shared.load()
+        @Dependency(\.appStyle) var appStyle
 
         var checkers: [any HealthCheckable] = [
             ConfigLoader.shared,
@@ -14,10 +14,8 @@ extension HealthCheckersKey: DependencyKey {
             MusicBrainzAPI.searchRecording(title: "test", artist: nil, duration: nil),
         ]
 
-        if let ai = config.ai {
-            checkers.append(OpenAICompatibleAPI(config: AIEndpoint(
-                endpoint: ai.endpoint, model: ai.model, apiKey: ai.apiKey
-            )))
+        if let ai = appStyle.ai {
+            checkers.append(OpenAICompatibleAPI(config: ai))
         } else {
             checkers.append(SkippedHealthCheck(serviceName: "AI endpoint", reason: "not configured"))
         }
