@@ -1,23 +1,20 @@
 import Domain
-import MediaRemoteDataSource
 import Dependencies
 import Foundation
 
 public struct NowPlayingRepositoryImpl: Sendable {
-    private let bridge: MediaRemoteBridge
+    @Dependency(\.mediaRemoteDataSource) private var dataSource
 
-    public init(bridge: MediaRemoteBridge) {
-        self.bridge = bridge
-    }
+    public init() {}
 }
 
 extension NowPlayingRepositoryImpl: NowPlayingRepository {
     public func stream() -> AsyncStream<NowPlaying?> {
-        let bridge = self.bridge
+        let dataSource = self.dataSource
         return AsyncStream { continuation in
             let task = Task {
                 while !Task.isCancelled {
-                    switch await bridge.poll() {
+                    switch await dataSource.poll() {
                     case .info(let nowPlaying):
                         continuation.yield(nowPlaying)
                     case .noInfo:
@@ -36,5 +33,5 @@ extension NowPlayingRepositoryImpl: NowPlayingRepository {
 // MARK: - DependencyKey
 
 extension NowPlayingRepositoryKey: DependencyKey {
-    public static let liveValue: any NowPlayingRepository = NowPlayingRepositoryImpl(bridge: MediaRemoteBridge())
+    public static let liveValue: any NowPlayingRepository = NowPlayingRepositoryImpl()
 }

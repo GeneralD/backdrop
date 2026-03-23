@@ -1,11 +1,6 @@
 import Domain
+import Dependencies
 import Foundation
-
-public enum PollResult: Sendable {
-    case info(NowPlaying)
-    case noInfo
-    case eof
-}
 
 /// Bridges to MediaRemote.framework via a persistent swift interpreter subprocess.
 /// Compiled binaries cannot access the private framework directly.
@@ -33,8 +28,8 @@ public final class MediaRemoteBridge: @unchecked Sendable {
     }
 }
 
-extension MediaRemoteBridge {
-    public func poll() async -> PollResult {
+extension MediaRemoteBridge: MediaRemoteDataSource {
+    public func poll() async -> MediaRemotePollResult {
         await withCheckedContinuation { continuation in
             DispatchQueue.global().async { [reader] in
                 guard let line = Self.readLine(from: reader) else {
@@ -88,4 +83,10 @@ extension MediaRemoteBridge {
         try? FileManager.default.copyItem(atPath: source.path, toPath: dest)
         return dest
     }
+}
+
+// MARK: - DependencyKey
+
+extension MediaRemoteDataSourceKey: DependencyKey {
+    public static let liveValue: any MediaRemoteDataSource = MediaRemoteBridge()
 }

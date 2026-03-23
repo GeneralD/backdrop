@@ -58,6 +58,7 @@ let package = Package(
                 "PlaybackUseCase",
                 "LyricsDataSource",
                 "MetadataDataSource",
+                "MediaRemoteDataSource",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -125,7 +126,10 @@ let package = Package(
         ),
         .target(
             name: "NowPlayingRepository",
-            dependencies: ["Domain", "MediaRemoteDataSource"]
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
         ),
 
         // DataSource
