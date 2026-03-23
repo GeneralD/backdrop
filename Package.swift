@@ -53,6 +53,9 @@ let package = Package(
                 "Views",
                 "Presentation",
                 "ConfigDataSource",
+                "LyricsUseCase",
+                "MetadataUseCase",
+                "NowPlayingRepository",
                 "LyricsDataSource",
                 "MetadataDataSource",
                 .product(name: "Dependencies", package: "swift-dependencies"),
@@ -64,9 +67,6 @@ let package = Package(
             name: "Presentation",
             dependencies: [
                 "Domain",
-                "LyricsUseCase",
-                "MetadataUseCase",
-                "NowPlayingRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
