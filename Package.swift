@@ -219,6 +219,14 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
+        .testTarget(
+            name: "ConfigUseCaseTests",
+            dependencies: [
+                "ConfigUseCase",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
 
         // Tests — Repository
         .testTarget(
@@ -241,6 +249,14 @@ let package = Package(
             name: "NowPlayingRepositoryTests",
             dependencies: [
                 "NowPlayingRepository",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
+            name: "ConfigRepositoryTests",
+            dependencies: [
+                "ConfigRepository",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
