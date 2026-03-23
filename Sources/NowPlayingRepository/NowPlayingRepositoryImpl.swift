@@ -18,8 +18,8 @@ extension NowPlayingRepositoryImpl: NowPlayingRepository {
             let task = Task {
                 while !Task.isCancelled {
                     switch await bridge.poll() {
-                    case .info(let info):
-                        continuation.yield(NowPlaying(from: info))
+                    case .info(let nowPlaying):
+                        continuation.yield(nowPlaying)
                     case .noInfo:
                         continuation.yield(nil)
                     case .eof:
@@ -37,20 +37,4 @@ extension NowPlayingRepositoryImpl: NowPlayingRepository {
 
 extension NowPlayingRepositoryKey: DependencyKey {
     public static let liveValue: any NowPlayingRepository = NowPlayingRepositoryImpl(bridge: MediaRemoteBridge())
-}
-
-// MARK: - Mapping
-
-private extension NowPlaying {
-    init(from info: MediaRemoteInfo) {
-        self.init(
-            title: info.title,
-            artist: info.artist,
-            artworkData: info.artworkData,
-            duration: info.duration,
-            rawElapsed: info.rawElapsed,
-            playbackRate: info.playbackRate,
-            timestamp: info.timestamp
-        )
-    }
 }

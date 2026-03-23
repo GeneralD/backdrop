@@ -1,7 +1,8 @@
+import Domain
 import Foundation
 
-public enum PollResult {
-    case info(MediaRemoteInfo)
+public enum PollResult: Sendable {
+    case info(NowPlaying)
     case noInfo
     case eof
 }
@@ -46,7 +47,7 @@ extension MediaRemoteBridge {
                     continuation.resume(returning: .noInfo)
                     return
                 }
-                continuation.resume(returning: .info(MediaRemoteInfo(
+                continuation.resume(returning: .info(NowPlaying(
                     title: json["title"] as? String,
                     artist: json["artist"] as? String,
                     artworkData: (json["artwork_base64"] as? String).flatMap { Data(base64Encoded: $0) },
@@ -88,5 +89,3 @@ extension MediaRemoteBridge {
         return dest
     }
 }
-
-extension PollResult: Sendable {}

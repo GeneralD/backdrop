@@ -80,6 +80,7 @@ graph TD
     NowPlayingRepository --> MediaRemoteDataSource & Domain
     LyricsDataSource --> Domain
     MetadataDataSource --> Domain
+    MediaRemoteDataSource --> Domain
     ConfigDataSource --> Domain
     SQLiteDataStore --> Domain
 
@@ -87,7 +88,6 @@ graph TD
     style PlaybackUseCase fill:#59c,stroke:#333,color:#fff
     style LyricsUseCase fill:#59c,stroke:#333,color:#fff
     style MetadataUseCase fill:#59c,stroke:#333,color:#fff
-    style MediaRemoteDataSource fill:#966,stroke:#333,color:#fff
     style lyra fill:#333,stroke:#fff,color:#fff
 ```
 
