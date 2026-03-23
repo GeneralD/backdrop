@@ -38,6 +38,10 @@ graph TD
         Presentation[Presentation]
     end
 
+    subgraph Entity
+        Domain[Domain]
+    end
+
     subgraph UseCase
         LyricsUseCase[LyricsUseCase]
         MetadataUseCase[MetadataUseCase]
@@ -62,8 +66,6 @@ graph TD
     subgraph Isolated
         MediaRemote[MediaRemote]
     end
-
-    Domain[Domain]
 
     lyra --> CLI
     CLI --> App
