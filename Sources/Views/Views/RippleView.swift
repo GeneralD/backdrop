@@ -1,7 +1,5 @@
-import AppKit
 import Domain
 import Dependencies
-import SwiftHEXColors
 import SwiftUI
 
 @MainActor
@@ -24,9 +22,9 @@ public struct RippleView: View {
 
     private var rippleCanvas: some View {
         let rippleConfig = config.ripple
-        let baseNSColor: NSColor = {
-            guard case .solid(let hex) = rippleConfig.color else { return .white }
-            return (NSColor(hexString: hex) ?? .white).usingColorSpace(.deviceRGB) ?? .white
+        let baseColor: RGBA = {
+            guard case .solid(let hex) = rippleConfig.color else { return RGBA(r: 1, g: 1, b: 1, a: 1) }
+            return parseHexRGBA(hex)
         }()
 
         return TimelineView(.animation) { timeline in
@@ -40,10 +38,10 @@ public struct RippleView: View {
                     let easeOut = 1 - (1 - t) * (1 - t)
                     let radius = easeOut * rippleConfig.radius
                     let shifted = Color(
-                        hue: (baseNSColor.hueComponent + ripple.hueShift).truncatingRemainder(dividingBy: 1),
-                        saturation: baseNSColor.saturationComponent,
-                        brightness: baseNSColor.brightnessComponent,
-                        opacity: baseNSColor.alphaComponent * pow(1 - t, 0.6)
+                        hue: (baseColor.hue + ripple.hueShift).truncatingRemainder(dividingBy: 1),
+                        saturation: baseColor.saturation,
+                        brightness: baseColor.brightness,
+                        opacity: baseColor.a * pow(1 - t, 0.6)
                     )
                     let x = ripple.position.x - screenOrigin.x
                     let y = size.height - (ripple.position.y - screenOrigin.y)
