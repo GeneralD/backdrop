@@ -49,10 +49,12 @@ public extension ConfigLoader {
             return .unreadable(path: path)
         }
         let configDir = (path as NSString).deletingLastPathComponent
-        guard decode(content: content, path: path, configDir: configDir) != nil else {
-            return .decodeError(path: path, error: "failed to parse config")
+        do {
+            try decodeOrThrow(content: content, path: path, configDir: configDir)
+            return .loaded(path: path)
+        } catch {
+            return .decodeError(path: path, error: error.localizedDescription)
         }
-        return .loaded(path: path)
     }
 
     func load() -> AppConfig {
@@ -81,6 +83,18 @@ public extension ConfigLoader {
 }
 
 extension ConfigLoader {
+    @discardableResult
+    func decodeOrThrow(content: String, path: String, configDir: String) throws -> AppConfig {
+        if path.hasSuffix(".toml") {
+            let table = try TOMLTable(string: content)
+            resolveIncludes(into: table, configDir: configDir)
+            table.remove(at: "includes")
+            return try TOMLDecoder().decode(AppConfig.self, from: table)
+        } else {
+            return try JSONDecoder().decode(AppConfig.self, from: content.data(using: .utf8) ?? Data())
+        }
+    }
+
     func decode(content: String, path: String, configDir: String) -> AppConfig? {
         if path.hasSuffix(".toml") {
             do {
