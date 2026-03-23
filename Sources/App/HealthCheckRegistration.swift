@@ -1,9 +1,8 @@
-import AIService
+import MetadataDataSource
 import ConfigDataSource
 import Dependencies
 import Domain
 import LyricsDataSource
-import MusicBrainzService
 
 extension HealthCheckersKey: DependencyKey {
     public static let liveValue: [any HealthCheckable] = {

@@ -50,22 +50,9 @@ let package = Package(
             ]
         ),
         .target(
-            name: "MusicBrainzService",
+            name: "MetadataDataSource",
             dependencies: [
                 "Domain",
-                .product(name: "Alamofire", package: "Alamofire"),
-            ]
-        ),
-        .target(
-            name: "AIService",
-            dependencies: ["Domain"]
-        ),
-        .target(
-            name: "MetadataNormalization",
-            dependencies: [
-                "Domain",
-                "AIService",
-                "MusicBrainzService",
                 .product(name: "Alamofire", package: "Alamofire"),
                 .product(name: "CollectionKit", package: "CollectionKit"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
@@ -89,7 +76,7 @@ let package = Package(
         ),
         .target(
             name: "Lyrics",
-            dependencies: ["Domain", "LyricsDataSource", "SQLiteDataStore", "MetadataNormalization"]
+            dependencies: ["Domain", "LyricsDataSource", "SQLiteDataStore", "MetadataDataSource"]
         ),
 
         // Presentation
@@ -121,8 +108,7 @@ let package = Package(
                 "Presentation",
                 "ConfigDataSource",
                 "LyricsDataSource",
-                "MusicBrainzService",
-                "AIService",
+                "MetadataDataSource",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -152,7 +138,7 @@ let package = Package(
             dependencies: [
                 "Lyrics",
                 "LyricsDataSource",
-                "MetadataNormalization",
+                "MetadataDataSource",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
@@ -179,7 +165,7 @@ let package = Package(
         .testTarget(
             name: "MetadataNormalizationTests",
             dependencies: [
-                "MetadataNormalization",
+                "MetadataDataSource",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
