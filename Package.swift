@@ -35,7 +35,7 @@ let package = Package(
 
         // Infrastructure
         .target(
-            name: "Config",
+            name: "ConfigDataSource",
             dependencies: [
                 "Domain",
                 .product(name: "TOMLKit", package: "TOMLKit"),
@@ -125,7 +125,7 @@ let package = Package(
             dependencies: [
                 "Views",
                 "Presentation",
-                "Config",
+                "ConfigDataSource",
                 "LRCLibService",
                 "MusicBrainzService",
                 "AIService",
@@ -178,7 +178,7 @@ let package = Package(
         .testTarget(
             name: "ConfigTests",
             dependencies: [
-                "Config",
+                "ConfigDataSource",
                 .product(name: "TOMLKit", package: "TOMLKit"),
             ]
         ),

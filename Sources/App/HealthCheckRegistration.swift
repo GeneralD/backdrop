@@ -1,5 +1,5 @@
 import AIService
-import Config
+import ConfigDataSource
 import Dependencies
 import Domain
 import LRCLibService
