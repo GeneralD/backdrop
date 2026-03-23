@@ -198,5 +198,9 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
+        .testTarget(
+            name: "ViewsTests",
+            dependencies: ["Views"]
+        ),
     ]
 )
