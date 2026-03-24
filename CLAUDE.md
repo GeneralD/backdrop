@@ -85,10 +85,15 @@ graph TD
     Presentation --> Domain
     Implementations --> Domain
     Domain --> Entity
-    PlaybackUseCase --> NowPlayingRepository
-    LyricsUseCase --> LyricsRepository
-    MetadataUseCase --> MetadataRepository
-    LyricsRepository --> SQLiteDataStore
+    ConfigUseCase -.-> ConfigRepository
+    ConfigRepository -.-> ConfigDataSource
+    PlaybackUseCase -.-> NowPlayingRepository
+    NowPlayingRepository -.-> MediaRemoteDataSource
+    LyricsUseCase -.-> LyricsRepository
+    LyricsRepository -.-> LyricsDataSource
+    LyricsRepository -.-> SQLiteDataStore
+    MetadataUseCase -.-> MetadataRepository
+    MetadataRepository -.-> MetadataDataSource
 
     style lyra fill:#333,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff

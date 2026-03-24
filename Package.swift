@@ -116,7 +116,6 @@ let package = Package(
             name: "LyricsUseCase",
             dependencies: [
                 "Domain",
-                "LyricsRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -124,7 +123,6 @@ let package = Package(
             name: "MetadataUseCase",
             dependencies: [
                 "Domain",
-                "MetadataRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -132,7 +130,6 @@ let package = Package(
             name: "PlaybackUseCase",
             dependencies: [
                 "Domain",
-                "NowPlayingRepository",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -149,7 +146,6 @@ let package = Package(
             name: "LyricsRepository",
             dependencies: [
                 "Domain",
-                "SQLiteDataStore",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
