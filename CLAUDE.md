@@ -94,6 +94,7 @@ graph TD
     LyricsRepository -.-> SQLiteDataStore
     MetadataUseCase -.-> MetadataRepository
     MetadataRepository -.-> MetadataDataSource
+    MetadataRepository -.-> SQLiteDataStore
 
     style lyra fill:#333,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
