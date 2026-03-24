@@ -88,10 +88,17 @@ let package = Package(
             ]
         ),
 
-        // Entity
+        // Entity (pure data types, zero external dependencies)
+        .target(
+            name: "Entity",
+            dependencies: []
+        ),
+
+        // Domain (protocols + DI keys)
         .target(
             name: "Domain",
             dependencies: [
+                "Entity",
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
             ]
