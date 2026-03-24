@@ -69,8 +69,8 @@ graph TD
 
     lyra --> CLI
     CLI --> App
-    App --> Views & Presentation & ConfigDataSource
-    App -.->|DI link guarantee| ConfigUseCase & ConfigRepository & PlaybackUseCase & LyricsUseCase & MetadataUseCase
+    App --> Views & Presentation & ConfigDataSource & ConfigRepository
+    App -.->|DI link guarantee| ConfigUseCase & PlaybackUseCase & LyricsUseCase & MetadataUseCase
     App -.->|healthcheck DI| LyricsDataSource & MetadataDataSource
     Views --> Presentation & Domain
     Presentation -.->|DI only| Domain

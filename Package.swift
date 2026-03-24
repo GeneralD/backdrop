@@ -54,6 +54,7 @@ let package = Package(
                 "Presentation",
                 "ConfigUseCase",
                 "ConfigRepository",
+                "ConfigDataSource",
                 "LyricsUseCase",
                 "MetadataUseCase",
                 "PlaybackUseCase",
