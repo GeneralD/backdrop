@@ -97,16 +97,16 @@ extension YouTubeWallpaperDataSourceImpl {
     private func remuxToStandardMP4(at path: String) async throws {
         guard let ffmpeg = findExecutable("ffmpeg") else { return }
         let tmpPath = path + ".remux.mp4"
+        try? FileManager.default.removeItem(atPath: tmpPath)
         let (status, stderr) = try await runProcess(
             executablePath: ffmpeg,
-            arguments: ["-i", path, "-c", "copy", "-movflags", "+faststart", tmpPath]
+            arguments: ["-y", "-i", path, "-c", "copy", "-movflags", "+faststart", tmpPath]
         )
         guard status == 0 else {
             try? FileManager.default.removeItem(atPath: tmpPath)
             throw YouTubeDownloadError.remuxFailed(stderr: stderr)
         }
-        try? FileManager.default.removeItem(atPath: path)
-        try FileManager.default.moveItem(atPath: tmpPath, toPath: path)
+        _ = try? FileManager.default.replaceItemAt(URL(fileURLWithPath: path), withItemAt: URL(fileURLWithPath: tmpPath))
     }
 }
 
