@@ -120,7 +120,7 @@ struct WallpaperCacheTests {
                 URL(string: "https://example.com/c.mov")!,
             ]
             let hexPattern = #/^[0-9a-f]{64}\.\w+$/#
-            urls.forEach { url in
+            for url in urls {
                 let path = cache.destinationPath(for: url)
                 let fileName = URL(fileURLWithPath: path).lastPathComponent
                 #expect(fileName.wholeMatch(of: hexPattern) != nil, "Expected hex pattern, got: \(fileName)")
