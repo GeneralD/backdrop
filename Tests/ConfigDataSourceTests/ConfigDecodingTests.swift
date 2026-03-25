@@ -69,7 +69,8 @@ struct DefaultValueTests {
 struct WallpaperTomlDecodingTests {
     @Test("bare string wallpaper decodes location only")
     func bareString() throws {
-        let config = try decode("""
+        let config = try decode(
+            """
             wallpaper = "loop.mp4"
             """)
         #expect(config.wallpaper?.location == "loop.mp4")
@@ -79,7 +80,8 @@ struct WallpaperTomlDecodingTests {
 
     @Test("[wallpaper] table with location only")
     func tableLocationOnly() throws {
-        let config = try decode("""
+        let config = try decode(
+            """
             [wallpaper]
             location = "bg.mp4"
             """)
@@ -90,7 +92,8 @@ struct WallpaperTomlDecodingTests {
 
     @Test("[wallpaper] table with start and end")
     func tableWithTrim() throws {
-        let config = try decode("""
+        let config = try decode(
+            """
             [wallpaper]
             location = "https://www.youtube.com/watch?v=XXXXX"
             start = "0:30"
@@ -103,7 +106,8 @@ struct WallpaperTomlDecodingTests {
 
     @Test("[wallpaper] table with start only")
     func tableStartOnly() throws {
-        let config = try decode("""
+        let config = try decode(
+            """
             [wallpaper]
             location = "video.mp4"
             start = "1:00"
@@ -120,7 +124,8 @@ struct WallpaperTomlDecodingTests {
 
     @Test("[wallpaper] start >= end discards end")
     func startGteEnd() throws {
-        let config = try decode("""
+        let config = try decode(
+            """
             [wallpaper]
             location = "v.mp4"
             start = "2:00"
