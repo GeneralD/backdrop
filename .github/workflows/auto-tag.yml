@@ -1,15 +1,16 @@
-name: Auto Tag & Update Homebrew
+name: Auto Tag, Release & Update Homebrew
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  tag-and-update:
-    runs-on: macos-latest
+  tag-and-release:
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,14 +33,65 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Check remote via API (not local git) to avoid stale refs
           if gh api "repos/${{ github.repository }}/git/refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Tag ${TAG} already exists on remote, skipping"
+            echo "Tag ${TAG} already exists on remote"
             echo "created=false" >> "$GITHUB_OUTPUT"
           else
             git tag "$TAG"
             git push origin "$TAG"
             echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if release exists
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release binary
+        if: steps.release.outputs.exists == 'false'
+        run: swift build --disable-sandbox -c release
+
+      - name: Package binary
+        if: steps.release.outputs.exists == 'false'
+        run: |
+          BUILD_DIR=$(swift build --disable-sandbox --show-bin-path -c release)
+          STAGING="lyra-${VERSION}-macos-arm64"
+          mkdir -p "$STAGING"
+          cp "$BUILD_DIR/lyra" "$STAGING/"
+          find "$BUILD_DIR" -name '*.bundle' -exec cp -R {} "$STAGING/" \;
+          tar czf "${STAGING}.tar.gz" "$STAGING"
+          echo "ARCHIVE=${STAGING}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "$ARCHIVE" \
+            --title "lyra $VERSION" \
+            --generate-notes
+
+      - name: Upload asset to existing release
+        if: steps.release.outputs.exists == 'true' && steps.tag.outputs.created == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Rebuild and upload if release exists but has no binary asset
+          if ! gh release view "$TAG" --json assets --jq '.assets[].name' | grep -q 'macos-arm64'; then
+            swift build --disable-sandbox -c release
+            BUILD_DIR=$(swift build --disable-sandbox --show-bin-path -c release)
+            STAGING="lyra-${VERSION}-macos-arm64"
+            mkdir -p "$STAGING"
+            cp "$BUILD_DIR/lyra" "$STAGING/"
+            find "$BUILD_DIR" -name '*.bundle' -exec cp -R {} "$STAGING/" \;
+            tar czf "${STAGING}.tar.gz" "$STAGING"
+            gh release upload "$TAG" "${STAGING}.tar.gz" --clobber
           fi
 
       - name: Update Homebrew formula
