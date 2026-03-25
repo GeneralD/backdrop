@@ -81,6 +81,33 @@ struct ConfigWriteTemplateTests {
         #expect(content == ds.template(format: .toml))
     }
 
+    @Test("existingConfigPath returns path when config file exists")
+    func existingPathWhenExists() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        setenv("XDG_CONFIG_HOME", tmp, 1)
+        defer {
+            unsetenv("XDG_CONFIG_HOME")
+            try? FileManager.default.removeItem(atPath: tmp)
+        }
+
+        let ds = ConfigDataSourceImpl()
+        _ = try ds.writeTemplate(format: .toml, force: false)
+
+        #expect(ds.existingConfigPath() == "\(tmp)/lyra/config.toml")
+    }
+
+    @Test("existingConfigPath returns nil when no config file exists")
+    func existingPathWhenMissing() {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        setenv("XDG_CONFIG_HOME", tmp, 1)
+        defer {
+            unsetenv("XDG_CONFIG_HOME")
+        }
+
+        let ds = ConfigDataSourceImpl()
+        #expect(ds.existingConfigPath() == nil)
+    }
+
     @Test("creates intermediate directories")
     func createsDirectories() throws {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
