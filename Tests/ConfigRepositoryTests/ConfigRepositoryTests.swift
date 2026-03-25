@@ -202,6 +202,9 @@ private struct StubConfigDataSource: ConfigDataSource {
     func tryDecode() throws -> String {
         try tryDecodeResult.get()
     }
+
+    func template(format: ConfigFormat) -> String? { nil }
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
 }
 
 private enum StubError: Error, LocalizedError {

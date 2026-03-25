@@ -86,6 +86,7 @@ extension DecodeEffectState {
         var elapsed: Double = 0
         let interval: Double = 0.03
         let animationDuration = duration
+        nonisolated(unsafe) let onComplete = onComplete
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }

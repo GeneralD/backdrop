@@ -32,11 +32,17 @@ make install
 ## Usage
 
 ```sh
-lyra start       # start as background daemon
-lyra stop        # stop the daemon
-lyra restart     # restart
-lyra daemon      # run in foreground (debug)
-lyra version     # show version
+lyra start            # start as background daemon
+lyra stop             # stop the daemon
+lyra restart          # restart
+lyra daemon           # run in foreground (debug)
+lyra version          # show version
+lyra healthcheck      # check API connectivity
+
+lyra config template  # print default config to stdout
+lyra config init      # create config file with defaults
+lyra config edit      # open config in $EDITOR
+lyra config open      # open config in GUI app
 ```
 
 ### Auto-start
@@ -64,7 +70,14 @@ Homebrew installs completions automatically.
 
 ## Configuration
 
-Create `~/.config/lyra/config.toml` (or `config.json`). All fields are optional — missing values use sensible defaults.
+```sh
+# Generate a starter config with all defaults
+lyra config init                    # creates ~/.config/lyra/config.toml
+lyra config init --format json      # JSON variant
+lyra config template > custom.toml  # pipe to any path
+```
+
+Or create `~/.config/lyra/config.toml` (or `config.json`) manually. All fields are optional — missing values use sensible defaults.
 
 Alternative paths: `~/.lyra/config.toml`, `$XDG_CONFIG_HOME/lyra/config.toml`
 

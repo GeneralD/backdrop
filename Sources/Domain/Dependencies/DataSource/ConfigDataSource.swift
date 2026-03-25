@@ -3,6 +3,8 @@ import Dependencies
 public protocol ConfigDataSource: Sendable {
     func load() -> ConfigLoadResult?
     func tryDecode() throws -> String
+    func template(format: ConfigFormat) -> String?
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String
 }
 
 public enum ConfigDataSourceKey: TestDependencyKey {
@@ -19,4 +21,6 @@ extension DependencyValues {
 private struct UnimplementedConfigDataSource: ConfigDataSource {
     func load() -> ConfigLoadResult? { nil }
     func tryDecode() throws -> String { "" }
+    func template(format: ConfigFormat) -> String? { nil }
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
 }

@@ -3,6 +3,8 @@ import Dependencies
 public protocol ConfigRepository: Sendable {
     @MainActor func loadAppStyle() -> AppStyle
     func validate() -> ConfigValidationResult
+    func template(format: ConfigFormat) -> String?
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String
 }
 
 public enum ConfigRepositoryKey: TestDependencyKey {
@@ -19,4 +21,6 @@ extension DependencyValues {
 private struct UnimplementedConfigRepository: ConfigRepository {
     @MainActor func loadAppStyle() -> AppStyle { .init() }
     func validate() -> ConfigValidationResult { .defaults }
+    func template(format: ConfigFormat) -> String? { nil }
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
 }

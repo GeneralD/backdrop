@@ -14,6 +14,38 @@ extension ConfigDataSourceImpl: ConfigDataSource {
         return ConfigLoadResult(config: config, configDir: configDir, path: path)
     }
 
+    public func template(format: ConfigFormat) -> String? {
+        let config = AppConfig.defaults
+        switch format {
+        case .toml:
+            return try? TOMLEncoder().encode(config)
+        case .json:
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            guard let data = try? encoder.encode(config) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }
+    }
+
+    public func writeTemplate(format: ConfigFormat, force: Bool) throws -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let xdgConfig = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] ?? "\(home)/.config"
+        let dir = "\(xdgConfig)/lyra"
+        let path = "\(dir)/config.\(format.fileExtension)"
+
+        guard force || !FileManager.default.fileExists(atPath: path) else {
+            throw ConfigWriteError.alreadyExists(path: path)
+        }
+
+        guard let content = template(format: format) else {
+            throw ConfigWriteError.encodingFailed
+        }
+
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try content.write(toFile: path, atomically: true, encoding: .utf8)
+        return path
+    }
+
     public func tryDecode() throws -> String {
         guard let (path, content) = findConfigFile() else { return "" }
         let configDir = URL(fileURLWithPath: path).deletingLastPathComponent().path
