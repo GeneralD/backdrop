@@ -56,6 +56,45 @@ struct WallpaperConfigTests {
         }
     }
 
+    // MARK: - Time Formatting
+
+    @Suite("formatTime")
+    struct FormatTime {
+        @Test("formats minutes and seconds")
+        func minutesSeconds() {
+            #expect(WallpaperConfig.formatTime(90) == "1:30")
+        }
+
+        @Test("formats hours")
+        func hours() {
+            #expect(WallpaperConfig.formatTime(3930) == "1:05:30")
+        }
+
+        @Test("formats zero")
+        func zero() {
+            #expect(WallpaperConfig.formatTime(0) == "0:00")
+        }
+
+        @Test("formats fractional seconds")
+        func fractional() {
+            #expect(WallpaperConfig.formatTime(83.5) == "1:23.5")
+        }
+
+        @Test("round-trip: parseTime then formatTime")
+        func roundTrip() {
+            let original = "2:15"
+            let interval = WallpaperConfig.parseTime(original)!
+            #expect(WallpaperConfig.formatTime(interval) == original)
+        }
+
+        @Test("round-trip with fractional")
+        func roundTripFractional() {
+            let original = "1:23.5"
+            let interval = WallpaperConfig.parseTime(original)!
+            #expect(WallpaperConfig.formatTime(interval) == original)
+        }
+    }
+
     // MARK: - Validation
 
     @Suite("validate")

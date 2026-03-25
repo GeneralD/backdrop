@@ -95,6 +95,7 @@ extension WallpaperConfig {
             ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
             : String(format: "%d:%02d", minutes, seconds)
         guard frac > 0 else { return base }
-        return base + String(format: ".%g", frac).dropFirst()
+        let fracStr = String(format: "%g", frac)  // "0.5" → drop "0" → ".5"
+        return base + fracStr.dropFirst()
     }
 }

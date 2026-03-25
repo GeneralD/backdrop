@@ -20,6 +20,7 @@ public final class OverlayWindow {
     private let hostingView: NSHostingView<OverlayContentView>
     private let hasWallpaper: Bool
     private var queuePlayer: AVPlayer?
+    private var endTimeObserver: Any?
 
     @Dependency(\.appStyle) private var resolvedConfig
 
@@ -77,12 +78,16 @@ public final class OverlayWindow {
                 await player.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
             }
 
-            // Loop: seek back to start when reaching end (or video end)
+            // Loop: seek back to start when reaching end boundary
             if let endTime {
+                var seeking = false
                 let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
-                player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak player] time in
-                    guard time >= endTime else { return }
-                    player?.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: { _ in })
+                endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak player] time in
+                    guard !seeking, time >= endTime else { return }
+                    seeking = true
+                    player?.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                        seeking = false
+                    }
                 }
             }
 
@@ -153,6 +158,7 @@ public final class OverlayWindow {
         controller.stop()
         displayLinkDriver?.stop()
         queuePlayer?.pause()
+        endTimeObserver.map { queuePlayer?.removeTimeObserver($0) }
         loopObserver.map(NotificationCenter.default.removeObserver)
         mouseMonitor.map(NSEvent.removeMonitor)
         screenObserver.map(NotificationCenter.default.removeObserver)
