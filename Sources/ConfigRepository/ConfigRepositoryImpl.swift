@@ -36,7 +36,9 @@ extension ConfigRepositoryImpl: ConfigRepository {
                 idle: config.ripple.idle.value
             ),
             screen: config.screen,
-            wallpaper: config.wallpaper,
+            wallpaper: config.wallpaper?.location,
+            wallpaperStart: config.wallpaper?.start,
+            wallpaperEnd: config.wallpaper?.end,
             configDir: result.configDir,
             ai: config.ai.map { AIEndpoint(endpoint: $0.endpoint, model: $0.model, apiKey: $0.apiKey) }
         )

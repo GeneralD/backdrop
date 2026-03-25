@@ -69,11 +69,28 @@ public final class OverlayWindow {
             player.actionAtItemEnd = .none
             queuePlayer = player
 
+            let startTime = cfg.wallpaperStart.map { CMTime(seconds: $0, preferredTimescale: 600) } ?? .zero
+            let endTime = cfg.wallpaperEnd.map { CMTime(seconds: $0, preferredTimescale: 600) }
+
+            // Seek to start position
+            if startTime != .zero {
+                await player.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
+            }
+
+            // Loop: seek back to start when reaching end (or video end)
+            if let endTime {
+                let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
+                player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak player] time in
+                    guard time >= endTime else { return }
+                    player?.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero, completionHandler: { _ in })
+                }
+            }
+
             loopObserver = NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
                 object: player.currentItem, queue: .main
             ) { [weak player] _ in
-                player?.seek(to: .zero)
+                player?.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero)
                 player?.play()
             }
 
