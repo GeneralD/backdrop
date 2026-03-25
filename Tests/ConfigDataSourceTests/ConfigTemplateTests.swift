@@ -5,6 +5,25 @@ import Testing
 
 @testable import ConfigDataSource
 
+// Snapshot Testing Strategy
+//
+// These tests compare template output as full strings to catch any unintended change.
+// However, `DecodeEffectConfig.charset` is a Set<CharsetName>, whose iteration order
+// is non-deterministic. This means the charset array in TOML/JSON output can appear
+// in any order across runs.
+//
+// To handle this:
+// 1. Extract the charset values via Regex
+// 2. Replace the charset portion with a placeholder
+// 3. Compare the rest of the output as an exact string match
+// 4. Compare charset values as a Set (order-independent)
+//
+// Alternatives considered:
+// - Embedding charset as a regex pattern (e.g. `#/charset = \[.*\]/#`) in a multiline
+//   regex literal covering the entire expected output. This would avoid the placeholder,
+//   but TOML/JSON contain many regex-special characters (`[`, `.`, `{`) requiring
+//   extensive escaping, making the expected value far less readable than plain text.
+
 private let charsetPlaceholder = "__CHARSET__"
 
 @Suite("ConfigDataSource.template")
