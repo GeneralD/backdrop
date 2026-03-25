@@ -70,7 +70,7 @@ struct ConfigEditCommand: ParsableCommand {
         @Dependency(\.configDataSource) var dataSource
 
         let path: String
-        if let existing = dataSource.load()?.path {
+        if let existing = dataSource.existingConfigPath() {
             path = existing
         } else {
             @Dependency(\.configUseCase) var configUseCase
@@ -81,9 +81,10 @@ struct ConfigEditCommand: ParsableCommand {
             throw ValidationError("$EDITOR is not set. Set it with: export EDITOR=vim")
         }
 
+        let escapedPath = path.replacingOccurrences(of: "'", with: "'\"'\"'")
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [editor, path]
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", "\(editor) '\(escapedPath)'"]
         try process.run()
         process.waitUntilExit()
     }
@@ -101,7 +102,7 @@ struct ConfigOpenCommand: ParsableCommand {
         @Dependency(\.configDataSource) var dataSource
 
         let path: String
-        if let existing = dataSource.load()?.path {
+        if let existing = dataSource.existingConfigPath() {
             path = existing
         } else {
             @Dependency(\.configUseCase) var configUseCase

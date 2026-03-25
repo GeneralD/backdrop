@@ -205,6 +205,7 @@ private struct StubConfigDataSource: ConfigDataSource {
 
     func template(format: ConfigFormat) -> String? { nil }
     func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
+    func existingConfigPath() -> String? { nil }
 }
 
 private enum StubError: Error, LocalizedError {

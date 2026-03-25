@@ -41,7 +41,7 @@ size = 96.0
 
 [ripple]
 color = '#AAAAFFFF'
-duration = 0.59999999999999998
+duration = 0.6
 enabled = true
 idle = 1.0
 radius = 60.0
@@ -56,7 +56,7 @@ spacing = 6.0
 
 [text.decode_effect]
 charset = \(charsetPlaceholder)
-duration = 0.80000000000000004
+duration = 0.8
 
 [text.default]
 color = '#FFFFFFD9'

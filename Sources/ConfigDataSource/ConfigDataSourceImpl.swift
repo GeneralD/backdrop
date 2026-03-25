@@ -18,7 +18,8 @@ extension ConfigDataSourceImpl: ConfigDataSource {
         let config = AppConfig.defaults
         switch format {
         case .toml:
-            return try? TOMLEncoder().encode(config)
+            guard let toml = try? TOMLEncoder().encode(config) else { return nil }
+            return sanitizeTomlFloats(toml)
         case .json:
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -29,7 +30,8 @@ extension ConfigDataSourceImpl: ConfigDataSource {
 
     public func writeTemplate(format: ConfigFormat, force: Bool) throws -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let xdgConfig = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] ?? "\(home)/.config"
+        let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let xdgConfig = (envXdg?.isEmpty == false) ? envXdg! : "\(home)/.config"
         let dir = "\(xdgConfig)/lyra"
         let path = "\(dir)/config.\(format.fileExtension)"
 
@@ -46,6 +48,10 @@ extension ConfigDataSourceImpl: ConfigDataSource {
         return path
     }
 
+    public func existingConfigPath() -> String? {
+        findConfigFile()?.path
+    }
+
     public func tryDecode() throws -> String {
         guard let (path, content) = findConfigFile() else { return "" }
         let configDir = URL(fileURLWithPath: path).deletingLastPathComponent().path
@@ -57,7 +63,8 @@ extension ConfigDataSourceImpl: ConfigDataSource {
 extension ConfigDataSourceImpl {
     func findConfigFile() -> (path: String, content: String)? {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let xdgConfig = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"] ?? "\(home)/.config"
+        let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let xdgConfig = (envXdg?.isEmpty == false) ? envXdg! : "\(home)/.config"
         let candidates = [
             "\(xdgConfig)/lyra/config.toml",
             "\(home)/.lyra/config.toml",
@@ -110,5 +117,18 @@ extension ConfigDataSourceImpl {
             }
             deepMerge(from: sourceTable, into: targetTable)
         }
+    }
+
+    func sanitizeTomlFloats(_ toml: String) -> String {
+        let pattern = #"(?<![0-9A-Za-z_.-])([0-9]+\.[0-9]{8,})(?![0-9A-Za-z_.-])"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return toml }
+        let range = NSRange(toml.startIndex..<toml.endIndex, in: toml)
+        var result = toml
+        for match in regex.matches(in: toml, range: range).reversed() {
+            guard let groupRange = Range(match.range(at: 1), in: result) else { continue }
+            guard let value = Double(String(result[groupRange])) else { continue }
+            result.replaceSubrange(groupRange, with: String(format: "%.15g", value))
+        }
+        return result
     }
 }
