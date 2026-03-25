@@ -86,7 +86,7 @@ Alternative paths: `~/.lyra/config.toml`, `$XDG_CONFIG_HOME/lyra/config.toml`
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `screen` | string / int | `"main"` | Which display to use (see [Screen selection](#screen-selection)) |
-| `wallpaper` | string | — | Video file path. Relative to config dir or absolute |
+| `wallpaper` | string | — | Video wallpaper. Local path, HTTP(S) URL, or YouTube URL (see [Wallpaper](#wallpaper)) |
 | `includes` | array | — | TOML-only: list of additional TOML files to merge (ignored for `config.json`; paths relative to config dir or absolute) |
 
 ### `[text.default]` — base text style
@@ -178,6 +178,35 @@ Optional LLM-based song title and artist extraction via any OpenAI-compatible AP
 | `"largest"` | Largest display by area |
 | `"match"` | Best aspect-ratio match for the wallpaper video |
 | `0`, `1`, … | Display by index |
+
+### Wallpaper
+
+The `wallpaper` field accepts three types of values:
+
+```toml
+# Local file (relative to config dir or absolute)
+wallpaper = "loop.mp4"
+wallpaper = "/Users/me/Videos/bg.mp4"
+
+# Direct HTTP(S) URL
+wallpaper = "https://example.com/background.mp4"
+
+# YouTube URL
+wallpaper = "https://www.youtube.com/watch?v=XXXXX"
+wallpaper = "https://youtu.be/XXXXX"
+```
+
+Remote and YouTube videos are downloaded once and cached in `~/.cache/lyra/wallpapers/`. Subsequent launches use the cached file instantly.
+
+**YouTube requirements:**
+
+| Tool | Install | Notes |
+|---|---|---|
+| `yt-dlp` | `brew install yt-dlp` | Preferred. Downloads video-only H.264 at up to 4K |
+| `uvx` | `brew install uv` | Zero-install alternative — runs `uvx yt-dlp` without global install |
+| `ffmpeg` | `brew install ffmpeg` | Required for auto-loop. Remuxes DASH container to standard MP4 |
+
+If neither `yt-dlp` nor `uvx` is found, lyra will show an error. If `ffmpeg` is not found, the video plays but may not loop automatically.
 
 ### Full example
 
