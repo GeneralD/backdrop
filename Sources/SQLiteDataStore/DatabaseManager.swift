@@ -1,3 +1,4 @@
+import Files
 import Foundation
 import GRDB
 
@@ -5,13 +6,8 @@ public final class DatabaseManager: Sendable {
     public let dbQueue: DatabaseQueue
 
     public init() throws {
-        let cacheDir = URL(
-            fileURLWithPath:
-                ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]
-                ?? "\(FileManager.default.homeDirectoryForCurrentUser.path)/.cache"
-        )
-        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-        let dbPath = cacheDir.appendingPathComponent("lyrics.db").path
+        let cacheFolder = try Self.lyraCacheFolder()
+        let dbPath = cacheFolder.path + "lyrics.db"
         dbQueue = try DatabaseQueue(path: dbPath)
         try migrator.migrate(dbQueue)
     }
@@ -20,6 +16,14 @@ public final class DatabaseManager: Sendable {
     public init(inMemory: Bool) throws {
         dbQueue = try DatabaseQueue()
         try migrator.migrate(dbQueue)
+    }
+
+    private static func lyraCacheFolder() throws -> Folder {
+        let envCache = ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]?.trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        let cachePath =
+            (envCache?.isEmpty == false) ? envCache! : "\(Folder.home.path).cache"
+        return try Folder.createIfNeeded(at: cachePath)
     }
 
     private var migrator: DatabaseMigrator {
@@ -75,14 +79,24 @@ public final class DatabaseManager: Sendable {
         }
 
         migrator.registerMigration("v1_removeLegacyCache") { _ in
-            let cacheDir = URL(
-                fileURLWithPath:
-                    ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]
-                    ?? "\(FileManager.default.homeDirectoryForCurrentUser.path)/.cache"
-            )
-            try? FileManager.default.removeItem(at: cacheDir.appendingPathComponent("now-playing"))
+            let envCache = ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]?.trimmingCharacters(
+                in: .whitespacesAndNewlines)
+            let cachePath =
+                (envCache?.isEmpty == false) ? envCache! : "\(Folder.home.path).cache"
+            try? Folder(path: cachePath).subfolder(named: "now-playing").delete()
         }
 
         return migrator
+    }
+}
+
+extension Folder {
+    static func createIfNeeded(at path: String) throws -> Folder {
+        do {
+            return try Folder(path: path)
+        } catch {
+            try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+            return try Folder(path: path)
+        }
     }
 }

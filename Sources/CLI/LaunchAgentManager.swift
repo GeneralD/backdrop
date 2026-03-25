@@ -1,3 +1,4 @@
+import Files
 import Foundation
 
 public struct LaunchAgentManager {
@@ -8,18 +9,20 @@ public struct LaunchAgentManager {
 }
 
 extension LaunchAgentManager {
-    private var plistPath: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/LaunchAgents/\(label).plist")
+    private var launchAgentsFolder: Folder {
+        get throws { try Folder.home.subfolder(at: "Library/LaunchAgents") }
     }
 
-    private var homebrewPlistPath: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/LaunchAgents/\(homebrewLabel).plist")
+    private var plistFile: File? {
+        try? launchAgentsFolder.file(named: "\(label).plist")
+    }
+
+    private var homebrewPlistFile: File? {
+        try? launchAgentsFolder.file(named: "\(homebrewLabel).plist")
     }
 
     func install() throws {
-        guard !FileManager.default.fileExists(atPath: homebrewPlistPath.path) else {
+        guard homebrewPlistFile == nil else {
             print("Already managed by brew services. Run 'brew services stop lyra' first.")
             return
         }
@@ -40,18 +43,20 @@ extension LaunchAgentManager {
 
         runLaunchctl(["bootout", "\(target)/\(label)"])
 
-        try plistData.write(to: plistPath)
+        let folder = try launchAgentsFolder
+        let file = try folder.createFile(named: "\(label).plist")
+        try file.write(plistData)
 
-        let status = runLaunchctl(["bootstrap", target, plistPath.path])
+        let status = runLaunchctl(["bootstrap", target, file.path])
         guard status == 0 else {
             throw LaunchAgentError.bootstrapFailed(status)
         }
-        print("Installed and started: \(plistPath.path)")
+        print("Installed and started: \(file.path)")
     }
 
     func uninstall() throws {
-        guard FileManager.default.fileExists(atPath: plistPath.path) else {
-            if FileManager.default.fileExists(atPath: homebrewPlistPath.path) {
+        guard let file = plistFile else {
+            if homebrewPlistFile != nil {
                 print("Managed by brew services. Run 'brew services stop lyra' instead.")
             } else {
                 print("Not installed")
@@ -61,7 +66,7 @@ extension LaunchAgentManager {
         let uid = getuid()
         runLaunchctl(["bootout", "gui/\(uid)/\(label)"])
         ProcessManager.stopExisting()
-        try FileManager.default.removeItem(at: plistPath)
+        try file.delete()
         print("Uninstalled")
     }
 }

@@ -1,4 +1,5 @@
 import Domain
+import Files
 import Foundation
 
 /// Bridges to MediaRemote.framework via a persistent swift interpreter subprocess.
@@ -51,7 +52,9 @@ extension MediaRemoteBridge: MediaRemoteDataSource {
                             duration: json["duration"] as? TimeInterval,
                             rawElapsed: json["elapsed"] as? TimeInterval,
                             playbackRate: json["rate"] as? Double ?? 1.0,
-                            timestamp: (json["timestamp"] as? TimeInterval).map { Date(timeIntervalSinceReferenceDate: $0) }
+                            timestamp: (json["timestamp"] as? TimeInterval).map {
+                                Date(timeIntervalSinceReferenceDate: $0)
+                            }
                         )))
             }
         }
@@ -60,20 +63,23 @@ extension MediaRemoteBridge: MediaRemoteDataSource {
 
 extension MediaRemoteBridge {
     fileprivate static func ensureScript() -> String {
-        let cacheDir = URL(
-            fileURLWithPath:
-                ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]
-                ?? "\(FileManager.default.homeDirectoryForCurrentUser.path)/.cache"
-        ).appendingPathComponent("lyra")
-        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-
-        let dest = cacheDir.appendingPathComponent("media-remote-helper.swift").path
-        guard let source = Bundle.module.url(forResource: "media-remote-helper", withExtension: "swift") else {
-            return dest
+        let envCache = ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]?.trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        let cachePath =
+            (envCache?.isEmpty == false) ? envCache! : "\(Folder.home.path).cache"
+        let lyraCachePath = "\(cachePath)/lyra"
+        try? FileManager.default.createDirectory(atPath: lyraCachePath, withIntermediateDirectories: true)
+        guard let lyraFolder = try? Folder(path: lyraCachePath) else {
+            return "\(lyraCachePath)/media-remote-helper.swift"
         }
-        try? FileManager.default.removeItem(atPath: dest)
-        try? FileManager.default.copyItem(atPath: source.path, toPath: dest)
-        return dest
+
+        let destPath = lyraFolder.path + "media-remote-helper.swift"
+        guard let source = Bundle.module.url(forResource: "media-remote-helper", withExtension: "swift") else {
+            return destPath
+        }
+        try? FileManager.default.removeItem(atPath: destPath)
+        try? FileManager.default.copyItem(atPath: source.path, toPath: destPath)
+        return destPath
     }
 
     fileprivate static func readLine(from handle: FileHandle) -> String? {
