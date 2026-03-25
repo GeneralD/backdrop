@@ -19,15 +19,15 @@ struct ConfigRepositoryTests {
                 let repo = ConfigRepositoryImpl()
                 let style = repo.loadAppStyle()
                 let defaultStyle = AppStyle()
-                #expect(style.wallpaperURL == defaultStyle.wallpaperURL)
+                #expect(style.wallpaper == defaultStyle.wallpaper)
                 #expect(style.ai == nil)
                 #expect(style.screen == defaultStyle.screen)
             }
         }
 
-        @Test("resolves relative wallpaper path relative to configDir")
+        @Test("passes raw wallpaper value and configDir through")
         @MainActor
-        func relativeWallpaperPath() {
+        func wallpaperRawValue() {
             let config = makeAppConfig(wallpaper: "bg.mp4")
             let result = ConfigLoadResult(config: config, configDir: "/Users/test/.config/lyra", path: "/Users/test/.config/lyra/config.toml")
 
@@ -36,26 +36,12 @@ struct ConfigRepositoryTests {
             } operation: {
                 let repo = ConfigRepositoryImpl()
                 let style = repo.loadAppStyle()
-                #expect(style.wallpaperURL == URL(fileURLWithPath: "/Users/test/.config/lyra/bg.mp4"))
+                #expect(style.wallpaper == "bg.mp4")
+                #expect(style.configDir == "/Users/test/.config/lyra")
             }
         }
 
-        @Test("preserves absolute wallpaper path as-is")
-        @MainActor
-        func absoluteWallpaperPath() {
-            let config = makeAppConfig(wallpaper: "/absolute/path/bg.mp4")
-            let result = ConfigLoadResult(config: config, configDir: "/Users/test/.config/lyra", path: "/Users/test/.config/lyra/config.toml")
-
-            withDependencies {
-                $0.configDataSource = StubConfigDataSource(loadResult: result)
-            } operation: {
-                let repo = ConfigRepositoryImpl()
-                let style = repo.loadAppStyle()
-                #expect(style.wallpaperURL == URL(fileURLWithPath: "/absolute/path/bg.mp4"))
-            }
-        }
-
-        @Test("wallpaperURL is nil when wallpaper config is nil")
+        @Test("wallpaper is nil when wallpaper config is nil")
         @MainActor
         func wallpaperNil() {
             let config = makeAppConfig(wallpaper: nil)
@@ -66,7 +52,7 @@ struct ConfigRepositoryTests {
             } operation: {
                 let repo = ConfigRepositoryImpl()
                 let style = repo.loadAppStyle()
-                #expect(style.wallpaperURL == nil)
+                #expect(style.wallpaper == nil)
             }
         }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env swift
-
 import Foundation
 
 let path = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"

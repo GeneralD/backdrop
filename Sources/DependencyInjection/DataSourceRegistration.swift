@@ -4,6 +4,7 @@ import Domain
 import LyricsDataSource
 import MediaRemoteDataSource
 import MetadataDataSource
+import WallpaperDataSource
 
 extension ConfigDataSourceKey: DependencyKey {
     public static let liveValue: any ConfigDataSource = ConfigDataSourceImpl()
@@ -27,4 +28,16 @@ extension MusicBrainzMetadataDataSourceKey: DependencyKey {
 
 extension RegexMetadataDataSourceKey: DependencyKey {
     public static let liveValue: any MetadataDataSource<Track> = RegexMetadataDataSourceImpl()
+}
+
+extension LocalWallpaperDataSourceKey: DependencyKey {
+    public static let liveValue: any WallpaperDataSource<LocalWallpaper> = LocalWallpaperDataSourceImpl()
+}
+
+extension RemoteWallpaperDataSourceKey: DependencyKey {
+    public static let liveValue: any WallpaperDataSource<RemoteWallpaper> = RemoteWallpaperDataSourceImpl()
+}
+
+extension YouTubeWallpaperDataSourceKey: DependencyKey {
+    public static let liveValue: any WallpaperDataSource<YouTubeWallpaper> = YouTubeWallpaperDataSourceImpl()
 }
