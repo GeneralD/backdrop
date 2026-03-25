@@ -5,9 +5,7 @@ public struct AppStyle: Sendable {
     public let artwork: ArtworkStyle
     public let ripple: RippleStyle
     public let screen: ScreenSelector
-    public let wallpaper: String?
-    public let wallpaperStart: TimeInterval?
-    public let wallpaperEnd: TimeInterval?
+    public let wallpaper: WallpaperStyle?
     public let configDir: String?
     public let ai: AIEndpoint?
 
@@ -16,9 +14,7 @@ public struct AppStyle: Sendable {
         artwork: ArtworkStyle = .init(),
         ripple: RippleStyle = .init(),
         screen: ScreenSelector = .main,
-        wallpaper: String? = nil,
-        wallpaperStart: TimeInterval? = nil,
-        wallpaperEnd: TimeInterval? = nil,
+        wallpaper: WallpaperStyle? = nil,
         configDir: String? = nil,
         ai: AIEndpoint? = nil
     ) {
@@ -27,8 +23,6 @@ public struct AppStyle: Sendable {
         self.ripple = ripple
         self.screen = screen
         self.wallpaper = wallpaper
-        self.wallpaperStart = wallpaperStart
-        self.wallpaperEnd = wallpaperEnd
         self.configDir = configDir
         self.ai = ai
     }

@@ -30,7 +30,7 @@ public final class OverlayWindow {
         controller = OverlayController()
 
         let wallpaperURL = try? await wallpaperUseCase.resolveWallpaper(
-            value: cfg.wallpaper, configDir: cfg.configDir ?? FileManager.default.homeDirectoryForCurrentUser.path
+            value: cfg.wallpaper?.location, configDir: cfg.configDir ?? FileManager.default.homeDirectoryForCurrentUser.path
         )
         hasWallpaper = wallpaperURL != nil
 
@@ -69,8 +69,8 @@ public final class OverlayWindow {
             player.actionAtItemEnd = .none
             queuePlayer = player
 
-            let startTime = cfg.wallpaperStart.map { CMTime(seconds: $0, preferredTimescale: 600) } ?? .zero
-            let endTime = cfg.wallpaperEnd.map { CMTime(seconds: $0, preferredTimescale: 600) }
+            let startTime = cfg.wallpaper?.start.map { CMTime(seconds: $0, preferredTimescale: 600) } ?? .zero
+            let endTime = cfg.wallpaper?.end.map { CMTime(seconds: $0, preferredTimescale: 600) }
 
             // Seek to start position
             if startTime != .zero {
@@ -167,7 +167,7 @@ public final class OverlayWindow {
         @Dependency(\.wallpaperUseCase) var wallpaperUseCase
         let cfg = resolvedConfig
         let wallpaperURL = try? await wallpaperUseCase.resolveWallpaper(
-            value: cfg.wallpaper, configDir: cfg.configDir ?? FileManager.default.homeDirectoryForCurrentUser.path
+            value: cfg.wallpaper?.location, configDir: cfg.configDir ?? FileManager.default.homeDirectoryForCurrentUser.path
         )
         let frames = await Self.resolveFrames(
             selector: cfg.screen,
