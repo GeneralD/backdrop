@@ -29,17 +29,7 @@ public struct WallpaperToolChecker: HealthCheckable {
     }
 
     private func findExecutable(_ name: String) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
-        process.arguments = [name]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return nil }
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { return nil }
-        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        findExecutableInPath(name)
     }
 }
 
@@ -66,7 +56,7 @@ extension WallpaperToolChecker {
     /// Returns checkers for YouTube wallpaper tools.
     /// yt-dlp is checked first; if not found, uvx is checked as alternative.
     public static func youtubeCheckers() -> [WallpaperToolChecker] {
-        let hasYtdlp = WallpaperToolChecker.ytdlp.findExecutable("yt-dlp") != nil
+        let hasYtdlp = findExecutableInPath("yt-dlp") != nil
         let downloadChecker: WallpaperToolChecker = hasYtdlp ? .ytdlp : .uvx
         return [downloadChecker, .ffmpeg]
     }
