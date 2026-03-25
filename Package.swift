@@ -305,6 +305,14 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
+        .testTarget(
+            name: "WallpaperRepositoryTests",
+            dependencies: [
+                "WallpaperRepository",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
 
         // Tests — DataSource
         .testTarget(
@@ -329,6 +337,12 @@ let package = Package(
                 "ConfigDataSource",
                 "Domain",
                 .product(name: "TOMLKit", package: "TOMLKit"),
+            ]
+        ),
+        .testTarget(
+            name: "WallpaperDataSourceTests",
+            dependencies: [
+                "WallpaperDataSource",
             ]
         ),
 

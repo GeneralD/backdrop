@@ -52,7 +52,7 @@ extension YouTubeWallpaperDataSourceImpl {
         }
     }
 
-    private func detectTool() throws -> Tool {
+    func detectTool() throws -> Tool {
         if let path = findExecutable("yt-dlp") {
             return .ytdlp(path: path)
         }
@@ -62,7 +62,7 @@ extension YouTubeWallpaperDataSourceImpl {
         throw YouTubeDownloadError.toolNotFound
     }
 
-    private func findExecutable(_ name: String) -> String? {
+    func findExecutable(_ name: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         process.arguments = [name]
@@ -80,7 +80,7 @@ extension YouTubeWallpaperDataSourceImpl {
 // MARK: - Command Building
 
 extension YouTubeWallpaperDataSourceImpl {
-    private func buildArgs(tool: Tool, url: URL, maxHeight: Int, format: String, destPath: String) -> [String] {
+    func buildArgs(tool: Tool, url: URL, maxHeight: Int, format: String, destPath: String) -> [String] {
         let ytdlpArgs = [
             "-f", "bestvideo[ext=\(format)][height<=\(maxHeight)][vcodec^=avc]",
             "--no-audio",
