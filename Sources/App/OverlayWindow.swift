@@ -30,7 +30,7 @@ public final class OverlayWindow {
         controller = OverlayController()
 
         let wallpaperURL = try? await wallpaperUseCase.resolveWallpaper(
-            value: cfg.wallpaper, configDir: cfg.configDir ?? ""
+            value: cfg.wallpaper, configDir: cfg.configDir ?? FileManager.default.homeDirectoryForCurrentUser.path
         )
         hasWallpaper = wallpaperURL != nil
 
@@ -150,7 +150,7 @@ public final class OverlayWindow {
         @Dependency(\.wallpaperUseCase) var wallpaperUseCase
         let cfg = resolvedConfig
         let wallpaperURL = try? await wallpaperUseCase.resolveWallpaper(
-            value: cfg.wallpaper, configDir: cfg.configDir ?? ""
+            value: cfg.wallpaper, configDir: cfg.configDir ?? FileManager.default.homeDirectoryForCurrentUser.path
         )
         let frames = await Self.resolveFrames(
             selector: cfg.screen,

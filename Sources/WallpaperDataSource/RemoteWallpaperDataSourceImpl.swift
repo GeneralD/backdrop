@@ -13,7 +13,13 @@ extension RemoteWallpaperDataSourceImpl: WallpaperDataSource {
             return cached
         }
 
-        let (tempURL, _) = try await URLSession.shared.download(from: location.url)
+        let (tempURL, response) = try await URLSession.shared.download(from: location.url)
+
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            try? FileManager.default.removeItem(at: tempURL)
+            throw URLError(.badServerResponse)
+        }
+
         let destPath = cache.destinationPath(for: location.url)
         try FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destPath))
         return destPath

@@ -17,16 +17,10 @@ extension YouTubeWallpaperDataSourceImpl: WallpaperDataSource {
         let destPath = cache.destinationPath(for: location.url, ext: location.format)
         let args = buildArgs(tool: tool, url: location.url, maxHeight: location.maxHeight, format: location.format, destPath: destPath)
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: tool.executablePath)
-        process.arguments = args
-        process.standardError = FileHandle.nullDevice
+        let (status, stderr) = try await runProcess(executablePath: tool.executablePath, arguments: args)
 
-        try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            throw YouTubeDownloadError.downloadFailed(status: process.terminationStatus)
+        guard status == 0 else {
+            throw YouTubeDownloadError.downloadFailed(status: status, stderr: stderr)
         }
 
         guard FileManager.default.fileExists(atPath: destPath) else {
@@ -94,19 +88,45 @@ extension YouTubeWallpaperDataSourceImpl {
     }
 }
 
+// MARK: - Async Process
+
+extension YouTubeWallpaperDataSourceImpl {
+    private func runProcess(executablePath: String, arguments: [String]) async throws -> (status: Int32, stderr: String) {
+        try await withCheckedThrowingContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: executablePath)
+            process.arguments = arguments
+            let stderrPipe = Pipe()
+            process.standardError = stderrPipe
+
+            process.terminationHandler = { proc in
+                let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                let stderrString = String(data: stderrData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                continuation.resume(returning: (proc.terminationStatus, stderrString))
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+}
+
 // MARK: - Errors
 
 public enum YouTubeDownloadError: Error, CustomStringConvertible {
     case toolNotFound
-    case downloadFailed(status: Int32)
+    case downloadFailed(status: Int32, stderr: String)
     case outputNotFound
 
     public var description: String {
         switch self {
         case .toolNotFound:
             "yt-dlp not found. Install with: brew install yt-dlp (or brew install uv for uvx)"
-        case .downloadFailed(let status):
-            "yt-dlp exited with status \(status)"
+        case .downloadFailed(let status, let stderr):
+            "yt-dlp exited with status \(status)" + (stderr.isEmpty ? "" : "\n\(stderr)")
         case .outputNotFound:
             "yt-dlp completed but output file not found"
         }
