@@ -1,6 +1,6 @@
 import Foundation
 
-public struct AppStyle: Sendable {
+public struct AppStyle {
     public let text: TextLayout
     public let artwork: ArtworkStyle
     public let ripple: RippleStyle
@@ -27,3 +27,5 @@ public struct AppStyle: Sendable {
         self.ai = ai
     }
 }
+
+extension AppStyle: Sendable {}

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct WallpaperStyle: Sendable, Equatable {
+public struct WallpaperStyle {
     public let location: String
     public let start: TimeInterval?
     public let end: TimeInterval?
@@ -11,3 +11,6 @@ public struct WallpaperStyle: Sendable, Equatable {
         self.end = end
     }
 }
+
+extension WallpaperStyle: Sendable {}
+extension WallpaperStyle: Equatable {}

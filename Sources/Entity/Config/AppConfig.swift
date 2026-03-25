@@ -1,6 +1,6 @@
 import Foundation
 
-public struct AppConfig: Sendable {
+public struct AppConfig {
     public let text: TextConfig
     public let artwork: ArtworkConfig
     public let ripple: RippleConfig
@@ -8,6 +8,8 @@ public struct AppConfig: Sendable {
     public let wallpaper: WallpaperConfig?
     public let ai: AIConfig?
 }
+
+extension AppConfig: Sendable {}
 
 extension AppConfig {
     public static let defaults = AppConfig(text: .defaults, artwork: .defaults, ripple: .defaults, screen: .main, wallpaper: nil, ai: nil)
