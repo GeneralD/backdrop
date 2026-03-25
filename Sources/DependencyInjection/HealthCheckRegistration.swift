@@ -1,8 +1,10 @@
 import ConfigRepository
 import Dependencies
 import Domain
+import Foundation
 import LyricsDataSource
 import MetadataDataSource
+import WallpaperDataSource
 
 extension HealthCheckersKey: DependencyKey {
     public static let liveValue: [any HealthCheckable] = {
@@ -18,6 +20,16 @@ extension HealthCheckersKey: DependencyKey {
             checkers.append(OpenAICompatibleAPI(config: ai))
         } else {
             checkers.append(SkippedHealthCheck(serviceName: "AI endpoint", reason: "not configured"))
+        }
+
+        // YouTube wallpaper tool checks
+        if let wallpaper = appStyle.wallpaper,
+            let url = URL(string: wallpaper),
+            url.scheme?.lowercased().hasPrefix("http") == true
+        {
+            checkers.append(contentsOf: WallpaperToolChecker.youtubeCheckers())
+        } else {
+            checkers.append(SkippedHealthCheck(serviceName: "Wallpaper tools", reason: "no remote wallpaper configured"))
         }
 
         return checkers
