@@ -1,5 +1,6 @@
 import Dependencies
 import Domain
+import Files
 import Foundation
 
 public struct ConfigRepositoryImpl {
@@ -83,7 +84,10 @@ extension ConfigRepositoryImpl: HealthCheckable {
 extension ConfigRepositoryImpl {
     fileprivate func resolveWallpaperPath(_ wallpaper: String, configDir: String) -> String {
         guard !wallpaper.hasPrefix("/") else { return wallpaper }
-        return URL(fileURLWithPath: configDir).appendingPathComponent(wallpaper).path
+        guard let file = try? Folder(path: configDir).file(at: wallpaper) else {
+            return URL(fileURLWithPath: configDir).appendingPathComponent(wallpaper).path
+        }
+        return file.path
     }
 }
 

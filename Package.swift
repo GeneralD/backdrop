@@ -15,6 +15,7 @@ let package = Package(
         .package(url: "https://github.com/LebJe/TOMLKit", from: "0.6.0"),
         .package(url: "https://github.com/GeneralD/CollectionKit", from: "1.0.0"),
         .package(url: "https://github.com/Alamofire/Alamofire", from: "5.10.0"),
+        .package(url: "https://github.com/JohnSundell/Files", from: "4.2.0"),
     ],
     targets: [
         // Executable
@@ -30,6 +31,7 @@ let package = Package(
                 "App",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "Files", package: "Files"),
             ],
             resources: [
                 .copy("Resources/version.txt"),
@@ -140,6 +142,7 @@ let package = Package(
             dependencies: [
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "Files", package: "Files"),
             ]
         ),
         .target(
@@ -185,6 +188,7 @@ let package = Package(
             name: "ConfigDataSource",
             dependencies: [
                 "Domain",
+                .product(name: "Files", package: "Files"),
                 .product(name: "TOMLKit", package: "TOMLKit"),
             ]
         ),
@@ -194,6 +198,7 @@ let package = Package(
             name: "SQLiteDataStore",
             dependencies: [
                 "Domain",
+                .product(name: "Files", package: "Files"),
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
@@ -203,6 +208,7 @@ let package = Package(
             name: "MediaRemoteDataSource",
             dependencies: [
                 "Domain",
+                .product(name: "Files", package: "Files"),
             ],
             resources: [.copy("Resources/media-remote-helper.swift")]
         ),

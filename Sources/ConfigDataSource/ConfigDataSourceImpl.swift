@@ -1,4 +1,5 @@
 import Domain
+import Files
 import Foundation
 import TOMLKit
 
@@ -8,10 +9,12 @@ public struct ConfigDataSourceImpl: Sendable {
 
 extension ConfigDataSourceImpl: ConfigDataSource {
     public func load() -> ConfigLoadResult? {
-        guard let (path, content) = findConfigFile() else { return nil }
-        let configDir = URL(fileURLWithPath: path).deletingLastPathComponent().path
-        guard let config = decode(content: content, path: path, configDir: configDir) else { return nil }
-        return ConfigLoadResult(config: config, configDir: configDir, path: path)
+        guard let file = findConfigFile(),
+            let content = try? file.readAsString()
+        else { return nil }
+        let configDir = file.parent?.path ?? Folder.home.path
+        guard let config = decode(content: content, path: file.path, configDir: configDir) else { return nil }
+        return ConfigLoadResult(config: config, configDir: configDir, path: file.path)
     }
 
     public func template(format: ConfigFormat) -> String? {
@@ -29,23 +32,21 @@ extension ConfigDataSourceImpl: ConfigDataSource {
     }
 
     public func writeTemplate(format: ConfigFormat, force: Bool) throws -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let xdgConfig = (envXdg?.isEmpty == false) ? envXdg! : "\(home)/.config"
-        let dir = "\(xdgConfig)/lyra"
-        let path = "\(dir)/config.\(format.fileExtension)"
+        let configFolder = try lyraConfigFolder()
+        let fileName = "config.\(format.fileExtension)"
 
-        guard force || !FileManager.default.fileExists(atPath: path) else {
-            throw ConfigWriteError.alreadyExists(path: path)
+        if !force, configFolder.containsFile(named: fileName) {
+            let existing = try configFolder.file(named: fileName)
+            throw ConfigWriteError.alreadyExists(path: existing.path)
         }
 
         guard let content = template(format: format) else {
             throw ConfigWriteError.encodingFailed
         }
 
-        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        try content.write(toFile: path, atomically: true, encoding: .utf8)
-        return path
+        let file = try configFolder.createFile(named: fileName)
+        try file.write(content)
+        return file.path
     }
 
     public func existingConfigPath() -> String? {
@@ -53,28 +54,48 @@ extension ConfigDataSourceImpl: ConfigDataSource {
     }
 
     public func tryDecode() throws -> String {
-        guard let (path, content) = findConfigFile() else { return "" }
-        let configDir = URL(fileURLWithPath: path).deletingLastPathComponent().path
-        try decodeOrThrow(content: content, path: path, configDir: configDir)
-        return path
+        guard let file = findConfigFile(),
+            let content = try? file.readAsString()
+        else { return "" }
+        let configDir = file.parent?.path ?? Folder.home.path
+        try decodeOrThrow(content: content, path: file.path, configDir: configDir)
+        return file.path
     }
 }
 
 extension ConfigDataSourceImpl {
-    func findConfigFile() -> (path: String, content: String)? {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let xdgConfig = (envXdg?.isEmpty == false) ? envXdg! : "\(home)/.config"
-        let candidates = [
-            "\(xdgConfig)/lyra/config.toml",
-            "\(home)/.lyra/config.toml",
-            "\(xdgConfig)/lyra/config.json",
-            "\(home)/.lyra/config.json",
+    func findConfigFile() -> File? {
+        let home = Folder.home
+        let xdgConfigFolder: Folder? = {
+            let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(
+                in: .whitespacesAndNewlines)
+            guard let path = envXdg, !path.isEmpty else {
+                return try? home.subfolder(named: ".config")
+            }
+            return try? Folder(path: path)
+        }()
+        let lyraXdg = try? xdgConfigFolder?.subfolder(named: "lyra")
+        let lyraDot = try? home.subfolder(named: ".lyra")
+        let candidates: [(Folder?, String)] = [
+            (lyraXdg, "config.toml"),
+            (lyraDot, "config.toml"),
+            (lyraXdg, "config.json"),
+            (lyraDot, "config.json"),
         ]
-        guard let path = candidates.first(where: { FileManager.default.fileExists(atPath: $0) }),
-            let content = try? String(contentsOfFile: path, encoding: .utf8)
-        else { return nil }
-        return (path, content)
+        return candidates.lazy.compactMap { folder, name in
+            try? folder?.file(named: name)
+        }.first
+    }
+
+    func lyraConfigFolder() throws -> Folder {
+        let home = Folder.home
+        let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        let xdgConfigPath =
+            (envXdg?.isEmpty == false) ? envXdg! : "\(home.path).config"
+        let lyraPath = "\(xdgConfigPath)/lyra"
+        try FileManager.default.createDirectory(atPath: lyraPath, withIntermediateDirectories: true)
+        return try Folder(path: lyraPath)
     }
 
     @discardableResult
@@ -96,11 +117,11 @@ extension ConfigDataSourceImpl {
         guard let paths = table["includes"]?.array else { return }
         for element in paths {
             guard let relativePath = element.string else { continue }
-            let absolutePath =
+            let file: File? =
                 relativePath.hasPrefix("/")
-                ? relativePath
-                : URL(fileURLWithPath: configDir).appendingPathComponent(relativePath).path
-            guard let content = try? String(contentsOfFile: absolutePath, encoding: .utf8),
+                ? try? File(path: relativePath)
+                : try? Folder(path: configDir).file(at: relativePath)
+            guard let content = try? file?.readAsString(),
                 let included = try? TOMLTable(string: content)
             else { continue }
             deepMerge(from: included, into: table)
