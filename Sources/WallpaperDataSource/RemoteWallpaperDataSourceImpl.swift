@@ -21,7 +21,9 @@ extension RemoteWallpaperDataSourceImpl: WallpaperDataSource {
         }
 
         let destPath = cache.destinationPath(for: location.url)
-        try FileManager.default.moveItem(at: tempURL, to: URL(fileURLWithPath: destPath))
+        let destURL = URL(fileURLWithPath: destPath)
+        try? FileManager.default.removeItem(at: destURL)
+        try FileManager.default.moveItem(at: tempURL, to: destURL)
         return destPath
     }
 }

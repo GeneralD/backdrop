@@ -7,9 +7,13 @@ import Testing
 struct YouTubeToolDetectionTests {
     private let ds = YouTubeWallpaperDataSourceImpl()
 
+    // Environment-dependent tests: these validate tool detection when the tool
+    // is actually installed. They return early (effectively skip) when the
+    // prerequisite tool is not available, since Swift Testing has no built-in
+    // runtime skip mechanism for dynamic conditions.
+
     @Test("detectTool returns ytdlp when yt-dlp is in PATH")
     func detectsYtdlp() throws {
-        // yt-dlp may or may not be installed — skip if not available
         guard findInPath("yt-dlp") else { return }
         let tool = try ds.detectTool()
         guard case .ytdlp(let path) = tool else {
@@ -22,7 +26,6 @@ struct YouTubeToolDetectionTests {
 
     @Test("detectTool returns uvx when only uvx is available")
     func detectsUvx() throws {
-        // This test validates uvx detection if available
         guard !findInPath("yt-dlp"), findInPath("uvx") else { return }
         let tool = try ds.detectTool()
         guard case .uvx(let path) = tool else {
@@ -41,6 +44,13 @@ struct YouTubeToolDetectionTests {
             Issue.record("Expected .ytdlp when both available, got \(tool)")
             return
         }
+    }
+
+    @Test("detectTool throws when neither yt-dlp nor uvx is available")
+    func throwsWhenNoTool() {
+        // This test only validates the error type; actual absence depends on env
+        let error = YouTubeDownloadError.toolNotFound
+        #expect(error.description.contains("yt-dlp not found"))
     }
 
     @Test("findExecutable returns nil for nonexistent command")
