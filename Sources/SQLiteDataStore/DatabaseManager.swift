@@ -7,8 +7,8 @@ public final class DatabaseManager: Sendable {
 
     public init() throws {
         let cacheFolder = try Self.lyraCacheFolder()
-        let dbPath = cacheFolder.path + "lyrics.db"
-        dbQueue = try DatabaseQueue(path: dbPath)
+        let dbFile = try cacheFolder.createFileIfNeeded(withName: "lyrics.db")
+        dbQueue = try DatabaseQueue(path: dbFile.path)
         try migrator.migrate(dbQueue)
     }
 
@@ -91,7 +91,7 @@ public final class DatabaseManager: Sendable {
 }
 
 extension Folder {
-    static func createIfNeeded(at path: String) throws -> Folder {
+    fileprivate static func createIfNeeded(at path: String) throws -> Folder {
         do {
             return try Folder(path: path)
         } catch {

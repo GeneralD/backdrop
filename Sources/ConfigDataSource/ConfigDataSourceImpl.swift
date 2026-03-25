@@ -34,18 +34,19 @@ extension ConfigDataSourceImpl: ConfigDataSource {
     public func writeTemplate(format: ConfigFormat, force: Bool) throws -> String {
         let configFolder = try lyraConfigFolder()
         let fileName = "config.\(format.fileExtension)"
-        let filePath = configFolder.path + fileName
 
         if !force, configFolder.containsFile(named: fileName) {
-            throw ConfigWriteError.alreadyExists(path: filePath)
+            let existing = try configFolder.file(named: fileName)
+            throw ConfigWriteError.alreadyExists(path: existing.path)
         }
 
         guard let content = template(format: format) else {
             throw ConfigWriteError.encodingFailed
         }
 
-        try content.write(toFile: filePath, atomically: true, encoding: .utf8)
-        return filePath
+        let file = try configFolder.createFile(named: fileName)
+        try file.write(content)
+        return file.path
     }
 
     public func existingConfigPath() -> String? {
@@ -65,17 +66,25 @@ extension ConfigDataSourceImpl: ConfigDataSource {
 extension ConfigDataSourceImpl {
     func findConfigFile() -> File? {
         let home = Folder.home
-        let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(
-            in: .whitespacesAndNewlines)
-        let xdgConfigPath =
-            (envXdg?.isEmpty == false) ? envXdg! : "\(home.path).config"
-        let candidates = [
-            "\(xdgConfigPath)/lyra/config.toml",
-            "\(home.path).lyra/config.toml",
-            "\(xdgConfigPath)/lyra/config.json",
-            "\(home.path).lyra/config.json",
+        let xdgConfigFolder: Folder? = {
+            let envXdg = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]?.trimmingCharacters(
+                in: .whitespacesAndNewlines)
+            guard let path = envXdg, !path.isEmpty else {
+                return try? home.subfolder(named: ".config")
+            }
+            return try? Folder(path: path)
+        }()
+        let lyraXdg = try? xdgConfigFolder?.subfolder(named: "lyra")
+        let lyraDot = try? home.subfolder(named: ".lyra")
+        let candidates: [(Folder?, String)] = [
+            (lyraXdg, "config.toml"),
+            (lyraDot, "config.toml"),
+            (lyraXdg, "config.json"),
+            (lyraDot, "config.json"),
         ]
-        return candidates.lazy.compactMap { try? File(path: $0) }.first
+        return candidates.lazy.compactMap { folder, name in
+            try? folder?.file(named: name)
+        }.first
     }
 
     func lyraConfigFolder() throws -> Folder {

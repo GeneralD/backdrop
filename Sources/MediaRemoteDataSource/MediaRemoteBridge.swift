@@ -63,6 +63,7 @@ extension MediaRemoteBridge: MediaRemoteDataSource {
 
 extension MediaRemoteBridge {
     fileprivate static func ensureScript() -> String {
+        let scriptName = "media-remote-helper.swift"
         let envCache = ProcessInfo.processInfo.environment["XDG_CACHE_HOME"]?.trimmingCharacters(
             in: .whitespacesAndNewlines)
         let cachePath =
@@ -70,10 +71,11 @@ extension MediaRemoteBridge {
         let lyraCachePath = "\(cachePath)/lyra"
         try? FileManager.default.createDirectory(atPath: lyraCachePath, withIntermediateDirectories: true)
         guard let lyraFolder = try? Folder(path: lyraCachePath) else {
-            return "\(lyraCachePath)/media-remote-helper.swift"
+            return "\(lyraCachePath)/\(scriptName)"
         }
 
-        let destPath = lyraFolder.path + "media-remote-helper.swift"
+        let destFile = try? lyraFolder.createFileIfNeeded(withName: scriptName)
+        let destPath = destFile?.path ?? "\(lyraCachePath)/\(scriptName)"
         guard let source = Bundle.module.url(forResource: "media-remote-helper", withExtension: "swift") else {
             return destPath
         }
