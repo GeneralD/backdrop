@@ -1,6 +1,5 @@
 import Dependencies
 import Domain
-import Files
 import Foundation
 
 public struct ConfigRepositoryImpl {
@@ -16,7 +15,6 @@ extension ConfigRepositoryImpl: ConfigRepository {
         guard let result = dataSource.load() else { return .init() }
 
         let config = result.config
-        let wallpaper = config.wallpaper.map { resolveWallpaperPath($0, configDir: result.configDir) }
 
         return AppStyle(
             text: TextLayout(
@@ -38,7 +36,8 @@ extension ConfigRepositoryImpl: ConfigRepository {
                 idle: config.ripple.idle.value
             ),
             screen: config.screen,
-            wallpaperURL: wallpaper.map { URL(fileURLWithPath: $0) },
+            wallpaper: config.wallpaper,
+            configDir: result.configDir,
             ai: config.ai.map { AIEndpoint(endpoint: $0.endpoint, model: $0.model, apiKey: $0.apiKey) }
         )
     }
@@ -76,18 +75,6 @@ extension ConfigRepositoryImpl: HealthCheckable {
         case .decodeError(let path, let error):
             return HealthCheckResult(status: .fail, detail: "decode error in \(path): \(error)")
         }
-    }
-}
-
-// MARK: - Private
-
-extension ConfigRepositoryImpl {
-    fileprivate func resolveWallpaperPath(_ wallpaper: String, configDir: String) -> String {
-        guard !wallpaper.hasPrefix("/") else { return wallpaper }
-        guard let file = try? Folder(path: configDir).file(at: wallpaper) else {
-            return URL(fileURLWithPath: configDir).appendingPathComponent(wallpaper).path
-        }
-        return file.path
     }
 }
 

@@ -4,6 +4,7 @@ import Domain
 import LyricsRepository
 import MetadataRepository
 import NowPlayingRepository
+import WallpaperRepository
 
 extension ConfigRepositoryKey: DependencyKey {
     public static let liveValue: any ConfigRepository = ConfigRepositoryImpl()
@@ -19,4 +20,8 @@ extension MetadataRepositoryKey: DependencyKey {
 
 extension NowPlayingRepositoryKey: DependencyKey {
     public static let liveValue: any NowPlayingRepository = NowPlayingRepositoryImpl()
+}
+
+extension WallpaperRepositoryKey: DependencyKey {
+    public static let liveValue: any WallpaperRepository = WallpaperRepositoryImpl()
 }

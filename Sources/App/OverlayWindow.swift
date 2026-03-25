@@ -25,13 +25,18 @@ public final class OverlayWindow {
 
     public init() async {
         @Dependency(\.appStyle) var cfg
+        @Dependency(\.wallpaperUseCase) var wallpaperUseCase
 
         controller = OverlayController()
-        hasWallpaper = cfg.wallpaperURL != nil
+
+        let wallpaperURL = try? await wallpaperUseCase.resolveWallpaper(
+            value: cfg.wallpaper, configDir: cfg.configDir ?? ""
+        )
+        hasWallpaper = wallpaperURL != nil
 
         let frames = await Self.resolveFrames(
             selector: cfg.screen,
-            wallpaperURL: cfg.wallpaperURL,
+            wallpaperURL: wallpaperURL,
             hasWallpaper: hasWallpaper
         )
 
@@ -56,7 +61,7 @@ public final class OverlayWindow {
         hostingView.frame = frames.hosting
         self.hostingView = hostingView
 
-        if let wallpaperURL = cfg.wallpaperURL {
+        if let wallpaperURL {
             let containerView = NSView(frame: CGRect(origin: .zero, size: frames.window.size))
             let player = AVPlayer(url: wallpaperURL)
             player.isMuted = true
@@ -142,10 +147,14 @@ public final class OverlayWindow {
     }
 
     private func recalculateLayout() async {
+        @Dependency(\.wallpaperUseCase) var wallpaperUseCase
         let cfg = resolvedConfig
+        let wallpaperURL = try? await wallpaperUseCase.resolveWallpaper(
+            value: cfg.wallpaper, configDir: cfg.configDir ?? ""
+        )
         let frames = await Self.resolveFrames(
             selector: cfg.screen,
-            wallpaperURL: cfg.wallpaperURL,
+            wallpaperURL: wallpaperURL,
             hasWallpaper: hasWallpaper
         )
         window.setFrame(frames.window, display: false)

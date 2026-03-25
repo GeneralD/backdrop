@@ -65,6 +65,9 @@ let package = Package(
                 "PlaybackUseCase",
                 "NowPlayingRepository",
                 "MediaRemoteDataSource",
+                "WallpaperUseCase",
+                "WallpaperRepository",
+                "WallpaperDataSource",
                 "SQLiteDataStore",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
@@ -129,6 +132,13 @@ let package = Package(
             ]
         ),
         .target(
+            name: "WallpaperUseCase",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
             name: "PlaybackUseCase",
             dependencies: [
                 "Domain",
@@ -142,7 +152,6 @@ let package = Package(
             dependencies: [
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
-                .product(name: "Files", package: "Files"),
             ]
         ),
         .target(
@@ -161,6 +170,13 @@ let package = Package(
         ),
         .target(
             name: "NowPlayingRepository",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "WallpaperRepository",
             dependencies: [
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
@@ -200,6 +216,14 @@ let package = Package(
                 "Domain",
                 .product(name: "Files", package: "Files"),
                 .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+
+        .target(
+            name: "WallpaperDataSource",
+            dependencies: [
+                "Domain",
+                .product(name: "Files", package: "Files"),
             ]
         ),
 

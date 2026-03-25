@@ -5,7 +5,8 @@ public struct AppStyle: Sendable {
     public let artwork: ArtworkStyle
     public let ripple: RippleStyle
     public let screen: ScreenSelector
-    public let wallpaperURL: URL?
+    public let wallpaper: String?
+    public let configDir: String?
     public let ai: AIEndpoint?
 
     public init(
@@ -13,14 +14,16 @@ public struct AppStyle: Sendable {
         artwork: ArtworkStyle = .init(),
         ripple: RippleStyle = .init(),
         screen: ScreenSelector = .main,
-        wallpaperURL: URL? = nil,
+        wallpaper: String? = nil,
+        configDir: String? = nil,
         ai: AIEndpoint? = nil
     ) {
         self.text = text
         self.artwork = artwork
         self.ripple = ripple
         self.screen = screen
-        self.wallpaperURL = wallpaperURL
+        self.wallpaper = wallpaper
+        self.configDir = configDir
         self.ai = ai
     }
 }
