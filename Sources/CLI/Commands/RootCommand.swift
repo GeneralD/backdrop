@@ -22,6 +22,7 @@ public struct RootCommand: ParsableCommand {
             VersionCommand.self,
             DaemonCommand.self,
             HealthcheckCommand.self,
+            ConfigCommand.self,
         ],
         defaultSubcommand: StartCommand.self
     )

@@ -47,4 +47,6 @@ private struct MockConfigRepository: ConfigRepository {
     func loadAppStyle() -> AppStyle { style }
 
     func validate() -> ConfigValidationResult { .defaults }
+    func template(format: ConfigFormat) -> String? { nil }
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
 }

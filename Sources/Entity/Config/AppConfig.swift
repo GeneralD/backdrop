@@ -10,7 +10,7 @@ public struct AppConfig: Sendable {
 }
 
 extension AppConfig {
-    static let defaults = AppConfig(text: .defaults, artwork: .defaults, ripple: .defaults, screen: .main, wallpaper: nil, ai: nil)
+    public static let defaults = AppConfig(text: .defaults, artwork: .defaults, ripple: .defaults, screen: .main, wallpaper: nil, ai: nil)
 }
 
 extension AppConfig: Codable {

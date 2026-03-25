@@ -42,6 +42,14 @@ extension ConfigRepositoryImpl: ConfigRepository {
         )
     }
 
+    public func template(format: ConfigFormat) -> String? {
+        dataSource.template(format: format)
+    }
+
+    public func writeTemplate(format: ConfigFormat, force: Bool) throws -> String {
+        try dataSource.writeTemplate(format: format, force: force)
+    }
+
     public func validate() -> ConfigValidationResult {
         do {
             let path = try dataSource.tryDecode()
