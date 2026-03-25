@@ -85,7 +85,7 @@ struct WallpaperConfigTests {
         func negativeEnd() {
             let (s, e) = WallpaperConfig.validate(start: 10, end: -3)
             #expect(s == 10)
-            #expect(e == nil) // 10 >= 0 → end discarded
+            #expect(e == nil)  // 10 >= 0 → end discarded
         }
 
         @Test("start equal to end discards end")
@@ -120,7 +120,7 @@ struct WallpaperConfigTests {
         func bothNegative() {
             let (s, e) = WallpaperConfig.validate(start: -10, end: -5)
             #expect(s == 0)
-            #expect(e == nil) // 0 >= 0 → end discarded
+            #expect(e == nil)  // 0 >= 0 → end discarded
         }
     }
 
@@ -193,7 +193,7 @@ struct WallpaperConfigTests {
         func decodeNegativeStart() throws {
             let json = #"{"location":"v.mp4","start":"-5","end":"1:00"}"#.data(using: .utf8)!
             let config = try JSONDecoder().decode(WallpaperConfig.self, from: json)
-            #expect(config.start == 0) // -5 parsed then clamped to 0
+            #expect(config.start == 0)  // -5 parsed then clamped to 0
             #expect(config.end == 60.0)
         }
 

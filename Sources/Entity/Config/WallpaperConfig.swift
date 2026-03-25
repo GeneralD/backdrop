@@ -90,7 +90,9 @@ extension WallpaperConfig {
         let minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
         let frac = interval - Double(totalSeconds)
-        let base = hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        let base =
+            hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
             : String(format: "%d:%02d", minutes, seconds)
         guard frac > 0 else { return base }
         return base + String(format: ".%g", frac).dropFirst()
