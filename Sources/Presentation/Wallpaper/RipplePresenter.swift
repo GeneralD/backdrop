@@ -23,8 +23,8 @@ public final class RipplePresenter: ObservableObject {
         rippleState = RippleState(config: config)
 
         guard config.enabled else { return }
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
-            MainActor.assumeIsolated {
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in
+            Task { @MainActor in
                 self?.rippleState?.update(screenPoint: NSEvent.mouseLocation)
             }
         }

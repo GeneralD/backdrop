@@ -14,7 +14,7 @@ extension ScreenInteractorImpl: ScreenInteractor {
     }
 
     public func resolveLayout() -> ScreenLayout {
-        let screen = resolveScreen()
+        guard let screen = resolveScreen() else { return .init() }
 
         let fullFrame = screen.frame
         let visibleFrame = screen.visibleFrame
@@ -31,28 +31,22 @@ extension ScreenInteractorImpl: ScreenInteractor {
         )
     }
 
-    private func resolveScreen() -> NSScreen {
+    private func resolveScreen() -> NSScreen? {
         let screens = NSScreen.screens
-        guard !screens.isEmpty else { return .fallback }
+        guard let fallback = screens.first else { return nil }
         switch screenSelector {
         case .main:
-            return .main ?? .fallback
+            return .main ?? fallback
         case .primary:
-            return .fallback
+            return fallback
         case .index(let n):
-            return n < screens.count ? screens[n] : .fallback
+            return n < screens.count ? screens[n] : fallback
         case .smallest:
             return screens.min { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
-                ?? .fallback
+                ?? fallback
         case .largest:
             return screens.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
-                ?? .fallback
+                ?? fallback
         }
-    }
-}
-
-extension NSScreen {
-    fileprivate static var fallback: NSScreen {
-        screens.first ?? main ?? screens[0]
     }
 }
