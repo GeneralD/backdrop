@@ -9,11 +9,13 @@ public final class RipplePresenter: ObservableObject {
     private var mouseMonitor: Any?
 
     @Dependency(\.wallpaperInteractor) private var interactor
+    @Dependency(\.screenInteractor) private var screenInteractor
 
     public init() {}
 
     public var isEnabled: Bool { interactor.rippleConfig.enabled }
     public var rippleConfig: RippleStyle { interactor.rippleConfig }
+    public var screenLayout: ScreenLayout { screenInteractor.resolveLayout() }
 
     public func start() {
         let config = interactor.rippleConfig

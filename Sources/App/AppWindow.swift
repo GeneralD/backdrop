@@ -1,6 +1,5 @@
 @preconcurrency import AVFoundation
 import AppKit
-import Dependencies
 import Domain
 import Presentation
 import SwiftUI
@@ -9,6 +8,7 @@ import Views
 @MainActor
 final class AppWindow: NSWindow {
     private let hostingView: NSHostingView<OverlayContentView>
+    private let ripplePresenter: RipplePresenter
     private var screenObserver: NSObjectProtocol?
 
     init(
@@ -17,8 +17,8 @@ final class AppWindow: NSWindow {
         lyricsPresenter: LyricsPresenter,
         ripplePresenter: RipplePresenter
     ) {
-        @Dependency(\.screenInteractor) var screen
-        let layout = screen.resolveLayout()
+        self.ripplePresenter = ripplePresenter
+        let layout = ripplePresenter.screenLayout
 
         let hostingView = NSHostingView(
             rootView: OverlayContentView(
@@ -72,8 +72,7 @@ final class AppWindow: NSWindow {
     }
 
     private func recalculateLayout() {
-        @Dependency(\.screenInteractor) var screenInteractor
-        let layout = screenInteractor.resolveLayout()
+        let layout = ripplePresenter.screenLayout
         setFrame(layout.windowFrame, display: false)
         hostingView.frame = layout.hostingFrame
         if let containerView = contentView, containerView !== hostingView {
