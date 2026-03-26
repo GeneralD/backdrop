@@ -16,19 +16,40 @@ struct WallpaperCache {
         folder = try Folder(path: wallpaperPath)
     }
 
-    func cachedPath(for url: URL, ext: String? = nil) -> String? {
-        let name = fileName(for: url, ext: ext)
+    func cachedPath(contentHash: String, ext: String) -> String? {
+        let name = "\(contentHash).\(ext)"
         return (try? folder.file(named: name))?.path
     }
 
-    func destinationPath(for url: URL, ext: String? = nil) -> String {
-        folder.path + fileName(for: url, ext: ext)
+    func finalPath(contentHash: String, ext: String) -> String {
+        folder.path + "\(contentHash).\(ext)"
     }
 
-    private func fileName(for url: URL, ext: String?) -> String {
-        let hash = SHA256.hash(data: Data(url.absoluteString.utf8))
-        let hex = hash.map { String(format: "%02x", $0) }.joined()
-        let resolvedExt = ext ?? (url.pathExtension.isEmpty ? "mp4" : url.pathExtension)
-        return "\(hex).\(resolvedExt)"
+    func tempPath(ext: String) -> String {
+        folder.path + "tmp_\(UUID().uuidString).\(ext)"
+    }
+
+    func contentHash(of filePath: String) throws -> String {
+        guard let stream = InputStream(fileAtPath: filePath) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        stream.open()
+        defer { stream.close() }
+
+        var hasher = SHA256()
+        var buffer = [UInt8](repeating: 0, count: 65536)
+
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            buffer.prefix(count).withUnsafeBytes { hasher.update(bufferPointer: $0) }
+        }
+
+        let digest = hasher.finalize()
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    func resolvedExt(for url: URL, override: String? = nil) -> String {
+        override ?? (url.pathExtension.isEmpty ? "mp4" : url.pathExtension)
     }
 }

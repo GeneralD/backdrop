@@ -116,3 +116,21 @@ struct AIMetadataCacheRecord {
 extension AIMetadataCacheRecord: Codable, FetchableRecord, PersistableRecord {
     static let databaseTableName = "ai_metadata_cache"
 }
+
+struct WallpaperCacheRecord {
+    let url: String
+    let contentHash: String
+    let fileExt: String
+    let createdAt: Double
+
+    enum CodingKeys: String, CodingKey {
+        case url
+        case contentHash = "content_hash"
+        case fileExt = "file_ext"
+        case createdAt = "created_at"
+    }
+}
+
+extension WallpaperCacheRecord: Codable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "wallpaper_cache"
+}

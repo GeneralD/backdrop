@@ -88,6 +88,15 @@ public final class DatabaseManager: Sendable {
             try? Folder(path: cachePath).subfolder(named: "now-playing").delete()
         }
 
+        migrator.registerMigration("v4_wallpaperCache") { db in
+            try db.create(table: "wallpaper_cache", ifNotExists: true) { t in
+                t.primaryKey("url", .text)
+                t.column("content_hash", .text).notNull()
+                t.column("file_ext", .text).notNull()
+                t.column("created_at", .double).notNull().defaults(sql: "julianday('now')")
+            }
+        }
+
         return migrator
     }
 }

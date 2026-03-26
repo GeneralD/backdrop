@@ -15,83 +15,13 @@ struct WallpaperCacheTests {
         return try body(tmp)
     }
 
-    // MARK: - Normal Behavior
-
-    @Test("same URL produces same file name via cachedPath and destinationPath")
-    func sameURLProducesSameFileName() throws {
-        try withTempCacheDir { _ in
-            let cache = try WallpaperCache()
-            let url = URL(string: "https://example.com/video.mp4")!
-            let destination = cache.destinationPath(for: url)
-            // File does not exist yet, so cachedPath returns nil — but destination should be consistent
-            let destination2 = cache.destinationPath(for: url)
-            #expect(destination == destination2)
-
-            // Create the file so cachedPath returns a value
-            FileManager.default.createFile(atPath: destination, contents: Data())
-            let cached = cache.cachedPath(for: url)
-            #expect(cached == destination)
-        }
-    }
-
-    @Test("different URLs produce different file names")
-    func differentURLsProduceDifferentFileNames() throws {
-        try withTempCacheDir { _ in
-            let cache = try WallpaperCache()
-            let url1 = URL(string: "https://example.com/a.mp4")!
-            let url2 = URL(string: "https://example.com/b.mp4")!
-            #expect(cache.destinationPath(for: url1) != cache.destinationPath(for: url2))
-        }
-    }
-
-    @Test("default extension is mp4 when URL has no extension")
-    func defaultExtensionIsMp4() throws {
-        try withTempCacheDir { _ in
-            let cache = try WallpaperCache()
-            let url = URL(string: "https://example.com/noext")!
-            let path = cache.destinationPath(for: url)
-            #expect(path.hasSuffix(".mp4"))
-        }
-    }
-
-    @Test("preserves URL path extension when present")
-    func preservesURLPathExtension() throws {
-        try withTempCacheDir { _ in
-            let cache = try WallpaperCache()
-            let url = URL(string: "https://example.com/video.mov")!
-            let path = cache.destinationPath(for: url)
-            #expect(path.hasSuffix(".mov"))
-        }
-    }
-
-    // MARK: - Boundary Conditions
-
-    @Test("URL with query parameters: different query produces different hash")
-    func queryParametersAffectHash() throws {
-        try withTempCacheDir { _ in
-            let cache = try WallpaperCache()
-            let url1 = URL(string: "https://example.com/video.mp4?token=abc")!
-            let url2 = URL(string: "https://example.com/video.mp4?token=xyz")!
-            #expect(cache.destinationPath(for: url1) != cache.destinationPath(for: url2))
-        }
-    }
-
-    @Test("custom ext parameter overrides URL extension")
-    func customExtOverridesURLExtension() throws {
-        try withTempCacheDir { _ in
-            let cache = try WallpaperCache()
-            let url = URL(string: "https://example.com/video.mov")!
-            let path = cache.destinationPath(for: url, ext: "webm")
-            #expect(path.hasSuffix(".webm"))
-        }
-    }
+    // MARK: - Content-hash-based caching
 
     @Test("cachedPath returns nil when file does not exist")
     func cachedPathReturnsNilWhenMissing() throws {
         try withTempCacheDir { _ in
             let cache = try WallpaperCache()
-            let url = URL(string: "https://example.com/nonexistent.mp4")!
-            #expect(cache.cachedPath(for: url) == nil)
+            #expect(cache.cachedPath(contentHash: "abc123", ext: "mp4") == nil)
         }
     }
 
@@ -99,42 +29,112 @@ struct WallpaperCacheTests {
     func cachedPathReturnsPathWhenExists() throws {
         try withTempCacheDir { _ in
             let cache = try WallpaperCache()
-            let url = URL(string: "https://example.com/exists.mp4")!
-            let dest = cache.destinationPath(for: url)
-            FileManager.default.createFile(atPath: dest, contents: Data())
-            let cached = cache.cachedPath(for: url)
+            let path = cache.finalPath(contentHash: "abc123", ext: "mp4")
+            FileManager.default.createFile(atPath: path, contents: Data())
+            let cached = cache.cachedPath(contentHash: "abc123", ext: "mp4")
             #expect(cached != nil)
-            #expect(cached == dest)
+            #expect(cached == path)
         }
     }
 
-    // MARK: - Properties
-
-    @Test("file name matches pattern: 64 hex chars + dot + extension")
-    func fileNameMatchesHexPattern() throws {
-        try withTempCacheDir { tmp in
+    @Test("finalPath uses content hash and ext")
+    func finalPathUsesContentHashAndExt() throws {
+        try withTempCacheDir { _ in
             let cache = try WallpaperCache()
-            let urls = [
-                URL(string: "https://example.com/a.mp4")!,
-                URL(string: "https://example.com/b")!,
-                URL(string: "https://example.com/c.mov")!,
-            ]
-            let hexPattern = #/^[0-9a-f]{64}\.\w+$/#
-            for url in urls {
-                let path = cache.destinationPath(for: url)
-                let fileName = URL(fileURLWithPath: path).lastPathComponent
-                #expect(fileName.wholeMatch(of: hexPattern) != nil, "Expected hex pattern, got: \(fileName)")
+            let path = cache.finalPath(contentHash: "deadbeef", ext: "mp4")
+            #expect(path.hasSuffix("deadbeef.mp4"))
+        }
+    }
+
+    @Test("tempPath uses uuid and ext, differs between calls")
+    func tempPathIsUniquePerCall() throws {
+        try withTempCacheDir { _ in
+            let cache = try WallpaperCache()
+            let p1 = cache.tempPath(ext: "mp4")
+            let p2 = cache.tempPath(ext: "mp4")
+            #expect(p1 != p2)
+            #expect(p1.hasSuffix(".mp4"))
+            #expect(p2.hasSuffix(".mp4"))
+        }
+    }
+
+    // MARK: - contentHash
+
+    @Test("contentHash produces consistent 64-hex SHA256 for file contents")
+    func contentHashIsConsistent() throws {
+        try withTempCacheDir { _ in
+            let cache = try WallpaperCache()
+            let tmpFile = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString + ".bin").path
+            defer { try? FileManager.default.removeItem(atPath: tmpFile) }
+            let data = Data(repeating: 0xAB, count: 1024)
+            try data.write(to: URL(fileURLWithPath: tmpFile))
+
+            let hash1 = try cache.contentHash(of: tmpFile)
+            let hash2 = try cache.contentHash(of: tmpFile)
+            #expect(hash1 == hash2)
+            #expect(hash1.count == 64)
+            #expect(hash1.allSatisfy { $0.isHexDigit })
+        }
+    }
+
+    @Test("contentHash differs for different file contents")
+    func contentHashDiffersForDifferentContents() throws {
+        try withTempCacheDir { _ in
+            let cache = try WallpaperCache()
+            let tmpA = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString + ".bin").path
+            let tmpB = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString + ".bin").path
+            defer {
+                try? FileManager.default.removeItem(atPath: tmpA)
+                try? FileManager.default.removeItem(atPath: tmpB)
+            }
+            try Data(repeating: 0xAA, count: 512).write(to: URL(fileURLWithPath: tmpA))
+            try Data(repeating: 0xBB, count: 512).write(to: URL(fileURLWithPath: tmpB))
+
+            let hashA = try cache.contentHash(of: tmpA)
+            let hashB = try cache.contentHash(of: tmpB)
+            #expect(hashA != hashB)
+        }
+    }
+
+    @Test("contentHash throws for missing file")
+    func contentHashThrowsForMissingFile() throws {
+        try withTempCacheDir { _ in
+            let cache = try WallpaperCache()
+            #expect(throws: (any Error).self) {
+                try cache.contentHash(of: "/nonexistent/path/file.mp4")
             }
         }
     }
 
-    @Test("SHA256 is deterministic: same URL always produces same hash")
-    func sha256IsDeterministic() throws {
+    // MARK: - resolvedExt
+
+    @Test("resolvedExt uses override when provided")
+    func resolvedExtUsesOverride() throws {
         try withTempCacheDir { _ in
-            let cache1 = try WallpaperCache()
-            let cache2 = try WallpaperCache()
-            let url = URL(string: "https://example.com/deterministic.mp4")!
-            #expect(cache1.destinationPath(for: url) == cache2.destinationPath(for: url))
+            let cache = try WallpaperCache()
+            let url = URL(string: "https://example.com/video.mov")!
+            #expect(cache.resolvedExt(for: url, override: "webm") == "webm")
+        }
+    }
+
+    @Test("resolvedExt uses URL path extension when no override")
+    func resolvedExtUsesURLExtension() throws {
+        try withTempCacheDir { _ in
+            let cache = try WallpaperCache()
+            let url = URL(string: "https://example.com/video.mov")!
+            #expect(cache.resolvedExt(for: url) == "mov")
+        }
+    }
+
+    @Test("resolvedExt defaults to mp4 when URL has no extension")
+    func resolvedExtDefaultsMp4() throws {
+        try withTempCacheDir { _ in
+            let cache = try WallpaperCache()
+            let url = URL(string: "https://example.com/noext")!
+            #expect(cache.resolvedExt(for: url) == "mp4")
         }
     }
 }

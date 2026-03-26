@@ -1,5 +1,6 @@
 import Dependencies
 import Domain
+import Foundation
 import SQLiteDataStore
 
 private enum SharedDatabaseManager {
@@ -27,11 +28,23 @@ extension MusicBrainzMetadataDataStoreKey: DependencyKey {
     }()
 }
 
+extension WallpaperCacheStoreKey: DependencyKey {
+    public static let liveValue: any WallpaperCacheStore = {
+        guard let db = SharedDatabaseManager.instance else { return NoopWallpaperCacheStore() }
+        return GRDBWallpaperCacheStore(dbManager: db)
+    }()
+}
+
 // MARK: - Noop fallbacks
 
 private struct NoopCache<Value: Sendable>: MetadataDataStore {
     func read(title: String, artist: String) async -> Value? { nil }
     func write(title: String, artist: String, value: Value) async throws {}
+}
+
+private struct NoopWallpaperCacheStore: WallpaperCacheStore {
+    func read(url: URL) async -> (contentHash: String, fileExt: String)? { nil }
+    func write(url: URL, contentHash: String, fileExt: String) async throws {}
 }
 
 private struct NoopLyricsDataStore: LyricsDataStore {

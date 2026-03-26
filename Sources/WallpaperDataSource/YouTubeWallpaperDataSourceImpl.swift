@@ -1,21 +1,27 @@
+import Dependencies
 import Domain
 import Foundation
 
 public struct YouTubeWallpaperDataSourceImpl: Sendable {
+    @Dependency(\.wallpaperCacheStore) private var cacheStore
+
     public init() {}
 }
 
 extension YouTubeWallpaperDataSourceImpl: WallpaperDataSource {
     public func resolve(_ location: YouTubeWallpaper) async throws -> String {
         let cache = try WallpaperCache()
+        let ext = cache.resolvedExt(for: location.url, override: location.format)
 
-        if let cached = cache.cachedPath(for: location.url, ext: location.format) {
-            return cached
+        if let entry = await cacheStore.read(url: location.url),
+            let path = cache.cachedPath(contentHash: entry.contentHash, ext: entry.fileExt)
+        {
+            return path
         }
 
         let tool = try detectTool()
-        let destPath = cache.destinationPath(for: location.url, ext: location.format)
-        let args = buildArgs(tool: tool, url: location.url, maxHeight: location.maxHeight, format: location.format, destPath: destPath)
+        let tempPath = cache.tempPath(ext: ext)
+        let args = buildArgs(tool: tool, url: location.url, maxHeight: location.maxHeight, format: location.format, destPath: tempPath)
 
         let (status, stderr) = try await runProcess(executablePath: tool.executablePath, arguments: args)
 
@@ -23,13 +29,24 @@ extension YouTubeWallpaperDataSourceImpl: WallpaperDataSource {
             throw YouTubeDownloadError.downloadFailed(status: status, stderr: stderr)
         }
 
-        guard FileManager.default.fileExists(atPath: destPath) else {
+        guard FileManager.default.fileExists(atPath: tempPath) else {
             throw YouTubeDownloadError.outputNotFound
         }
 
-        try await remuxToStandardMP4(at: destPath)
+        try await remuxToStandardMP4(at: tempPath)
 
-        return destPath
+        let hash = try cache.contentHash(of: tempPath)
+        let finalPath = cache.finalPath(contentHash: hash, ext: ext)
+
+        if !FileManager.default.fileExists(atPath: finalPath) {
+            try FileManager.default.moveItem(
+                at: URL(fileURLWithPath: tempPath), to: URL(fileURLWithPath: finalPath))
+        } else {
+            try? FileManager.default.removeItem(atPath: tempPath)
+        }
+
+        try await cacheStore.write(url: location.url, contentHash: hash, fileExt: ext)
+        return finalPath
     }
 }
 

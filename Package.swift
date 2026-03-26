@@ -227,6 +227,7 @@ let package = Package(
             name: "WallpaperDataSource",
             dependencies: [
                 "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "Files", package: "Files"),
             ]
         ),
