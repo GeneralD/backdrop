@@ -1,14 +1,13 @@
 import Presentation
 import Views
 
-/// Wireframe: creates Presenters, resolves config, builds window, manages lifecycle.
+/// Wireframe: creates Presenters, builds window, manages lifecycle.
 @MainActor
 public final class AppRouter {
     private let headerPresenter = HeaderPresenter()
     private let lyricsPresenter = LyricsPresenter()
     private let wallpaperPresenter = WallpaperPresenter()
     private let ripplePresenter = RipplePresenter()
-    private let appPresenter = AppPresenter()
 
     private var appWindow: AppWindow?
     private var displayLinkDriver: DisplayLinkDriver?
@@ -20,12 +19,9 @@ public final class AppRouter {
         lyricsPresenter.start()
         ripplePresenter.start()
         await wallpaperPresenter.resolve()
-        appPresenter.hasWallpaper = wallpaperPresenter.wallpaperURL != nil
-        await appPresenter.resolveFrames()
         await wallpaperPresenter.setupPlayer()
 
-        appWindow = AppWindow(
-            appPresenter: appPresenter,
+        appWindow = await AppWindow(
             wallpaperPresenter: wallpaperPresenter,
             headerPresenter: headerPresenter,
             lyricsPresenter: lyricsPresenter,

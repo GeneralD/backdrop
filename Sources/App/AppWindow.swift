@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import AppKit
+import Dependencies
 import Domain
 import Presentation
 import SwiftUI
@@ -8,44 +9,46 @@ import Views
 @MainActor
 final class AppWindow: NSWindow {
     private let hostingView: NSHostingView<OverlayContentView>
-    private let appPresenter: AppPresenter
+    private let hasWallpaper: Bool
     private var screenObserver: NSObjectProtocol?
 
+    @Dependency(\.screenInteractor) private var screenInteractor
+
     init(
-        appPresenter: AppPresenter,
         wallpaperPresenter: WallpaperPresenter,
         headerPresenter: HeaderPresenter,
         lyricsPresenter: LyricsPresenter,
         ripplePresenter: RipplePresenter
-    ) {
-        self.appPresenter = appPresenter
+    ) async {
+        hasWallpaper = wallpaperPresenter.wallpaperURL != nil
+        let layout = await Self.resolveLayout(hasWallpaper: hasWallpaper)
 
         let hostingView = NSHostingView(
             rootView: OverlayContentView(
                 headerPresenter: headerPresenter,
                 lyricsPresenter: lyricsPresenter,
                 rippleState: ripplePresenter.rippleState ?? RippleState(),
-                screenOrigin: appPresenter.layout.screenOrigin,
+                screenOrigin: layout.screenOrigin,
                 rippleConfig: ripplePresenter.rippleConfig
             ))
-        hostingView.frame = appPresenter.layout.hostingFrame
+        hostingView.frame = layout.hostingFrame
         self.hostingView = hostingView
 
         super.init(
-            contentRect: appPresenter.layout.windowFrame,
+            contentRect: layout.windowFrame,
             styleMask: .borderless,
             backing: .buffered,
             defer: false
         )
 
         level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) + 1)
-        backgroundColor = appPresenter.hasWallpaper ? .black : .clear
+        backgroundColor = hasWallpaper ? .black : .clear
         isOpaque = false
         ignoresMouseEvents = true
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
 
         if let player = wallpaperPresenter.player {
-            let containerView = NSView(frame: CGRect(origin: .zero, size: appPresenter.layout.windowFrame.size))
+            let containerView = NSView(frame: CGRect(origin: .zero, size: layout.windowFrame.size))
             let playerLayer = AVPlayerLayer(player: player)
             playerLayer.frame = containerView.bounds
             playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
@@ -73,12 +76,16 @@ final class AppWindow: NSWindow {
     }
 
     private func recalculateLayout() async {
-        await appPresenter.resolveFrames()
-        let layout = appPresenter.layout
+        let layout = await Self.resolveLayout(hasWallpaper: hasWallpaper)
         setFrame(layout.windowFrame, display: false)
         hostingView.frame = layout.hostingFrame
         if let containerView = contentView, containerView !== hostingView {
             containerView.frame = CGRect(origin: .zero, size: layout.windowFrame.size)
         }
+    }
+
+    private static func resolveLayout(hasWallpaper: Bool) async -> ScreenLayout {
+        @Dependency(\.screenInteractor) var screenInteractor
+        return await screenInteractor.resolveLayout(hasWallpaper: hasWallpaper)
     }
 }
