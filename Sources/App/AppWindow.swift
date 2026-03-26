@@ -11,8 +11,6 @@ final class AppWindow: NSWindow {
     private let hostingView: NSHostingView<OverlayContentView>
     private var screenObserver: NSObjectProtocol?
 
-    @Dependency(\.screenInteractor) private var screenInteractor
-
     init(
         wallpaperPresenter: WallpaperPresenter,
         headerPresenter: HeaderPresenter,
@@ -74,6 +72,7 @@ final class AppWindow: NSWindow {
     }
 
     private func recalculateLayout() {
+        @Dependency(\.screenInteractor) var screenInteractor
         let layout = screenInteractor.resolveLayout()
         setFrame(layout.windowFrame, display: false)
         hostingView.frame = layout.hostingFrame
