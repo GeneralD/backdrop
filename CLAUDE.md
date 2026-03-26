@@ -24,7 +24,7 @@ macOS desktop overlay app showing synced lyrics and video wallpaper. VIPER + Cle
 ```mermaid
 graph TD
     subgraph Entry
-        lyra[lyra]
+        Main[Main]
         CLI[CLI]
     end
 
@@ -88,7 +88,7 @@ graph TD
         end
     end
 
-    lyra --> CLI
+    Main --> CLI
     CLI --> App
     App --> Views & Presentation & DependencyInjection
     DependencyInjection --> Implementations
@@ -112,7 +112,7 @@ graph TD
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
 
-    style lyra fill:#333,stroke:#333,color:#fff
+    style Main fill:#333,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
     style App fill:#6a5,stroke:#333,color:#fff
     style Views fill:#6a5,stroke:#333,color:#fff
@@ -145,11 +145,11 @@ graph TD
 
 | Component | Instances | Responsibility |
 |---|---|---|
-| **View** | `HeaderView`, `LyricsColumnView`, `LyricLineView`, `RippleView`, `OverlayContentView` | Pure SwiftUI rendering. Get data from Presenters via `@ObservedObject` |
-| **Presenter** | `HeaderPresenter`, `LyricsPresenter`, `WallpaperPresenter`, `RipplePresenter`, `AppPresenter` | Display logic, decode animations, Combine subscriptions. `@Published` state for Views |
-| **Interactor** | `TrackInteractor`, `WallpaperInteractor`, `ScreenInteractor` | Business logic. Abstractions in Domain, implementations in dedicated modules |
-| **Router** | `AppRouter` | Wireframe: creates Presenters, NSWindow, AVPlayerLayer. Manages lifecycle |
-| **Entity** | `Entity` module | Pure data types (`TrackUpdate`, `WallpaperState`, `ScreenLayout`, `AppStyle`, etc.) |
+| **View** | `HeaderView`, `LyricsColumnView`, `LyricLineView`, `RippleView`, `OverlayContentView`, `AppWindow` | Pure rendering. SwiftUI views get data from Presenters via `@ObservedObject`. `AppWindow` (NSWindow subclass) in Views module |
+| **Presenter** | `HeaderPresenter`, `LyricsPresenter`, `WallpaperPresenter`, `RipplePresenter`, `AppPresenter` | Display logic, decode animations, Combine subscriptions. `@Published` state for Views. Each Presenter maps 1:1 to an Interactor |
+| **Interactor** | `TrackInteractor`, `WallpaperInteractor`, `ScreenInteractor` | Business logic. Abstractions in Domain, implementations in dedicated modules. TrackInteractor uses Combine hot stream |
+| **Router** | `AppRouter` | Pure wireframe: creates Presenters in correct order, builds AppWindow, manages DisplayLink. No Interactor references |
+| **Entity** | `Entity` module | Pure data types (`TrackUpdate`, `PlaybackPosition`, `WallpaperState`, `ScreenLayout`, `AppStyle`, etc.) |
 
 ### Dependency Direction
 
@@ -164,11 +164,11 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 
 | Layer | Modules | Responsibility |
 |---|---|---|
-| Executable | `lyra` | Entry point |
+| Executable | `Main` | Entry point (`main.swift` → `RootCommand.main()`). Product name: `lyra` |
 | CLI | `CLI` | ArgumentParser commands, LaunchAgent |
-| Router | `App` | `AppRouter` (wireframe + NSWindow), `AppDelegate` |
-| View | `Views` | SwiftUI views organized by feature: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
-| Presenter | `Presentation` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine |
+| Router | `App` | `AppRouter` (pure wireframe), `AppDelegate` |
+| View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
+| Presenter | `Presentation` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
 | Interactor | `TrackInteractor`, `ScreenInteractor`, `WallpaperInteractor` | Combine-based reactive pipelines over UseCases |
 | DI Wiring | `DependencyInjection` | All liveValue registrations, FontMetrics, HealthCheck |
 | Entity | `Entity` | Pure data types, zero external dependencies |
