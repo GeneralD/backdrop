@@ -4,14 +4,14 @@ import Domain
 
 struct AppKitFontMetrics: FontMetricsProvider {
     @MainActor func lineHeight(fontName: String, fontSize: Double, spacing: Double) -> Double {
-        let available = NSFontManager.shared.availableFontFamilies.contains(fontName)
-        let nsFont = available ? NSFont(name: fontName, size: fontSize) : nil
-        let fallback = NSFont.systemFont(ofSize: fontSize)
-        return ceil(
-            (nsFont?.ascender ?? fallback.ascender)
-                - (nsFont?.descender ?? fallback.descender)
-                + (nsFont?.leading ?? fallback.leading)
-        ) + spacing * 2
+        let font = resolveFont(name: fontName, size: fontSize)
+        return ceil(font.ascender - font.descender + font.leading) + spacing * 2
+    }
+
+    @MainActor private func resolveFont(name: String, size: Double) -> NSFont {
+        NSFont(name: name, size: size)
+            ?? NSFontManager.shared.font(withFamily: name, traits: [], weight: 5, size: size)
+            ?? .systemFont(ofSize: size)
     }
 }
 
