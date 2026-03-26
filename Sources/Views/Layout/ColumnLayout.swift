@@ -10,7 +10,9 @@ public struct ColumnLayout {
     @MainActor
     public init(width: Double, lyricsHeight: Double) {
         @Dependency(\.appStyle) var config
-        let lineHeight = config.text.lyric.lineHeight
+        @Dependency(\.fontMetrics) var fontMetrics
+        let lyric = config.text.lyric
+        let lineHeight = fontMetrics.lineHeight(fontName: lyric.fontName, fontSize: lyric.fontSize, spacing: lyric.spacing)
 
         columnGap = (width * 0.03).rounded()
         columnWidth = (width * 0.28).rounded()

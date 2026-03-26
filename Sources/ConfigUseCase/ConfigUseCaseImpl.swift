@@ -8,7 +8,6 @@ public struct ConfigUseCaseImpl {
 }
 
 extension ConfigUseCaseImpl: ConfigUseCase {
-    @MainActor
     public func loadAppStyle() -> AppStyle {
         repository.loadAppStyle()
     }

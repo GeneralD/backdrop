@@ -53,6 +53,8 @@ let package = Package(
             name: "DependencyInjection",
             dependencies: [
                 "Domain",
+                "TrackInteractor",
+                "WallpaperInteractor",
                 "ConfigUseCase",
                 "ConfigRepository",
                 "ConfigDataSource",
@@ -106,6 +108,22 @@ let package = Package(
                 "Entity",
                 .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "DependenciesMacros", package: "swift-dependencies"),
+            ]
+        ),
+
+        // Interactor
+        .target(
+            name: "TrackInteractor",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "WallpaperInteractor",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 

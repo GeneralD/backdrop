@@ -1,7 +1,7 @@
 import Dependencies
 
 public protocol ConfigUseCase: Sendable {
-    @MainActor func loadAppStyle() -> AppStyle
+    func loadAppStyle() -> AppStyle
     func template(format: ConfigFormat) -> String?
     func writeTemplate(format: ConfigFormat, force: Bool) throws -> String
 }
@@ -18,7 +18,7 @@ extension DependencyValues {
 }
 
 private struct UnimplementedConfigUseCase: ConfigUseCase {
-    @MainActor func loadAppStyle() -> AppStyle { .init() }
+    func loadAppStyle() -> AppStyle { .init() }
     func template(format: ConfigFormat) -> String? { nil }
     func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
 }

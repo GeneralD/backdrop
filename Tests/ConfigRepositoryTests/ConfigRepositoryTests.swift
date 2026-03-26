@@ -11,7 +11,6 @@ struct ConfigRepositoryTests {
     @Suite("loadAppStyle")
     struct LoadAppStyle {
         @Test("returns default AppStyle when dataSource returns nil")
-        @MainActor
         func returnsDefaultWhenNil() {
             withDependencies {
                 $0.configDataSource = StubConfigDataSource(loadResult: nil)
@@ -26,7 +25,6 @@ struct ConfigRepositoryTests {
         }
 
         @Test("passes raw wallpaper value and configDir through")
-        @MainActor
         func wallpaperRawValue() {
             let config = makeAppConfig(wallpaper: "bg.mp4")
             let result = ConfigLoadResult(config: config, configDir: "/Users/test/.config/lyra", path: "/Users/test/.config/lyra/config.toml")
@@ -42,7 +40,6 @@ struct ConfigRepositoryTests {
         }
 
         @Test("wallpaper is nil when wallpaper config is nil")
-        @MainActor
         func wallpaperNil() {
             let config = makeAppConfig(wallpaper: nil)
             let result = ConfigLoadResult(config: config, configDir: "/tmp", path: "/tmp/config.toml")
@@ -57,7 +54,6 @@ struct ConfigRepositoryTests {
         }
 
         @Test("converts AIConfig to AIEndpoint when present")
-        @MainActor
         func aiConfigPresent() {
             let ai = makeAIConfig(endpoint: "https://api.example.com", model: "gpt-4", apiKey: "sk-test")
             let config = makeAppConfig(ai: ai)
@@ -75,7 +71,6 @@ struct ConfigRepositoryTests {
         }
 
         @Test("ai is nil when AIConfig is absent")
-        @MainActor
         func aiConfigAbsent() {
             let config = makeAppConfig(ai: nil)
             let result = ConfigLoadResult(config: config, configDir: "/tmp", path: "/tmp/config.toml")

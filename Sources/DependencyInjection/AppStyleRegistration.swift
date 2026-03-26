@@ -24,8 +24,8 @@ extension FontMetricsProviderKey: DependencyKey {
 // MARK: - AppStyle
 
 extension AppStyleKey: DependencyKey {
-    public static let liveValue: AppStyle = MainActor.assumeIsolated {
+    public static let liveValue: AppStyle = {
         @Dependency(\.configUseCase) var configUseCase
         return configUseCase.loadAppStyle()
-    }
+    }()
 }

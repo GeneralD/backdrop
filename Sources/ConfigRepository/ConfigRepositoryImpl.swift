@@ -3,14 +3,12 @@ import Domain
 import Foundation
 
 public struct ConfigRepositoryImpl {
-    @Dependency(\.fontMetrics) private var fontMetrics
     @Dependency(\.configDataSource) private var dataSource
 
     public init() {}
 }
 
 extension ConfigRepositoryImpl: ConfigRepository {
-    @MainActor
     public func loadAppStyle() -> AppStyle {
         guard let result = dataSource.load() else { return .init() }
 
@@ -18,10 +16,10 @@ extension ConfigRepositoryImpl: ConfigRepository {
 
         return AppStyle(
             text: TextLayout(
-                title: config.text.title.toTextAppearance(fontMetrics: fontMetrics),
-                artist: config.text.artist.toTextAppearance(fontMetrics: fontMetrics),
-                lyric: config.text.lyric.toTextAppearance(fontMetrics: fontMetrics),
-                highlight: config.text.highlight.toTextAppearance(fontMetrics: fontMetrics),
+                title: config.text.title.toTextAppearance(),
+                artist: config.text.artist.toTextAppearance(),
+                lyric: config.text.lyric.toTextAppearance(),
+                highlight: config.text.highlight.toTextAppearance(),
                 decodeEffect: DecodeEffect(
                     duration: config.text.decodeEffect.duration.value,
                     charsets: config.text.decodeEffect.charset
@@ -79,18 +77,14 @@ extension ConfigRepositoryImpl: HealthCheckable {
 }
 
 extension TextAppearanceConfig {
-    func toTextAppearance(fontMetrics: any FontMetricsProvider) -> TextAppearance {
-        let lh = MainActor.assumeIsolated {
-            fontMetrics.lineHeight(fontName: fontName, fontSize: fontSize, spacing: spacing)
-        }
-        return TextAppearance(
+    func toTextAppearance() -> TextAppearance {
+        TextAppearance(
             spacing: spacing,
             fontName: fontName,
             fontSize: fontSize,
             fontWeight: fontWeight,
             color: color,
-            shadow: shadow,
-            lineHeight: lh
+            shadow: shadow
         )
     }
 }

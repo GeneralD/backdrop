@@ -8,7 +8,6 @@ import Testing
 @Suite("ConfigUseCase")
 struct ConfigUseCaseTests {
     @Test("loadAppStyle delegates to repository")
-    @MainActor
     func loadAppStyleDelegatesToRepository() {
         let expected = AppStyle(wallpaper: WallpaperStyle(location: "bg.mp4"), configDir: "/tmp")
         withDependencies {
@@ -22,7 +21,6 @@ struct ConfigUseCaseTests {
     }
 
     @Test("loadAppStyle returns exact AppStyle from repository, not default")
-    @MainActor
     func loadAppStyleReturnsRepositoryValue() {
         let style = AppStyle(wallpaper: WallpaperStyle(location: "custom.mp4"), configDir: "/custom")
         withDependencies {
@@ -42,7 +40,6 @@ struct ConfigUseCaseTests {
 private struct MockConfigRepository: ConfigRepository {
     let style: AppStyle
 
-    @MainActor
     func loadAppStyle() -> AppStyle { style }
 
     func validate() -> ConfigValidationResult { .defaults }
