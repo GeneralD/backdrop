@@ -6,11 +6,9 @@ import SwiftUI
 @MainActor
 public struct RippleView: View {
     let presenter: RipplePresenter
-    let screenOrigin: CGPoint
 
-    public init(presenter: RipplePresenter, screenOrigin: CGPoint) {
+    public init(presenter: RipplePresenter) {
         self.presenter = presenter
-        self.screenOrigin = screenOrigin
     }
 
     public var body: some View {
@@ -20,6 +18,7 @@ public struct RippleView: View {
     }
 
     private func rippleCanvas(rippleState: RippleState, config: RippleStyle) -> some View {
+        let screenOrigin = presenter.screenLayout.screenOrigin
         let baseNSColor: NSColor = {
             guard case .solid(let hex) = config.color else { return .white }
             let color = parseHexColor(hex)
@@ -58,7 +57,7 @@ public struct RippleView: View {
 
 #if DEBUG
     #Preview("Ripple") {
-        RippleView(presenter: RipplePresenter(), screenOrigin: .zero)
+        RippleView(presenter: RipplePresenter())
             .frame(width: 400, height: 300)
             .background(.black)
     }
