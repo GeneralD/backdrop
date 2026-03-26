@@ -40,12 +40,6 @@ graph TD
         Presentation[Presentation]
     end
 
-    subgraph Interactor
-        TrackInteractor[TrackInteractor]
-        ScreenInteractor[ScreenInteractor]
-        WallpaperInteractor[WallpaperInteractor]
-    end
-
     subgraph DI Wiring
         DependencyInjection[DependencyInjection]
     end
@@ -59,6 +53,12 @@ graph TD
     end
 
     subgraph Implementations
+        subgraph Interactor
+            TrackInteractor[TrackInteractor]
+            ScreenInteractor[ScreenInteractor]
+            WallpaperInteractor[WallpaperInteractor]
+        end
+
         subgraph UseCase
             ConfigUseCase[ConfigUseCase]
             PlaybackUseCase[PlaybackUseCase]
@@ -92,10 +92,8 @@ graph TD
     CLI --> App
     App --> Views & Presentation & DependencyInjection
     DependencyInjection --> Implementations
-    DependencyInjection --> Interactor
     Views --> Presentation
     Presentation --> Domain
-    Interactor --> Domain
     Implementations --> Domain
     Domain --> Entity
     TrackInteractor -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase & ConfigUseCase
@@ -116,14 +114,14 @@ graph TD
 
     style lyra fill:#333,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
-    style App fill:#6a5,stroke:#333,color:#fff
-    style Views fill:#6a5,stroke:#333,color:#fff
-    style Presentation fill:#6a5,stroke:#333,color:#fff
-    style TrackInteractor fill:#7b5,stroke:#333,color:#fff
-    style ScreenInteractor fill:#7b5,stroke:#333,color:#fff
-    style WallpaperInteractor fill:#7b5,stroke:#333,color:#fff
-    style DependencyInjection fill:#c44,stroke:#333,color:#fff
-    style Entity fill:#4a9,stroke:#333,color:#fff
+    style App fill:#c55,stroke:#333,color:#fff
+    style Views fill:#4a9,stroke:#333,color:#fff
+    style Presentation fill:#59c,stroke:#333,color:#fff
+    style TrackInteractor fill:#e85,stroke:#333,color:#fff
+    style ScreenInteractor fill:#e85,stroke:#333,color:#fff
+    style WallpaperInteractor fill:#e85,stroke:#333,color:#fff
+    style DependencyInjection fill:#888,stroke:#333,color:#fff
+    style Entity fill:#6a5,stroke:#333,color:#fff
     style Domain fill:#38b,stroke:#333,color:#fff
     style ConfigUseCase fill:#59c,stroke:#333,color:#fff
     style PlaybackUseCase fill:#59c,stroke:#333,color:#fff
