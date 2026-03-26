@@ -5,25 +5,23 @@ import SwiftUI
 
 @MainActor
 public struct RippleView: View {
-    let rippleState: RippleState
+    let presenter: RipplePresenter
     let screenOrigin: CGPoint
-    let rippleConfig: RippleStyle
 
-    public init(rippleState: RippleState, screenOrigin: CGPoint, rippleConfig: RippleStyle) {
-        self.rippleState = rippleState
+    public init(presenter: RipplePresenter, screenOrigin: CGPoint) {
+        self.presenter = presenter
         self.screenOrigin = screenOrigin
-        self.rippleConfig = rippleConfig
     }
 
     public var body: some View {
-        if rippleConfig.enabled {
-            rippleCanvas
+        if presenter.isEnabled, let rippleState = presenter.rippleState {
+            rippleCanvas(rippleState: rippleState, config: presenter.rippleConfig)
         }
     }
 
-    private var rippleCanvas: some View {
+    private func rippleCanvas(rippleState: RippleState, config: RippleStyle) -> some View {
         let baseNSColor: NSColor = {
-            guard case .solid(let hex) = rippleConfig.color else { return .white }
+            guard case .solid(let hex) = config.color else { return .white }
             let color = parseHexColor(hex)
             return NSColor(color).usingColorSpace(.deviceRGB) ?? .white
         }()
@@ -33,11 +31,11 @@ public struct RippleView: View {
                 let now = timeline.date
                 for ripple in rippleState.ripples {
                     let elapsed = now.timeIntervalSince(ripple.startTime)
-                    let dur = ripple.idle ? rippleConfig.duration * 3 : rippleConfig.duration
+                    let dur = ripple.idle ? config.duration * 3 : config.duration
                     guard elapsed < dur else { continue }
                     let t = elapsed / dur
                     let easeOut = 1 - (1 - t) * (1 - t)
-                    let radius = easeOut * rippleConfig.radius
+                    let radius = easeOut * config.radius
                     let shifted = Color(
                         hue: (baseNSColor.hueComponent + ripple.hueShift).truncatingRemainder(dividingBy: 1),
                         saturation: baseNSColor.saturationComponent,
@@ -60,7 +58,7 @@ public struct RippleView: View {
 
 #if DEBUG
     #Preview("Ripple") {
-        RippleView(rippleState: RippleState(), screenOrigin: .zero, rippleConfig: .init())
+        RippleView(presenter: RipplePresenter(), screenOrigin: .zero)
             .frame(width: 400, height: 300)
             .background(.black)
     }

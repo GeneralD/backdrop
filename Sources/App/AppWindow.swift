@@ -26,9 +26,8 @@ final class AppWindow: NSWindow {
             rootView: OverlayContentView(
                 headerPresenter: headerPresenter,
                 lyricsPresenter: lyricsPresenter,
-                rippleState: ripplePresenter.rippleState ?? RippleState(),
-                screenOrigin: layout.screenOrigin,
-                rippleConfig: ripplePresenter.rippleConfig
+                ripplePresenter: ripplePresenter,
+                screenOrigin: layout.screenOrigin
             ))
         hostingView.frame = layout.hostingFrame
         self.hostingView = hostingView

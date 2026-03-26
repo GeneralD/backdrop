@@ -15,7 +15,7 @@ extension ScreenInteractorImpl: ScreenInteractor {
 
     public func resolveLayout() -> ScreenLayout {
         let screen = resolveScreen()
-        
+
         let fullFrame = screen.frame
         let visibleFrame = screen.visibleFrame
         let hostingFrame = CGRect(

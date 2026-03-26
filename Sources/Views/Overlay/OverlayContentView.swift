@@ -1,4 +1,3 @@
-import Domain
 import Presentation
 import SwiftUI
 
@@ -6,27 +5,24 @@ import SwiftUI
 public struct OverlayContentView: View {
     @ObservedObject var headerPresenter: HeaderPresenter
     @ObservedObject var lyricsPresenter: LyricsPresenter
-    let rippleState: RippleState
+    let ripplePresenter: RipplePresenter
     let screenOrigin: CGPoint
-    let rippleConfig: RippleStyle
 
     public init(
         headerPresenter: HeaderPresenter,
         lyricsPresenter: LyricsPresenter,
-        rippleState: RippleState,
-        screenOrigin: CGPoint,
-        rippleConfig: RippleStyle
+        ripplePresenter: RipplePresenter,
+        screenOrigin: CGPoint
     ) {
         self.headerPresenter = headerPresenter
         self.lyricsPresenter = lyricsPresenter
-        self.rippleState = rippleState
+        self.ripplePresenter = ripplePresenter
         self.screenOrigin = screenOrigin
-        self.rippleConfig = rippleConfig
     }
 
     public var body: some View {
         ZStack {
-            RippleView(rippleState: rippleState, screenOrigin: screenOrigin, rippleConfig: rippleConfig)
+            RippleView(presenter: ripplePresenter, screenOrigin: screenOrigin)
             VStack(alignment: .leading, spacing: 32) {
                 HeaderView(presenter: headerPresenter)
                 LyricsColumnView(presenter: lyricsPresenter)
@@ -43,9 +39,8 @@ public struct OverlayContentView: View {
         OverlayContentView(
             headerPresenter: HeaderPresenter(),
             lyricsPresenter: LyricsPresenter(),
-            rippleState: RippleState(),
-            screenOrigin: .zero,
-            rippleConfig: .init()
+            ripplePresenter: RipplePresenter(),
+            screenOrigin: .zero
         )
         .frame(width: 800, height: 500)
         .background(.black)
