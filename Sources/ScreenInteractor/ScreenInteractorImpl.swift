@@ -53,6 +53,6 @@ extension ScreenInteractorImpl: ScreenInteractor {
 
 extension NSScreen {
     fileprivate static var fallback: NSScreen {
-        screens.first ?? NSScreen()
+        screens.first ?? main ?? screens[0]
     }
 }

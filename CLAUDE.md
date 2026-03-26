@@ -201,7 +201,7 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 
 **Wallpaper cache**: `~/.cache/lyra/wallpapers/SHA256(url).{ext}`. Cache is permanent (wallpapers are reused). `WallpaperCache` helper shared by Remote and YouTube DataSources.
 
-**Wallpaper async resolution**: `WallpaperPresenter.resolve()` resolves wallpaper via `WallpaperInteractor` before `AppRouter` creates the window. `WallpaperPresenter` also manages AVPlayer lifecycle (create, seek, loop, pause/play). Sleep/wake monitoring lives in `AppRouter`.
+**Wallpaper async resolution**: `WallpaperPresenter.start()` resolves wallpaper via `WallpaperInteractor` in a background Task. `WallpaperPresenter` also manages AVPlayer lifecycle (create, seek, loop, pause/play) and owns sleep/wake monitoring via `observeSleepWake()`.
 
 **Domain Dependencies organization**: `Dependencies/` is organized by layer subdirectories (`Interactor/`, `UseCase/`, `Repository/`, `DataSource/`, `DataStore/`, `Misc/`) matching the architecture. Each file contains a protocol + `TestDependencyKey` + `DependencyValues` extension.
 
