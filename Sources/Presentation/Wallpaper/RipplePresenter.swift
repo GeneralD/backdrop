@@ -6,16 +6,17 @@ import Foundation
 @MainActor
 public final class RipplePresenter: ObservableObject {
     public private(set) var rippleState: RippleState?
+    public let screenOrigin: CGPoint
     private var mouseMonitor: Any?
 
     @Dependency(\.wallpaperInteractor) private var interactor
-    @Dependency(\.screenInteractor) private var screenInteractor
 
-    public init() {}
+    public init(screenOrigin: CGPoint = .zero) {
+        self.screenOrigin = screenOrigin
+    }
 
     public var isEnabled: Bool { interactor.rippleConfig.enabled }
     public var rippleConfig: RippleStyle { interactor.rippleConfig }
-    public var screenLayout: ScreenLayout { screenInteractor.resolveLayout() }
 
     public func start() {
         let config = interactor.rippleConfig

@@ -8,17 +8,18 @@ import Views
 @MainActor
 final class AppWindow: NSWindow {
     private let hostingView: NSHostingView<OverlayContentView>
-    private let ripplePresenter: RipplePresenter
+    private let appPresenter: AppPresenter
     private var screenObserver: NSObjectProtocol?
 
     init(
+        appPresenter: AppPresenter,
         wallpaperPresenter: WallpaperPresenter,
         headerPresenter: HeaderPresenter,
         lyricsPresenter: LyricsPresenter,
         ripplePresenter: RipplePresenter
     ) {
-        self.ripplePresenter = ripplePresenter
-        let layout = ripplePresenter.screenLayout
+        self.appPresenter = appPresenter
+        let layout = appPresenter.layout
 
         let hostingView = NSHostingView(
             rootView: OverlayContentView(
@@ -71,7 +72,8 @@ final class AppWindow: NSWindow {
     }
 
     private func recalculateLayout() {
-        let layout = ripplePresenter.screenLayout
+        appPresenter.recalculateLayout()
+        let layout = appPresenter.layout
         setFrame(layout.windowFrame, display: false)
         hostingView.frame = layout.hostingFrame
         if let containerView = contentView, containerView !== hostingView {

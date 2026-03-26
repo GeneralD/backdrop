@@ -18,7 +18,7 @@ public struct RippleView: View {
     }
 
     private func rippleCanvas(rippleState: RippleState, config: RippleStyle) -> some View {
-        let screenOrigin = presenter.screenLayout.screenOrigin
+        let screenOrigin = presenter.screenOrigin
         let baseNSColor: NSColor = {
             guard case .solid(let hex) = config.color else { return .white }
             let color = parseHexColor(hex)
