@@ -21,16 +21,17 @@ public final class WallpaperPresenter: ObservableObject {
 
     public init() {}
 
-    public func resolve() async {
+    public func start() async {
         isLoading = true
         let state = try? await interactor.resolveWallpaper()
         wallpaperURL = state?.url
         start = state?.start
         end = state?.end
         isLoading = false
+        await setupPlayer()
     }
 
-    public func setupPlayer() async {
+    private func setupPlayer() async {
         guard let wallpaperURL else { return }
 
         let player = AVPlayer(url: wallpaperURL)

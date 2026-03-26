@@ -18,8 +18,7 @@ public final class AppRouter {
         headerPresenter.start()
         lyricsPresenter.start()
         ripplePresenter.start()
-        await wallpaperPresenter.resolve()
-        await wallpaperPresenter.setupPlayer()
+        await wallpaperPresenter.start()
 
         appWindow = AppWindow(
             wallpaperPresenter: wallpaperPresenter,

@@ -29,7 +29,7 @@ private enum StubError: Error {
 @Suite("WallpaperPresenter")
 struct WallpaperPresenterTests {
 
-    @Suite("resolve")
+    @Suite("start")
     struct Resolve {
         @MainActor
         @Test("sets wallpaperURL, start, and end from interactor result")
@@ -41,7 +41,7 @@ struct WallpaperPresenterTests {
                 $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: state)
             } operation: {
                 let presenter = WallpaperPresenter()
-                await presenter.resolve()
+                await presenter.start()
 
                 #expect(presenter.wallpaperURL == url)
                 #expect(presenter.start == 5.0)
@@ -57,7 +57,7 @@ struct WallpaperPresenterTests {
                 $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: .init())
             } operation: {
                 let presenter = WallpaperPresenter()
-                await presenter.resolve()
+                await presenter.start()
 
                 #expect(presenter.wallpaperURL == nil)
                 #expect(presenter.start == nil)
@@ -73,7 +73,7 @@ struct WallpaperPresenterTests {
                 $0.wallpaperInteractor = FailingWallpaperInteractor()
             } operation: {
                 let presenter = WallpaperPresenter()
-                await presenter.resolve()
+                await presenter.start()
 
                 #expect(presenter.wallpaperURL == nil)
                 #expect(presenter.isLoading == false)
