@@ -2,6 +2,7 @@ import Dependencies
 
 public protocol TrackInteractor: Sendable {
     func observeTrack() -> AsyncStream<TrackUpdate>
+    var decodeEffectConfig: DecodeEffect { get }
 }
 
 public enum TrackInteractorKey: TestDependencyKey {
@@ -19,4 +20,5 @@ private struct UnimplementedTrackInteractor: TrackInteractor {
     func observeTrack() -> AsyncStream<TrackUpdate> {
         AsyncStream { $0.finish() }
     }
+    var decodeEffectConfig: DecodeEffect { .init() }
 }

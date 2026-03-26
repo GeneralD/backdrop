@@ -11,14 +11,14 @@ public final class RipplePresenter: ObservableObject {
     private var idleTimer: TimeInterval = 0
     private var idleThreshold: TimeInterval = 1.0
 
-    @Dependency(\.configUseCase) private var configService
+    @Dependency(\.wallpaperInteractor) private var interactor
 
     public init() {}
 
-    public var isEnabled: Bool { configService.loadAppStyle().ripple.enabled }
+    public var isEnabled: Bool { interactor.rippleConfig.enabled }
 
     public func start() {
-        idleThreshold = configService.loadAppStyle().ripple.idle
+        idleThreshold = interactor.rippleConfig.idle
     }
 
     public func update(screenPoint: CGPoint) {

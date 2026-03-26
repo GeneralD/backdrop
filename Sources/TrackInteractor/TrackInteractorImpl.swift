@@ -6,6 +6,7 @@ public struct TrackInteractorImpl {
     @Dependency(\.playbackUseCase) private var playbackService
     @Dependency(\.lyricsUseCase) private var lyricsService
     @Dependency(\.metadataUseCase) private var metadataService
+    @Dependency(\.configUseCase) private var configService
 
     public init() {}
 }
@@ -113,5 +114,9 @@ extension TrackInteractorImpl: TrackInteractor {
 
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    public var decodeEffectConfig: DecodeEffect {
+        configService.loadAppStyle().text.decodeEffect
     }
 }

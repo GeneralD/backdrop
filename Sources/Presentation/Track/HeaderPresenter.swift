@@ -15,12 +15,11 @@ public final class HeaderPresenter: ObservableObject {
     private var observeTask: Task<Void, Never>?
 
     @Dependency(\.trackInteractor) private var interactor
-    @Dependency(\.configUseCase) private var configService
 
     public init() {}
 
     public func start() {
-        let config = configService.loadAppStyle().text.decodeEffect
+        let config = interactor.decodeEffectConfig
         titleEffect = DecodeEffectState(config: config)
         artistEffect = DecodeEffectState(config: config)
 

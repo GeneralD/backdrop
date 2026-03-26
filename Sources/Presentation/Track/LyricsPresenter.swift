@@ -13,12 +13,11 @@ public final class LyricsPresenter: ObservableObject {
     private var decodeConfig: DecodeEffect?
 
     @Dependency(\.trackInteractor) private var interactor
-    @Dependency(\.configUseCase) private var configService
 
     public init() {}
 
     public func start() {
-        decodeConfig = configService.loadAppStyle().text.decodeEffect
+        decodeConfig = interactor.decodeEffectConfig
 
         observeTask = Task { [weak self] in
             guard let self else { return }

@@ -21,4 +21,8 @@ extension WallpaperInteractorImpl: WallpaperInteractor {
         )
         return WallpaperState(url: url, start: wallpaper.start, end: wallpaper.end)
     }
+
+    public var rippleConfig: RippleStyle {
+        configService.loadAppStyle().ripple
+    }
 }

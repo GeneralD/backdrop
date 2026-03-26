@@ -3,6 +3,7 @@ import Foundation
 
 public protocol WallpaperInteractor: Sendable {
     func resolveWallpaper() async throws -> WallpaperState
+    var rippleConfig: RippleStyle { get }
 }
 
 public enum WallpaperInteractorKey: TestDependencyKey {
@@ -20,4 +21,5 @@ private struct UnimplementedWallpaperInteractor: WallpaperInteractor {
     func resolveWallpaper() async throws -> WallpaperState {
         WallpaperState()
     }
+    var rippleConfig: RippleStyle { .init() }
 }
