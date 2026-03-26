@@ -16,10 +16,11 @@ public final class TrackInteractorImpl: @unchecked Sendable {
         shared
         .compactMap { $0 }
         .removeDuplicates { $0.title == $1.title && $0.artist == $1.artist }
-        .flatMap { [weak self] info -> AnyPublisher<TrackUpdate, Never> in
+        .map { [weak self] info -> AnyPublisher<TrackUpdate, Never> in
             guard let self else { return Empty().eraseToAnyPublisher() }
             return resolveTrack(from: info)
         }
+        .switchToLatest()
         .share()
         .eraseToAnyPublisher()
 
