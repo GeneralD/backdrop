@@ -25,7 +25,9 @@ private struct StubTrackInteractor: TrackInteractor, @unchecked Sendable {
 @MainActor
 private func waitForTitleSuccess(_ presenter: HeaderPresenter, timeout: Duration = .seconds(3)) async {
     let deadline = ContinuousClock.now + timeout
-    while !presenter.titleState.isSuccess, ContinuousClock.now < deadline {
+    while !presenter.titleState.isSuccess || !presenter.artistState.isSuccess,
+        ContinuousClock.now < deadline
+    {
         try? await Task.sleep(for: .milliseconds(10))
     }
 }
