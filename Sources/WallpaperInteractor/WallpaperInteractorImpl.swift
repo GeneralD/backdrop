@@ -11,7 +11,7 @@ public struct WallpaperInteractorImpl {
 
 extension WallpaperInteractorImpl: WallpaperInteractor {
     public func resolveWallpaper() async throws -> WallpaperState {
-        let appStyle = configService.loadAppStyle()
+        let appStyle = configService.appStyle
         guard let wallpaper = appStyle.wallpaper else {
             return WallpaperState()
         }
@@ -23,6 +23,6 @@ extension WallpaperInteractorImpl: WallpaperInteractor {
     }
 
     public var rippleConfig: RippleStyle {
-        configService.loadAppStyle().ripple
+        configService.appStyle.ripple
     }
 }

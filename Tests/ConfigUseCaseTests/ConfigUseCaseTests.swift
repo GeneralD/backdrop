@@ -7,27 +7,27 @@ import Testing
 
 @Suite("ConfigUseCase")
 struct ConfigUseCaseTests {
-    @Test("loadAppStyle delegates to repository")
-    func loadAppStyleDelegatesToRepository() {
+    @Test("appStyle delegates to repository")
+    func appStyleDelegatesToRepository() {
         let expected = AppStyle(wallpaper: WallpaperStyle(location: "bg.mp4"), configDir: "/tmp")
         withDependencies {
             $0.configRepository = MockConfigRepository(style: expected)
         } operation: {
             let useCase = ConfigUseCaseImpl()
-            let result = useCase.loadAppStyle()
+            let result = useCase.appStyle
             #expect(result.wallpaper?.location == expected.wallpaper?.location)
             #expect(result.configDir == expected.configDir)
         }
     }
 
-    @Test("loadAppStyle returns exact AppStyle from repository, not default")
-    func loadAppStyleReturnsRepositoryValue() {
+    @Test("appStyle returns exact AppStyle from repository, not default")
+    func appStyleReturnsRepositoryValue() {
         let style = AppStyle(wallpaper: WallpaperStyle(location: "custom.mp4"), configDir: "/custom")
         withDependencies {
             $0.configRepository = MockConfigRepository(style: style)
         } operation: {
             let useCase = ConfigUseCaseImpl()
-            let result = useCase.loadAppStyle()
+            let result = useCase.appStyle
             let defaultStyle = AppStyle()
             #expect(result.wallpaper?.location != defaultStyle.wallpaper?.location)
             #expect(result.wallpaper?.location == "custom.mp4")

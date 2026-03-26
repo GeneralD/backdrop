@@ -10,7 +10,7 @@ public struct ScreenInteractorImpl {
 
 extension ScreenInteractorImpl: ScreenInteractor {
     public var screenSelector: ScreenSelector {
-        configService.loadAppStyle().screen
+        configService.appStyle.screen
     }
 
     public func resolveLayout() -> ScreenLayout {

@@ -1,16 +1,15 @@
 import Dependencies
 import Domain
 
-public struct ConfigUseCaseImpl {
+public final class ConfigUseCaseImpl: @unchecked Sendable {
     @Dependency(\.configRepository) private var repository
+    private lazy var cachedAppStyle: AppStyle = repository.loadAppStyle()
 
     public init() {}
 }
 
 extension ConfigUseCaseImpl: ConfigUseCase {
-    public func loadAppStyle() -> AppStyle {
-        repository.loadAppStyle()
-    }
+    public var appStyle: AppStyle { cachedAppStyle }
 
     public func template(format: ConfigFormat) -> String? {
         repository.template(format: format)

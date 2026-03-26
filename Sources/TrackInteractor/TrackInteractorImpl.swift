@@ -63,15 +63,15 @@ public final class TrackInteractorImpl: @unchecked Sendable {
 
 extension TrackInteractorImpl: TrackInteractor {
     public var decodeEffectConfig: DecodeEffect {
-        configService.loadAppStyle().text.decodeEffect
+        configService.appStyle.text.decodeEffect
     }
 
     public var textLayout: TextLayout {
-        configService.loadAppStyle().text
+        configService.appStyle.text
     }
 
     public var artworkStyle: ArtworkStyle {
-        configService.loadAppStyle().artwork
+        configService.appStyle.artwork
     }
 }
 
