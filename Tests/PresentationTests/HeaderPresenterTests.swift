@@ -9,12 +9,13 @@ import Testing
 // MARK: - Stub
 
 private struct StubTrackInteractor: TrackInteractor, @unchecked Sendable {
-    var trackPublisher: AnyPublisher<TrackUpdate, Never> = Empty().eraseToAnyPublisher()
+    var trackChangePublisher: AnyPublisher<TrackUpdate, Never> = Empty().eraseToAnyPublisher()
     var decodeEffectConfig: DecodeEffect = .init(duration: 0)
     var textLayout: TextLayout = .init()
     var artworkStyle: ArtworkStyle = .init()
 
-    var track: AnyPublisher<TrackUpdate, Never> { trackPublisher }
+    var trackChange: AnyPublisher<TrackUpdate, Never> { trackChangePublisher }
+    var playbackPosition: AnyPublisher<PlaybackPosition, Never> { Empty().eraseToAnyPublisher() }
 }
 
 // MARK: - Tests
@@ -74,7 +75,7 @@ struct HeaderPresenterTests {
 
             await withDependencies {
                 $0.trackInteractor = StubTrackInteractor(
-                    trackPublisher: subject.eraseToAnyPublisher(),
+                    trackChangePublisher: subject.eraseToAnyPublisher(),
                     decodeEffectConfig: .init(duration: 0)
                 )
             } operation: {
@@ -100,7 +101,7 @@ struct HeaderPresenterTests {
 
             await withDependencies {
                 $0.trackInteractor = StubTrackInteractor(
-                    trackPublisher: subject.eraseToAnyPublisher(),
+                    trackChangePublisher: subject.eraseToAnyPublisher(),
                     decodeEffectConfig: .init(duration: 0)
                 )
             } operation: {

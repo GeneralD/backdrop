@@ -6,3 +6,4 @@ public enum TrackLyricsState {
 }
 
 extension TrackLyricsState: Sendable {}
+extension TrackLyricsState: Equatable {}

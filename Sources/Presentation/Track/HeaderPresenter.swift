@@ -34,7 +34,7 @@ public final class HeaderPresenter: ObservableObject {
         titleEffect = DecodeEffectState(config: config)
         artistEffect = DecodeEffectState(config: config)
 
-        cancellable = interactor.track
+        cancellable = interactor.trackChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] update in
                 self?.receive(update)

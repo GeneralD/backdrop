@@ -2,7 +2,10 @@ import Combine
 import Dependencies
 
 public protocol TrackInteractor: Sendable {
-    var track: AnyPublisher<TrackUpdate, Never> { get }
+    /// Emits once per track change, after metadata + lyrics resolution.
+    var trackChange: AnyPublisher<TrackUpdate, Never> { get }
+    /// Emits continuously for playback position updates.
+    var playbackPosition: AnyPublisher<PlaybackPosition, Never> { get }
     var decodeEffectConfig: DecodeEffect { get }
     var textLayout: TextLayout { get }
     var artworkStyle: ArtworkStyle { get }
@@ -20,9 +23,8 @@ extension DependencyValues {
 }
 
 private struct UnimplementedTrackInteractor: TrackInteractor {
-    var track: AnyPublisher<TrackUpdate, Never> {
-        Empty().eraseToAnyPublisher()
-    }
+    var trackChange: AnyPublisher<TrackUpdate, Never> { Empty().eraseToAnyPublisher() }
+    var playbackPosition: AnyPublisher<PlaybackPosition, Never> { Empty().eraseToAnyPublisher() }
     var decodeEffectConfig: DecodeEffect { .init() }
     var textLayout: TextLayout { .init() }
     var artworkStyle: ArtworkStyle { .init() }

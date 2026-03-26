@@ -16,7 +16,7 @@ public final class LyricsPresenter: ObservableObject {
     private var decodeConfig: DecodeEffect?
     private var latestElapsed: TimeInterval?
     private var latestPlaybackRate: Double = 1.0
-    private var cancellable: AnyCancellable?
+    private var cancellables: Set<AnyCancellable> = []
 
     @Dependency(\.trackInteractor) private var interactor
 
@@ -28,15 +28,24 @@ public final class LyricsPresenter: ObservableObject {
         lyricStyle = layout.lyric
         highlightStyle = layout.highlight
 
-        cancellable = interactor.track
+        interactor.trackChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] update in
                 self?.receive(update)
             }
+            .store(in: &cancellables)
+
+        interactor.playbackPosition
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] position in
+                self?.latestElapsed = position.elapsed
+                self?.latestPlaybackRate = position.playbackRate
+            }
+            .store(in: &cancellables)
     }
 
     public func stop() {
-        cancellable?.cancel()
+        cancellables.removeAll()
         stopEffects()
     }
 
@@ -52,9 +61,6 @@ public final class LyricsPresenter: ObservableObject {
 
 extension LyricsPresenter {
     private func receive(_ update: TrackUpdate) {
-        latestElapsed = update.elapsed
-        latestPlaybackRate = update.playbackRate
-
         switch update.lyricsState {
         case .idle:
             reset()
