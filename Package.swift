@@ -6,7 +6,7 @@ let package = Package(
     name: "Lyra",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "lyra", targets: ["lyra"]),
+        .executable(name: "lyra", targets: ["Main"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
@@ -18,13 +18,13 @@ let package = Package(
         .package(url: "https://github.com/JohnSundell/Files", from: "4.2.0"),
     ],
     targets: [
-        // Executable
+        // ── Entry Point ──
         .executableTarget(
-            name: "lyra",
+            name: "Main",
             dependencies: ["CLI"]
         ),
 
-        // CLI
+        // ── CLI ──
         .target(
             name: "CLI",
             dependencies: [
@@ -38,42 +38,7 @@ let package = Package(
             ]
         ),
 
-        // View
-        .target(
-            name: "Views",
-            dependencies: [
-                "Domain",
-                "Presentation",
-                .product(name: "CollectionKit", package: "CollectionKit"),
-            ]
-        ),
-
-        // DI Wiring (all liveValue registrations)
-        .target(
-            name: "DependencyInjection",
-            dependencies: [
-                "Domain",
-                "ConfigUseCase",
-                "ConfigRepository",
-                "ConfigDataSource",
-                "LyricsUseCase",
-                "LyricsRepository",
-                "LyricsDataSource",
-                "MetadataUseCase",
-                "MetadataRepository",
-                "MetadataDataSource",
-                "PlaybackUseCase",
-                "NowPlayingRepository",
-                "MediaRemoteDataSource",
-                "WallpaperUseCase",
-                "WallpaperRepository",
-                "WallpaperDataSource",
-                "SQLiteDataStore",
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-
-        // Interactor (App wiring)
+        // ── Router ──
         .target(
             name: "App",
             dependencies: [
@@ -84,7 +49,17 @@ let package = Package(
             ]
         ),
 
-        // Presenter
+        // ── View ──
+        .target(
+            name: "Views",
+            dependencies: [
+                "Domain",
+                "Presentation",
+                .product(name: "CollectionKit", package: "CollectionKit"),
+            ]
+        ),
+
+        // ── Presenter ──
         .target(
             name: "Presentation",
             dependencies: [
@@ -93,25 +68,67 @@ let package = Package(
             ]
         ),
 
-        // Entity (pure data types, zero external dependencies)
+        // ── DI Wiring ──
         .target(
-            name: "Entity",
-            dependencies: []
-        ),
-
-        // Domain (protocols + DI keys)
-        .target(
-            name: "Domain",
+            name: "DependencyInjection",
             dependencies: [
-                "Entity",
+                "Domain",
+                "TrackInteractor",
+                "ScreenInteractor",
+                "WallpaperInteractor",
+                "ConfigUseCase",
+                "PlaybackUseCase",
+                "LyricsUseCase",
+                "MetadataUseCase",
+                "WallpaperUseCase",
+                "ConfigRepository",
+                "LyricsRepository",
+                "MetadataRepository",
+                "NowPlayingRepository",
+                "WallpaperRepository",
+                "ConfigDataSource",
+                "LyricsDataSource",
+                "MetadataDataSource",
+                "MediaRemoteDataSource",
+                "WallpaperDataSource",
+                "SQLiteDataStore",
                 .product(name: "Dependencies", package: "swift-dependencies"),
-                .product(name: "DependenciesMacros", package: "swift-dependencies"),
             ]
         ),
 
-        // UseCase
+        // ── Interactor ──
+        .target(
+            name: "TrackInteractor",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "ScreenInteractor",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "WallpaperInteractor",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+
+        // ── UseCase ──
         .target(
             name: "ConfigUseCase",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .target(
+            name: "PlaybackUseCase",
             dependencies: [
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
@@ -138,15 +155,8 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
-        .target(
-            name: "PlaybackUseCase",
-            dependencies: [
-                "Domain",
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
 
-        // Repository
+        // ── Repository ──
         .target(
             name: "ConfigRepository",
             dependencies: [
@@ -183,7 +193,15 @@ let package = Package(
             ]
         ),
 
-        // DataSource
+        // ── DataSource ──
+        .target(
+            name: "ConfigDataSource",
+            dependencies: [
+                "Domain",
+                .product(name: "Files", package: "Files"),
+                .product(name: "TOMLKit", package: "TOMLKit"),
+            ]
+        ),
         .target(
             name: "LyricsDataSource",
             dependencies: [
@@ -201,15 +219,22 @@ let package = Package(
             ]
         ),
         .target(
-            name: "ConfigDataSource",
+            name: "MediaRemoteDataSource",
             dependencies: [
                 "Domain",
                 .product(name: "Files", package: "Files"),
-                .product(name: "TOMLKit", package: "TOMLKit"),
+            ],
+            resources: [.copy("Resources/media-remote-helper.swift")]
+        ),
+        .target(
+            name: "WallpaperDataSource",
+            dependencies: [
+                "Domain",
+                .product(name: "Files", package: "Files"),
             ]
         ),
 
-        // DataStore
+        // ── DataStore ──
         .target(
             name: "SQLiteDataStore",
             dependencies: [
@@ -219,25 +244,58 @@ let package = Package(
             ]
         ),
 
+        // ── Domain ──
         .target(
-            name: "WallpaperDataSource",
+            name: "Domain",
             dependencies: [
-                "Domain",
-                .product(name: "Files", package: "Files"),
+                "Entity",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "DependenciesMacros", package: "swift-dependencies"),
             ]
         ),
 
-        // Isolated
+        // ── Entity ──
         .target(
-            name: "MediaRemoteDataSource",
-            dependencies: [
-                "Domain",
-                .product(name: "Files", package: "Files"),
-            ],
-            resources: [.copy("Resources/media-remote-helper.swift")]
+            name: "Entity",
+            dependencies: []
         ),
 
-        // Tests — UseCase
+        // ══ Tests ══
+
+        .testTarget(
+            name: "TrackInteractorTests",
+            dependencies: [
+                "TrackInteractor",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
+            name: "ScreenInteractorTests",
+            dependencies: [
+                "ScreenInteractor",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(name: "CLITests", dependencies: ["CLI"]),
+        .testTarget(name: "ViewsTests", dependencies: ["Views"]),
+        .testTarget(
+            name: "PresentationTests",
+            dependencies: [
+                "Presentation",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
+            name: "ConfigUseCaseTests",
+            dependencies: [
+                "ConfigUseCase",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
         .testTarget(
             name: "LyricsUseCaseTests",
             dependencies: [
@@ -264,15 +322,13 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "ConfigUseCaseTests",
+            name: "ConfigRepositoryTests",
             dependencies: [
-                "ConfigUseCase",
+                "ConfigRepository",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
-
-        // Tests — Repository
         .testTarget(
             name: "LyricsRepositoryTests",
             dependencies: [
@@ -298,14 +354,6 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "ConfigRepositoryTests",
-            dependencies: [
-                "ConfigRepository",
-                "Domain",
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-        .testTarget(
             name: "WallpaperRepositoryTests",
             dependencies: [
                 "WallpaperRepository",
@@ -313,8 +361,14 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
-
-        // Tests — DataSource
+        .testTarget(
+            name: "ConfigDataSourceTests",
+            dependencies: [
+                "ConfigDataSource",
+                "Domain",
+                .product(name: "TOMLKit", package: "TOMLKit"),
+            ]
+        ),
         .testTarget(
             name: "LyricsDataSourceTests",
             dependencies: [
@@ -332,21 +386,11 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "ConfigDataSourceTests",
-            dependencies: [
-                "ConfigDataSource",
-                "Domain",
-                .product(name: "TOMLKit", package: "TOMLKit"),
-            ]
-        ),
-        .testTarget(
             name: "WallpaperDataSourceTests",
             dependencies: [
                 "WallpaperDataSource",
             ]
         ),
-
-        // Tests — DataStore
         .testTarget(
             name: "SQLiteDataStoreTests",
             dependencies: [
@@ -354,24 +398,6 @@ let package = Package(
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
-        ),
-
-        // Tests — Presentation / View / CLI
-        .testTarget(
-            name: "PresentationTests",
-            dependencies: [
-                "Presentation",
-                "Domain",
-                .product(name: "Dependencies", package: "swift-dependencies"),
-            ]
-        ),
-        .testTarget(
-            name: "ViewsTests",
-            dependencies: ["Views"]
-        ),
-        .testTarget(
-            name: "CLITests",
-            dependencies: ["CLI"]
         ),
     ]
 )

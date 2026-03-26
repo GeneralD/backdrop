@@ -24,24 +24,24 @@ macOS desktop overlay app showing synced lyrics and video wallpaper. VIPER + Cle
 ```mermaid
 graph TD
     subgraph Entry
-        lyra[lyra]
+        Main[Main]
         CLI[CLI]
+    end
+
+    subgraph Router
+        App[App]
     end
 
     subgraph View
         Views[Views]
     end
 
-    subgraph Interactor
-        App[App]
+    subgraph Presenter
+        Presentation[Presentation]
     end
 
     subgraph DI Wiring
         DependencyInjection[DependencyInjection]
-    end
-
-    subgraph Presenter
-        Presentation[Presentation]
     end
 
     subgraph DI Contract
@@ -53,6 +53,12 @@ graph TD
     end
 
     subgraph Implementations
+        subgraph Interactor
+            TrackInteractor[TrackInteractor]
+            ScreenInteractor[ScreenInteractor]
+            WallpaperInteractor[WallpaperInteractor]
+        end
+
         subgraph UseCase
             ConfigUseCase[ConfigUseCase]
             PlaybackUseCase[PlaybackUseCase]
@@ -82,14 +88,17 @@ graph TD
         end
     end
 
-    lyra --> CLI
+    Main --> CLI
     CLI --> App
     App --> Views & Presentation & DependencyInjection
     DependencyInjection --> Implementations
-    Views --> Presentation & Domain
+    Views --> Presentation
     Presentation --> Domain
     Implementations --> Domain
     Domain --> Entity
+    TrackInteractor -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase & ConfigUseCase
+    ScreenInteractor -.-> ConfigUseCase
+    WallpaperInteractor -.-> WallpaperUseCase & ConfigUseCase
     ConfigUseCase -.-> ConfigRepository
     ConfigRepository -.-> ConfigDataSource
     PlaybackUseCase -.-> NowPlayingRepository
@@ -103,11 +112,14 @@ graph TD
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
 
-    style lyra fill:#333,stroke:#333,color:#fff
+    style Main fill:#333,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
     style App fill:#6a5,stroke:#333,color:#fff
     style Views fill:#6a5,stroke:#333,color:#fff
     style Presentation fill:#6a5,stroke:#333,color:#fff
+    style TrackInteractor fill:#7b5,stroke:#333,color:#fff
+    style ScreenInteractor fill:#7b5,stroke:#333,color:#fff
+    style WallpaperInteractor fill:#7b5,stroke:#333,color:#fff
     style DependencyInjection fill:#c44,stroke:#333,color:#fff
     style Entity fill:#4a9,stroke:#333,color:#fff
     style Domain fill:#38b,stroke:#333,color:#fff
@@ -129,16 +141,36 @@ graph TD
     style SQLiteDataStore fill:#a75,stroke:#333,color:#fff
 ```
 
-### Layer Summary (VIPER + Clean Architecture)
+### VIPER Component Summary
+
+| Component | Instances | Responsibility |
+|---|---|---|
+| **View** | `HeaderView`, `LyricsColumnView`, `LyricLineView`, `RippleView`, `OverlayContentView`, `AppWindow` | Pure rendering. SwiftUI views get data from Presenters via `@ObservedObject`. `AppWindow` (NSWindow subclass) in Views module |
+| **Presenter** | `HeaderPresenter`, `LyricsPresenter`, `WallpaperPresenter`, `RipplePresenter`, `AppPresenter` | Display logic, decode animations, Combine subscriptions. `@Published` state for Views. Each Presenter maps 1:1 to an Interactor |
+| **Interactor** | `TrackInteractor`, `WallpaperInteractor`, `ScreenInteractor` | Business logic. Abstractions in Domain, implementations in dedicated modules. TrackInteractor uses Combine hot stream |
+| **Router** | `AppRouter` | Pure wireframe: creates Presenters in correct order, builds AppWindow, manages DisplayLink. No Interactor references |
+| **Entity** | `Entity` module | Pure data types (`TrackUpdate`, `PlaybackPosition`, `WallpaperState`, `ScreenLayout`, `AppStyle`, etc.) |
+
+### Dependency Direction
+
+```
+View → Presenter → Interactor → UseCase → Repository → DataSource
+                 → Router (wireframe only)
+```
+
+Presenters subscribe to Interactors via Combine. Interactors access UseCases via `@Dependency`. Views never reference Interactors or UseCases directly.
+
+### Layer Summary
 
 | Layer | Modules | Responsibility |
 |---|---|---|
-| Executable | `lyra` | Entry point |
+| Executable | `Main` | Entry point (`main.swift` → `RootCommand.main()`). Product name: `lyra` |
 | CLI | `CLI` | ArgumentParser commands, LaunchAgent |
-| View | `Views` | SwiftUI views — purely declarative, no logic |
+| Router | `App` | `AppRouter` (pure wireframe), `AppDelegate` |
+| View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
+| Presenter | `Presentation` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
+| Interactor | `TrackInteractor`, `ScreenInteractor`, `WallpaperInteractor` | Combine-based reactive pipelines over UseCases |
 | DI Wiring | `DependencyInjection` | All liveValue registrations, FontMetrics, HealthCheck |
-| Interactor | `App` | OverlayWindow management only |
-| Presenter | `Presentation` | OverlayController, OverlayState, DecodeEffect, CharacterPool |
 | Entity | `Entity` | Pure data types, zero external dependencies |
 | Domain | `Domain` | Protocols, DependencyKeys (`@_exported import Entity`) |
 | UseCase | `ConfigUseCase`, `PlaybackUseCase`, `LyricsUseCase`, `MetadataUseCase`, `WallpaperUseCase` | Business logic only, no cross-UseCase deps |
@@ -150,11 +182,15 @@ graph TD
 
 **MediaRemoteDataSource via swift interpreter**: Compiled binaries cannot access `MediaRemote.framework` (private framework). A helper swift script (`Resources/media-remote-helper.swift`) runs as a persistent subprocess via `/usr/bin/env swift`, using `MRMediaRemoteRegisterForNowPlayingNotifications` for event-driven updates and streaming JSON over a pipe.
 
-**Presentation / UI separation**: `Presentation` owns all state and logic (NowPlaying observation, lyrics fetching, decode animation timing, FetchState transitions). `Views` are purely declarative — they read display-ready strings from `OverlayState` and render them. `App.OverlayWindow` handles only window management.
+**VIPER data flow**: `TrackInteractor` exposes a shared Combine publisher (`AnyPublisher<TrackUpdate, Never>`) built as a declarative pipeline: NowPlaying stream → `removeDuplicates` → `switchToLatest(resolve)` → `share()`. `HeaderPresenter` and `LyricsPresenter` each subscribe independently via `.sink`. No manual dispatch or procedural send calls.
 
-**FetchState\<T\>**: Generic enum (`.idle`, `.loading`, `.revealing(T)`, `.success(T)`, `.failure`) drives both data flow and UI animation. The `.revealing` → `.success` transition is timed by `OverlayController` using `DecodeEffectState`.
+**Presenter / View separation**: Presenters (`ObservableObject`) own all display state via `@Published` properties. Views observe Presenters via `@ObservedObject` and are purely declarative — no business logic, no `@Dependency` references to Interactors or UseCases. Style information (fonts, colors, sizes) flows from Interactor → Presenter → View.
 
-**Entity types**: `AppStyle`, `TextLayout`, `TextAppearance`, `ArtworkStyle`, `RippleStyle`, `DecodeEffect`, `AIEndpoint`, `ColorStyle`, `HealthCheckResult`, `ConfigValidationResult`, `MusicBrainzMetadata`, `MediaRemotePollResult`, `LocalWallpaper`, `RemoteWallpaper`, `YouTubeWallpaper`. DI via `AppStyleKey` / `\.appStyle`.
+**FetchState\<T\>**: Generic enum (`.idle`, `.loading`, `.revealing(T)`, `.success(T)`, `.failure`) drives both data flow and UI animation. The `.revealing` → `.success` transition is timed by Presenters using `DecodeEffectState`.
+
+**Entity types**: `AppStyle`, `TextLayout`, `TextAppearance`, `ArtworkStyle`, `RippleStyle`, `WallpaperStyle`, `DecodeEffect`, `AIEndpoint`, `ColorStyle`, `HealthCheckResult`, `ConfigValidationResult`, `MusicBrainzMetadata`, `MediaRemotePollResult`, `LocalWallpaper`, `RemoteWallpaper`, `YouTubeWallpaper`, `TrackUpdate`, `TrackLyricsState`, `WallpaperState`, `ScreenLayout`, `WallpaperConfig`. Config flows through Interactors, not via global `AppStyleKey`.
+
+**No AppStyleKey**: `@Dependency(\.appStyle)` was removed. All config access goes through the owning Interactor's computed properties (e.g., `trackInteractor.textLayout`, `wallpaperInteractor.rippleConfig`). This enforces the VIPER dependency rule.
 
 **WallpaperDataSource\<LocationType\>**: Generic protocol defining `resolve(_ location: LocationType) async throws -> String`. Three implementations with distinct location types:
 - `LocalWallpaperDataSourceImpl: WallpaperDataSource<LocalWallpaper>` — relative/absolute path resolution via Files library
@@ -165,11 +201,11 @@ graph TD
 
 **Wallpaper cache**: `~/.cache/lyra/wallpapers/SHA256(url).{ext}`. Cache is permanent (wallpapers are reused). `WallpaperCache` helper shared by Remote and YouTube DataSources.
 
-**Wallpaper async resolution**: `OverlayWindow.init()` (already async) resolves wallpaper via `WallpaperUseCase` before creating AVPlayer. Config loads synchronously; only wallpaper download is async. Cached videos resolve instantly on subsequent launches.
+**Wallpaper async resolution**: `WallpaperPresenter.start()` resolves wallpaper via `WallpaperInteractor` in a background Task. `WallpaperPresenter` also manages AVPlayer lifecycle (create, seek, loop, pause/play) and owns sleep/wake monitoring via `observeSleepWake()`.
 
-**Domain Dependencies organization**: `Dependencies/` is organized by layer subdirectories (`UseCase/`, `Repository/`, `DataSource/`, `DataStore/`, `Misc/`) matching the architecture. Each file contains a protocol + `TestDependencyKey` + `DependencyValues` extension.
+**Domain Dependencies organization**: `Dependencies/` is organized by layer subdirectories (`Interactor/`, `UseCase/`, `Repository/`, `DataSource/`, `DataStore/`, `Misc/`) matching the architecture. Each file contains a protocol + `TestDependencyKey` + `DependencyValues` extension.
 
-**Config layer**: Pure data — no AppKit imports. `Entity/Config/` contains `AppConfig`, `TextConfig`, `TextAppearanceConfig`, `ArtworkConfig`, `RippleConfig`, `DecodeEffectConfig`, `AIConfig`. Font metrics resolution lives in `DependencyInjection/AppStyleRegistration.swift`.
+**Config layer**: Pure data — no AppKit imports. `Entity/Config/` contains `AppConfig`, `TextConfig`, `TextAppearanceConfig`, `ArtworkConfig`, `RippleConfig`, `DecodeEffectConfig`, `AIConfig`, `WallpaperConfig`. Font metrics resolution lives in `Views/Lyrics/ColumnLayout.swift` (the only place lineHeight is needed).
 
 **Text style resolution**: `UnresolvedTextAppearance` (all-optional, private to `TextConfig.swift`) → variadic `resolve(defaults:filled:)` chain → `TextAppearanceConfig` (all non-optional). Layer defaults (title: bold/18pt, artist: medium, highlight: gold gradient) are applied via `Optional<UnresolvedTextAppearance>.resolve()`, ensuring defaults apply even when the TOML section is absent.
 
@@ -192,7 +228,7 @@ Cache is Repository's responsibility, not DataSource's. DataSources are pure API
 
 **ColorStyle**: Domain-level enum (`.solid(hex)`, `.gradient([hex])`) enabling any text style to use either solid colors or gradients. Polymorphic TOML decoding supports both `color = "#FFF"` and `color = ["#AAA", "#BBB"]`.
 
-**DI with swift-dependencies**: Protocol definitions + `TestDependencyKey` in `Domain`, all `liveValue` registrations centralized in `DependencyInjection` module. App style is resolved once at startup via `AppStyleKey.liveValue` in `DependencyInjection/AppStyleRegistration.swift`. No direct instantiation — everything through `@Dependency`.
+**DI with swift-dependencies**: Protocol definitions + `TestDependencyKey` in `Domain`, all `liveValue` registrations centralized in `DependencyInjection` module (`InteractorRegistration`, `UseCaseRegistration`, `RepositoryRegistration`, `DataSourceRegistration`, `DataStoreRegistration`, `HealthCheckRegistration`). No direct instantiation — everything through `@Dependency`.
 
 **Config commands**: `lyra config template` (stdout), `lyra config init` (file creation), `lyra config edit` ($EDITOR), `lyra config open` (GUI). Template generation flows through UseCase→Repository→DataSource. `ConfigDataSource.template(format:)` encodes `AppConfig.defaults` via `TOMLEncoder`/`JSONEncoder`. `ConfigFormat` enum in Entity. `ConfigWriteError` for init failure handling.
 
