@@ -224,6 +224,8 @@ Time format: `M:SS`, `H:MM:SS`, or fractional seconds (`1:23.5`). Both `start` a
 
 ### Full example
 
+#### **config.toml**
+
 ```toml
 includes = ["ai.toml"]
 
@@ -270,7 +272,7 @@ duration = 0.4
 idle = 1.5
 ```
 
-**ai.toml**
+#### **ai.toml**
 
 ```toml
 [ai]
