@@ -127,7 +127,7 @@ struct RipplePresenterTests {
         }
     }
 
-    @Suite("rippleDrawCommands")
+    @Suite("drawingContexts")
     struct DrawCommands {
         @MainActor
         @Test("returns empty when rippleState is nil")
@@ -136,9 +136,8 @@ struct RipplePresenterTests {
                 $0.wallpaperInteractor = StubWallpaperInteractor()
             } operation: {
                 let presenter = RipplePresenter()
-                let commands = presenter.rippleDrawCommands(
-                    canvasSize: CGSize(width: 400, height: 300),
-                    baseHSB: (0.5, 0.8, 1.0), now: Date())
+                let commands = presenter.drawingContexts(
+                    canvasSize: CGSize(width: 400, height: 300), now: Date())
                 #expect(commands.isEmpty)
             }
         }
@@ -156,12 +155,11 @@ struct RipplePresenterTests {
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 0, y: 0))
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
 
-                let commands = presenter.rippleDrawCommands(
-                    canvasSize: CGSize(width: 400, height: 300),
-                    baseHSB: (0.5, 0.8, 1.0), now: Date())
+                let commands = presenter.drawingContexts(
+                    canvasSize: CGSize(width: 400, height: 300), now: Date())
                 #expect(!commands.isEmpty, "Should have draw commands for active ripples")
-                #expect(commands.first!.radius >= 0)
-                #expect(commands.first!.opacity > 0)
+                #expect(commands.first!.rect.width >= 0)
+                #expect(commands.first!.color.alpha > 0)
             }
         }
 
@@ -179,9 +177,8 @@ struct RipplePresenterTests {
 
                 // Query far in the future — all ripples expired
                 let future = Date().addingTimeInterval(10)
-                let commands = presenter.rippleDrawCommands(
-                    canvasSize: CGSize(width: 400, height: 300),
-                    baseHSB: (0.5, 0.8, 1.0), now: future)
+                let commands = presenter.drawingContexts(
+                    canvasSize: CGSize(width: 400, height: 300), now: future)
                 #expect(commands.isEmpty, "Expired ripples should not generate commands")
             }
         }
@@ -199,16 +196,17 @@ struct RipplePresenterTests {
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 0, y: 0))
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 200, y: 300))
 
-                let commands = presenter.rippleDrawCommands(
-                    canvasSize: CGSize(width: 400, height: 400),
-                    baseHSB: (0.5, 0.8, 1.0), now: Date())
+                let commands = presenter.drawingContexts(
+                    canvasSize: CGSize(width: 400, height: 400), now: Date())
                 guard let cmd = commands.first else {
                     #expect(Bool(false), "Should have at least one command")
                     return
                 }
-                // x = 200 - 100 = 100, y = 400 - (300 - 200) = 300
-                #expect(abs(cmd.center.x - 100) < 1)
-                #expect(abs(cmd.center.y - 300) < 1)
+                // center: x = 200 - 100 = 100, y = 400 - (300 - 200) = 300
+                let centerX = cmd.rect.midX
+                let centerY = cmd.rect.midY
+                #expect(abs(centerX - 100) < 1)
+                #expect(abs(centerY - 300) < 1)
             }
         }
     }

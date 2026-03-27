@@ -20,23 +20,21 @@ public final class RipplePresenter: ObservableObject {
 
     // MARK: - Ripple drawing data
 
-    public struct RippleDrawCommand {
-        public let center: CGPoint
-        public let radius: Double
-        public let hue: Double
-        public let saturation: Double
-        public let brightness: Double
-        public let opacity: Double
+    public struct RippleDrawingContext {
+        public let rect: CGRect
+        public let color: ColorConfig
     }
 
     /// Computes draw commands for all visible ripples.
-    /// `canvasSize` is the Canvas size, `baseHSB` is the pre-computed base color HSB.
-    public func rippleDrawCommands(
-        canvasSize: CGSize, baseHSB: (hue: Double, saturation: Double, brightness: Double), now: Date
-    ) -> [RippleDrawCommand] {
+    public func drawingContexts(canvasSize: CGSize, now: Date) -> [RippleDrawingContext] {
         guard let rippleState else { return [] }
         let config = rippleConfig
-        return rippleState.ripples.compactMap { ripple in
+        let baseHSB: (hue: Double, saturation: Double, brightness: Double) =
+            switch config.color {
+            case .solid(let c): c.hsb
+            case .gradient(let cs): (cs.first ?? .white).hsb
+            }
+        return rippleState.ripples.compactMap { ripple -> RippleDrawingContext? in
             let elapsed = now.timeIntervalSince(ripple.startTime)
             let dur = ripple.idle ? config.duration * 3 : config.duration
             guard elapsed < dur else { return nil }
@@ -45,13 +43,11 @@ public final class RipplePresenter: ObservableObject {
             let radius = easeOut * config.radius
             let x = ripple.position.x - screenOrigin.x
             let y = canvasSize.height - (ripple.position.y - screenOrigin.y)
-            return RippleDrawCommand(
-                center: CGPoint(x: x, y: y),
-                radius: radius,
-                hue: (baseHSB.hue + ripple.hueShift).truncatingRemainder(dividingBy: 1),
-                saturation: baseHSB.saturation,
-                brightness: baseHSB.brightness,
-                opacity: pow(1 - t, 0.6)
+            return RippleDrawingContext(
+                rect: CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2),
+                color: ColorConfig(
+                    hue: (baseHSB.hue + ripple.hueShift).truncatingRemainder(dividingBy: 1), saturation: baseHSB.saturation,
+                    brightness: baseHSB.brightness, alpha: pow(1 - t, 0.6))
             )
         }
     }
