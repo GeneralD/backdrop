@@ -152,4 +152,38 @@ struct LyricsPresenterTests {
             }
         }
     }
+
+    @Suite("stop")
+    struct Stop {
+        @MainActor
+        @Test("stop cancels subscriptions and effects")
+        func stopCancels() async throws {
+            let subject = PassthroughSubject<TrackUpdate, Never>()
+            let content = LyricsContent.plain(["Line 1"])
+
+            await withDependencies {
+                $0.trackInteractor = StubTrackInteractor(
+                    trackChangePublisher: subject.eraseToAnyPublisher(),
+                    textLayout: TextLayout(decodeEffect: .init(duration: 0))
+                )
+            } operation: {
+                let presenter = LyricsPresenter()
+                presenter.start()
+
+                subject.send(TrackUpdate(lyrics: content, lyricsState: .resolved))
+                await waitForLyricsSuccess(presenter)
+                #expect(presenter.lyricsState == .success(content))
+
+                presenter.stop()
+
+                // After stop, new emissions should not change state
+                let newContent = LyricsContent.plain(["New Line"])
+                subject.send(TrackUpdate(lyrics: newContent, lyricsState: .resolved))
+                try? await Task.sleep(for: .milliseconds(200))
+                #expect(
+                    presenter.lyricsState == .success(content),
+                    "State should not change after stop")
+            }
+        }
+    }
 }

@@ -83,6 +83,34 @@ struct RipplePresenterTests {
         }
     }
 
+    @Suite("config access")
+    struct ConfigAccess {
+        @MainActor
+        @Test("rippleConfig returns interactor config")
+        func rippleConfigAccess() {
+            let config = RippleStyle(enabled: true, duration: 2.0, idle: 5.0)
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+            } operation: {
+                let presenter = RipplePresenter()
+                #expect(presenter.rippleConfig.enabled == true)
+                #expect(presenter.rippleConfig.idle == 5.0)
+                #expect(presenter.rippleConfig.duration == 2.0)
+            }
+        }
+
+        @MainActor
+        @Test("isEnabled reflects ripple config")
+        func isEnabledReflectsConfig() {
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: false))
+            } operation: {
+                let presenter = RipplePresenter()
+                #expect(presenter.isEnabled == false)
+            }
+        }
+    }
+
     @Suite("stop")
     struct Stop {
         @MainActor

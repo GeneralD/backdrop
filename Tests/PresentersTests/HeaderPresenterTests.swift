@@ -125,4 +125,34 @@ struct HeaderPresenterTests {
             }
         }
     }
+
+    @Suite("stop")
+    struct Stop {
+        @MainActor
+        @Test("stop cancels subscriptions and effects")
+        func stopCancels() async throws {
+            let subject = PassthroughSubject<TrackUpdate, Never>()
+
+            await withDependencies {
+                $0.trackInteractor = StubTrackInteractor(
+                    trackChangePublisher: subject.eraseToAnyPublisher(),
+                    decodeEffectConfig: .init(duration: 0)
+                )
+            } operation: {
+                let presenter = HeaderPresenter()
+                presenter.start()
+
+                subject.send(TrackUpdate(title: "Song", artist: "Artist"))
+                try? await Task.sleep(for: .milliseconds(200))
+                #expect(presenter.titleState == .success("Song"))
+
+                presenter.stop()
+
+                // After stop, new emissions should not change state
+                subject.send(TrackUpdate(title: "New Song", artist: "New Artist"))
+                try? await Task.sleep(for: .milliseconds(200))
+                #expect(presenter.titleState == .success("Song"), "State should not change after stop")
+            }
+        }
+    }
 }
