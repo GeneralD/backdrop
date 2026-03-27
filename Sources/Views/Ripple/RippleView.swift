@@ -1,4 +1,3 @@
-import AppKit
 import Dependencies
 import Domain
 import Presenters
@@ -13,41 +12,29 @@ public struct RippleView: View {
     }
 
     public var body: some View {
-        if presenter.isEnabled, let rippleState = presenter.rippleState {
-            rippleCanvas(rippleState: rippleState, config: presenter.rippleConfig)
+        if presenter.isEnabled, presenter.rippleState != nil {
+            rippleCanvas
         }
     }
 
-    private func rippleCanvas(rippleState: RippleState, config: RippleStyle) -> some View {
+    private var rippleCanvas: some View {
         @Dependency(\.swiftUIResolver) var resolver
-        let screenOrigin = presenter.screenOrigin
-        let baseNSColor: NSColor = {
-            guard case .solid(let hex) = config.color else { return .white }
-            return NSColor(resolver.color(from: hex)).usingColorSpace(.deviceRGB) ?? .white
-        }()
+        let baseHSB = resolver.hsbComponents(from: presenter.rippleConfig.color)
 
         return TimelineView(.animation) { timeline in
             Canvas { context, size in
-                let now = timeline.date
-                for ripple in rippleState.ripples {
-                    let elapsed = now.timeIntervalSince(ripple.startTime)
-                    let dur = ripple.idle ? config.duration * 3 : config.duration
-                    guard elapsed < dur else { continue }
-                    let t = elapsed / dur
-                    let easeOut = 1 - (1 - t) * (1 - t)
-                    let radius = easeOut * config.radius
-                    let shifted = Color(
-                        hue: (baseNSColor.hueComponent + ripple.hueShift).truncatingRemainder(dividingBy: 1),
-                        saturation: baseNSColor.saturationComponent,
-                        brightness: baseNSColor.brightnessComponent,
-                        opacity: baseNSColor.alphaComponent * pow(1 - t, 0.6)
-                    )
-                    let x = ripple.position.x - screenOrigin.x
-                    let y = size.height - (ripple.position.y - screenOrigin.y)
-                    let rect = CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2)
+                let commands = presenter.rippleDrawCommands(
+                    canvasSize: size, baseHSB: baseHSB, now: timeline.date)
+                for cmd in commands {
+                    let rect = CGRect(
+                        x: cmd.center.x - cmd.radius, y: cmd.center.y - cmd.radius,
+                        width: cmd.radius * 2, height: cmd.radius * 2)
                     context.stroke(
                         Path(ellipseIn: rect),
-                        with: .color(shifted),
+                        with: .color(
+                            Color(
+                                hue: cmd.hue, saturation: cmd.saturation,
+                                brightness: cmd.brightness, opacity: cmd.opacity)),
                         lineWidth: 2.5
                     )
                 }

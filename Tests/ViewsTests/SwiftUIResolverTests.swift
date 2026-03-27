@@ -6,7 +6,7 @@ import Testing
 
 @Suite("SwiftUIResolver")
 struct SwiftUIResolverTests {
-    private let resolver = LiveSwiftUIResolver()
+    private let resolver = SwiftUIResolverImpl()
 
     private func rgb(_ color: NSColor) -> (r: Double, g: Double, b: Double, a: Double) {
         guard let c = color.usingColorSpace(.sRGB) else { return (0, 0, 0, 0) }
@@ -124,6 +124,57 @@ struct SwiftUIResolverTests {
             let style = TextAppearance(fontName: "Helvetica", fontSize: 14, fontWeight: weight, color: .solid("#FFF"), shadow: .solid("#000"))
             _ = resolver.font(from: style)
         }
+    }
+
+    // MARK: - lineHeight(from:)
+
+    // MARK: - hueShifted color
+
+    @MainActor
+    @Test("hue shifted color from solid style does not crash")
+    func hueShiftedSolid() {
+        _ = resolver.color(.solid("#AAAAFF"), hueShiftedBy: 0.1, opacity: 0.8)
+    }
+
+    @MainActor
+    @Test("hue shifted color with zero shift returns similar color")
+    func hueShiftedZero() {
+        let original = resolver.color(.solid("#FF0000"), hueShiftedBy: 0, opacity: 1.0)
+        let c = rgb(NSColor(original))
+        #expect(abs(c.r - 1.0) < 0.05)
+    }
+
+    @MainActor
+    @Test("hue shifted color from gradient uses first color")
+    func hueShiftedGradient() {
+        _ = resolver.color(.gradient(["#FF0000", "#00FF00"]), hueShiftedBy: 0.5, opacity: 0.5)
+    }
+
+    // MARK: - hsbComponents(from:)
+
+    @MainActor
+    @Test("hsbComponents of red returns hue near 0")
+    func hsbRed() {
+        let hsb = resolver.hsbComponents(from: .solid("#FF0000"))
+        #expect(abs(hsb.hue) < 0.02 || abs(hsb.hue - 1.0) < 0.02)
+        #expect(abs(hsb.saturation - 1.0) < 0.01)
+        #expect(abs(hsb.brightness - 1.0) < 0.01)
+    }
+
+    @MainActor
+    @Test("hsbComponents of white returns zero saturation")
+    func hsbWhite() {
+        let hsb = resolver.hsbComponents(from: .solid("#FFFFFF"))
+        #expect(abs(hsb.saturation) < 0.01)
+        #expect(abs(hsb.brightness - 1.0) < 0.01)
+    }
+
+    @MainActor
+    @Test("hsbComponents of gradient uses first color")
+    func hsbGradient() {
+        let hsb = resolver.hsbComponents(from: .gradient(["#00FF00", "#FF0000"]))
+        // Green: hue ~0.33
+        #expect(abs(hsb.hue - 0.333) < 0.02)
     }
 
     // MARK: - lineHeight(from:)
