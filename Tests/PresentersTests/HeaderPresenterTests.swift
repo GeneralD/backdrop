@@ -126,13 +126,17 @@ struct HeaderPresenterTests {
                 let presenter = HeaderPresenter()
                 presenter.start()
 
-                // First send a valid track
+                // First send a valid track and wait for decode to complete
                 subject.send(TrackUpdate(title: "Song", artist: "Artist"))
-                try? await Task.sleep(for: .milliseconds(200))
+                await waitForTitleSuccess(presenter)
 
                 // Then send an idle (nil) update
                 subject.send(TrackUpdate())
-                try? await Task.sleep(for: .milliseconds(100))
+                // Wait for idle state
+                let deadline = ContinuousClock.now + .seconds(3)
+                while !presenter.titleState.isIdle, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
 
                 #expect(presenter.titleState.isIdle)
                 #expect(presenter.artistState.isIdle)
