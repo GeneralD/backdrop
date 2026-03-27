@@ -159,7 +159,7 @@ struct RipplePresenterTests {
                     canvasSize: CGSize(width: 400, height: 300), now: Date())
                 #expect(!commands.isEmpty, "Should have draw commands for active ripples")
                 #expect(commands.first!.rect.width >= 0)
-                #expect(commands.first!.opacity > 0)
+                #expect(commands.first!.color.alpha > 0)
             }
         }
 

@@ -13,6 +13,13 @@ public struct ColorConfig: Sendable, Equatable {
         self.alpha = alpha
     }
 
+    public static let white = ColorConfig(red: 1, green: 1, blue: 1)
+    public static let black = ColorConfig(red: 0, green: 0, blue: 0)
+}
+
+// MARK: - Hex String ↔ RGBA
+
+extension ColorConfig {
     public init(hex: String) {
         let h = hex.trimmingCharacters(in: .init(charactersIn: "#"))
         guard let value = UInt64(h, radix: 16) else {
@@ -53,12 +60,9 @@ public struct ColorConfig: Sendable, Equatable {
             ? String(format: "#%02X%02X%02X", r, g, b)
             : String(format: "#%02X%02X%02X%02X", r, g, b, a)
     }
-
-    public static let white = ColorConfig(red: 1, green: 1, blue: 1)
-    public static let black = ColorConfig(red: 0, green: 0, blue: 0)
 }
 
-// MARK: - HSB (pure math, no framework dependency)
+// MARK: - HSB Conversion
 
 extension ColorConfig {
     public var hsb: (hue: Double, saturation: Double, brightness: Double) {
@@ -74,6 +78,22 @@ extension ColorConfig {
                     : ((red - green) / delta + 4) / 6
         let saturation = maxC == 0 ? 0 : delta / maxC
         return (hue < 0 ? hue + 1 : hue, saturation, maxC)
+    }
+
+    public init(hue: Double, saturation: Double, brightness: Double, alpha: Double = 1) {
+        let c = brightness * saturation
+        let x = c * (1 - abs((hue * 6).truncatingRemainder(dividingBy: 2) - 1))
+        let m = brightness - c
+        let (r1, g1, b1): (Double, Double, Double) =
+            switch hue {
+            case 0..<1 / 6: (c, x, 0)
+            case 1 / 6..<1 / 3: (x, c, 0)
+            case 1 / 3..<1 / 2: (0, c, x)
+            case 1 / 2..<2 / 3: (0, x, c)
+            case 2 / 3..<5 / 6: (x, 0, c)
+            default: (c, 0, x)
+            }
+        self.init(red: r1 + m, green: g1 + m, blue: b1 + m, alpha: alpha)
     }
 }
 

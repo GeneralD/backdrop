@@ -22,10 +22,7 @@ public final class RipplePresenter: ObservableObject {
 
     public struct RippleDrawCommand {
         public let rect: CGRect
-        public let hue: Double
-        public let saturation: Double
-        public let brightness: Double
-        public let opacity: Double
+        public let color: ColorConfig
     }
 
     /// Computes draw commands for all visible ripples.
@@ -37,7 +34,7 @@ public final class RipplePresenter: ObservableObject {
             case .solid(let c): c.hsb
             case .gradient(let cs): (cs.first ?? .white).hsb
             }
-        return rippleState.ripples.compactMap { ripple in
+        return rippleState.ripples.compactMap { ripple -> RippleDrawCommand? in
             let elapsed = now.timeIntervalSince(ripple.startTime)
             let dur = ripple.idle ? config.duration * 3 : config.duration
             guard elapsed < dur else { return nil }
@@ -48,10 +45,9 @@ public final class RipplePresenter: ObservableObject {
             let y = canvasSize.height - (ripple.position.y - screenOrigin.y)
             return RippleDrawCommand(
                 rect: CGRect(x: x - radius, y: y - radius, width: radius * 2, height: radius * 2),
-                hue: (baseHSB.hue + ripple.hueShift).truncatingRemainder(dividingBy: 1),
-                saturation: baseHSB.saturation,
-                brightness: baseHSB.brightness,
-                opacity: pow(1 - t, 0.6)
+                color: ColorConfig(
+                    hue: (baseHSB.hue + ripple.hueShift).truncatingRemainder(dividingBy: 1), saturation: baseHSB.saturation,
+                    brightness: baseHSB.brightness, alpha: pow(1 - t, 0.6))
             )
         }
     }

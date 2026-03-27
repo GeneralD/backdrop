@@ -20,8 +20,8 @@ public struct RippleView: View {
                             Path(ellipseIn: cmd.rect),
                             with: .color(
                                 Color(
-                                    hue: cmd.hue, saturation: cmd.saturation,
-                                    brightness: cmd.brightness, opacity: cmd.opacity)),
+                                    red: cmd.color.red, green: cmd.color.green,
+                                    blue: cmd.color.blue, opacity: cmd.color.alpha)),
                             lineWidth: 2.5
                         )
                     }
