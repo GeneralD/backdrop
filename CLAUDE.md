@@ -258,7 +258,7 @@ This applies to all Combine + Timer + MainActor tests where DecodeEffect, state 
 
 ### Git Workflow
 
-**Never commit directly to main.** All changes must go through a branch → PR → merge flow, even for small fixes. This ensures CI runs, reviews happen, and the commit history stays clean.
+**Never commit directly to main.** All code changes must go through a branch → PR → merge flow. Documentation-only changes (CLAUDE.md, README etc.) should be held and included in the next PR rather than committed directly to main.
 
 ### Version Management
 
