@@ -11,10 +11,26 @@ public final class TrackInteractorImpl: @unchecked Sendable {
 
     private lazy var shared = nowPlayingPublisher.share()
 
-    /// NowPlaying events with actual track info (nil/empty filtered at Repository layer).
+    /// NowPlaying events with actual track info.
+    /// Drops "degraded" updates where artist becomes empty for the same title —
+    /// macOS MediaRemote clears artist on volume mute while keeping the title.
     private lazy var activeNowPlaying =
         shared
         .compactMap { $0 }
+        .scan((previous: nil as NowPlaying?, current: nil as NowPlaying?)) { state, incoming in
+            (previous: state.current, current: incoming)
+        }
+        .compactMap { state -> NowPlaying? in
+            guard let current = state.current else { return nil }
+            guard let previous = state.previous else { return current }
+            // Same title but artist degraded from non-empty to empty → skip
+            let prevArtist = previous.artist ?? ""
+            let curArtist = current.artist ?? ""
+            guard current.title == previous.title, !prevArtist.isEmpty, curArtist.isEmpty else {
+                return current
+            }
+            return nil
+        }
         .share()
 
     /// Emits on track change (title+artist) with metadata + lyrics resolution.
