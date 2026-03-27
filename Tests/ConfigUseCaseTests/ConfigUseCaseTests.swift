@@ -34,6 +34,29 @@ struct ConfigUseCaseTests {
         }
     }
 
+    @Test("template delegates to repository")
+    func templateDelegates() {
+        withDependencies {
+            $0.configRepository = MockConfigRepository(
+                style: .init(), templateResult: "# config template")
+        } operation: {
+            let useCase = ConfigUseCaseImpl()
+            #expect(useCase.template(format: .toml) == "# config template")
+        }
+    }
+
+    @Test("writeTemplate delegates to repository")
+    func writeTemplateDelegates() throws {
+        try withDependencies {
+            $0.configRepository = MockConfigRepository(
+                style: .init(), writeTemplateResult: "/path/to/config.toml")
+        } operation: {
+            let useCase = ConfigUseCaseImpl()
+            let path = try useCase.writeTemplate(format: .toml, force: false)
+            #expect(path == "/path/to/config.toml")
+        }
+    }
+
     @Test("appStyle is cached — repository.loadAppStyle() called only once")
     func appStyleCachedSingleRead() {
         let counter = CountingConfigRepository()
@@ -52,13 +75,15 @@ struct ConfigUseCaseTests {
 // MARK: - Mocks
 
 private struct MockConfigRepository: ConfigRepository {
-    let style: AppStyle
+    var style: AppStyle = .init()
+    var templateResult: String?
+    var writeTemplateResult: String = ""
 
     func loadAppStyle() -> AppStyle { style }
 
     func validate() -> ConfigValidationResult { .defaults }
-    func template(format: ConfigFormat) -> String? { nil }
-    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
+    func template(format: ConfigFormat) -> String? { templateResult }
+    func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { writeTemplateResult }
 }
 
 private final class CountingConfigRepository: ConfigRepository, @unchecked Sendable {

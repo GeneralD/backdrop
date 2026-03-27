@@ -92,5 +92,43 @@ struct WallpaperPresenterTests {
                 #expect(presenter.isLoading == false)
             }
         }
+
+        @MainActor
+        @Test("stop clears player state")
+        func stopClearsPlayer() async {
+            let url = URL(fileURLWithPath: "/tmp/bg.mp4")
+            let state = WallpaperState(url: url, start: 5.0, end: 30.0)
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: state)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.start()
+                await waitUntilLoaded(presenter)
+                #expect(presenter.wallpaperURL == url)
+
+                presenter.stop()
+                #expect(presenter.player == nil)
+            }
+        }
+
+        @MainActor
+        @Test("start with only start time, no end time")
+        func startTimeOnly() async {
+            let url = URL(fileURLWithPath: "/tmp/bg.mp4")
+            let state = WallpaperState(url: url, start: 10.0, end: nil)
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: state)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.start()
+                await waitUntilLoaded(presenter)
+
+                #expect(presenter.wallpaperURL == url)
+                #expect(presenter.startTime == 10.0)
+                #expect(presenter.endTime == nil)
+            }
+        }
     }
 }

@@ -84,4 +84,46 @@ struct ScreenInteractorImplTests {
         let layout = interactor.resolveLayout()
         #expect(layout.windowFrame.width > 0, "fallback screen should have non-zero width")
     }
+
+    @MainActor
+    @Test("primary selector resolves to first screen")
+    func primarySelector() {
+        let style = AppStyle(screen: .primary)
+        let interactor = withDependencies {
+            $0.configUseCase = StubConfigUseCase(style: style)
+        } operation: {
+            ScreenInteractorImpl()
+        }
+
+        let layout = interactor.resolveLayout()
+        #expect(layout.windowFrame.width > 0)
+    }
+
+    @MainActor
+    @Test("smallest selector resolves without crash")
+    func smallestSelector() {
+        let style = AppStyle(screen: .smallest)
+        let interactor = withDependencies {
+            $0.configUseCase = StubConfigUseCase(style: style)
+        } operation: {
+            ScreenInteractorImpl()
+        }
+
+        let layout = interactor.resolveLayout()
+        #expect(layout.windowFrame.width > 0)
+    }
+
+    @MainActor
+    @Test("index 0 resolves to first screen")
+    func indexZero() {
+        let style = AppStyle(screen: .index(0))
+        let interactor = withDependencies {
+            $0.configUseCase = StubConfigUseCase(style: style)
+        } operation: {
+            ScreenInteractorImpl()
+        }
+
+        let layout = interactor.resolveLayout()
+        #expect(layout.windowFrame.width > 0)
+    }
 }
