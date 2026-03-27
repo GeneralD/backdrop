@@ -54,6 +54,7 @@ let package = Package(
             dependencies: [
                 "Domain",
                 "Presenters",
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 
@@ -275,8 +276,24 @@ let package = Package(
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
+        .testTarget(
+            name: "WallpaperInteractorTests",
+            dependencies: [
+                "WallpaperInteractor",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
+            name: "WallpaperUseCaseTests",
+            dependencies: [
+                "WallpaperUseCase",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
         .testTarget(name: "CLITests", dependencies: ["CLI"]),
-        .testTarget(name: "ViewsTests", dependencies: ["Views"]),
+        .testTarget(name: "ViewsTests", dependencies: ["Views", "Domain"]),
         .testTarget(
             name: "PresentersTests",
             dependencies: [

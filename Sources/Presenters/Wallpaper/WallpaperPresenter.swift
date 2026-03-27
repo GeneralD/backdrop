@@ -10,10 +10,11 @@ public final class WallpaperPresenter: ObservableObject {
     @Published public private(set) var startTime: TimeInterval?
     @Published public private(set) var endTime: TimeInterval?
     @Published public private(set) var isLoading: Bool = false
-
     @Published public private(set) var player: AVPlayer?
+
     private var loopObserver: NSObjectProtocol?
     private var endTimeObserver: Any?
+    private var isSeeking: Bool = false
     private var sleepObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
 
@@ -34,6 +35,18 @@ public final class WallpaperPresenter: ObservableObject {
         }
     }
 
+    public func stop() {
+        player?.pause()
+        endTimeObserver.map { player?.removeTimeObserver($0) }
+        loopObserver.map(NotificationCenter.default.removeObserver)
+        let ws = NSWorkspace.shared.notificationCenter
+        sleepObserver.map(ws.removeObserver)
+        wakeObserver.map(ws.removeObserver)
+        player = nil
+    }
+}
+
+extension WallpaperPresenter {
     private func setupPlayer() async {
         guard let wallpaperURL else { return }
 
@@ -51,13 +64,14 @@ public final class WallpaperPresenter: ObservableObject {
         }
 
         if let seekEnd {
-            var seeking = false
             let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
-            endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak player] time in
-                guard !seeking, time >= seekEnd else { return }
-                seeking = true
-                player?.seek(to: seekStart, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
-                    seeking = false
+            endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self, weak player] time in
+                MainActor.assumeIsolated {
+                    guard let self, !self.isSeeking, time >= seekEnd else { return }
+                    self.isSeeking = true
+                    player?.seek(to: seekStart, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+                        MainActor.assumeIsolated { self?.isSeeking = false }
+                    }
                 }
             }
         }
@@ -74,18 +88,6 @@ public final class WallpaperPresenter: ObservableObject {
         observeSleepWake()
     }
 
-    public func stop() {
-        player?.pause()
-        endTimeObserver.map { player?.removeTimeObserver($0) }
-        loopObserver.map(NotificationCenter.default.removeObserver)
-        let ws = NSWorkspace.shared.notificationCenter
-        sleepObserver.map(ws.removeObserver)
-        wakeObserver.map(ws.removeObserver)
-        player = nil
-    }
-}
-
-extension WallpaperPresenter {
     private func observeSleepWake() {
         let ws = NSWorkspace.shared.notificationCenter
         sleepObserver = ws.addObserver(

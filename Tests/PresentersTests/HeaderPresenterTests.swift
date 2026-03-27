@@ -19,6 +19,27 @@ private struct StubTrackInteractor: TrackInteractor, @unchecked Sendable {
     var playbackPosition: AnyPublisher<PlaybackPosition, Never> { Empty().eraseToAnyPublisher() }
 }
 
+// MARK: - Helpers
+
+extension FetchState {
+    fileprivate var isSuccess: Bool {
+        switch self {
+        case .success: true
+        default: false
+        }
+    }
+}
+
+@MainActor
+private func waitForTitleSuccess(_ presenter: HeaderPresenter, timeout: Duration = .seconds(3)) async {
+    let deadline = ContinuousClock.now + timeout
+    while !presenter.titleState.isSuccess || !presenter.artistState.isSuccess,
+        ContinuousClock.now < deadline
+    {
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+}
+
 // MARK: - Tests
 
 @Suite("HeaderPresenter")
@@ -84,12 +105,8 @@ struct HeaderPresenterTests {
                 presenter.start()
 
                 subject.send(update)
+                await waitForTitleSuccess(presenter)
 
-                // Allow decode effect (duration: 0) and DispatchQueue.main to settle
-                try? await Task.sleep(for: .milliseconds(200))
-
-                // artworkData is managed by separate artwork stream
-                // With duration 0, decode completes immediately
                 #expect(presenter.titleState == .success("Hello"))
                 #expect(presenter.artistState == .success("World"))
             }
@@ -109,19 +126,53 @@ struct HeaderPresenterTests {
                 let presenter = HeaderPresenter()
                 presenter.start()
 
-                // First send a valid track
+                // First send a valid track and wait for decode to complete
                 subject.send(TrackUpdate(title: "Song", artist: "Artist"))
-                try? await Task.sleep(for: .milliseconds(200))
+                await waitForTitleSuccess(presenter)
 
                 // Then send an idle (nil) update
                 subject.send(TrackUpdate())
-                try? await Task.sleep(for: .milliseconds(100))
+                // Wait for idle state
+                let deadline = ContinuousClock.now + .seconds(3)
+                while !presenter.titleState.isIdle, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
 
                 #expect(presenter.titleState.isIdle)
                 #expect(presenter.artistState.isIdle)
                 #expect(presenter.displayTitle == " ")
                 #expect(presenter.displayArtist == " ")
                 #expect(presenter.artworkData == nil)
+            }
+        }
+    }
+
+    @Suite("stop")
+    struct Stop {
+        @MainActor
+        @Test("stop cancels subscriptions and effects")
+        func stopCancels() async throws {
+            let subject = PassthroughSubject<TrackUpdate, Never>()
+
+            await withDependencies {
+                $0.trackInteractor = StubTrackInteractor(
+                    trackChangePublisher: subject.eraseToAnyPublisher(),
+                    decodeEffectConfig: .init(duration: 0)
+                )
+            } operation: {
+                let presenter = HeaderPresenter()
+                presenter.start()
+
+                subject.send(TrackUpdate(title: "Song", artist: "Artist"))
+                await waitForTitleSuccess(presenter)
+                #expect(presenter.titleState == .success("Song"))
+
+                presenter.stop()
+
+                // After stop, new emissions should not change state
+                subject.send(TrackUpdate(title: "New Song", artist: "New Artist"))
+                try? await Task.sleep(for: .milliseconds(200))
+                #expect(presenter.titleState == .success("Song"), "State should not change after stop")
             }
         }
     }

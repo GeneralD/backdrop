@@ -234,6 +234,28 @@ Cache is Repository's responsibility, not DataSource's. DataSources are pure API
 
 **HealthCheckable**: Protocol in Domain with `serviceName` + `healthCheck()`. Implemented by `LRCLibAPI`, `MusicBrainzAPI`, `OpenAICompatibleAPI`. `lyra healthcheck` validates config, API connectivity, and AI token validity.
 
+### Testing Guidelines
+
+**Async test timing**: Never use fixed `Task.sleep` to wait for state changes in Presenter/Interactor tests. CI environments have variable load, and fixed delays cause flaky failures. Always use polling helpers:
+
+```swift
+// Good — poll until condition is met
+let deadline = ContinuousClock.now + .seconds(3)
+while !presenter.titleState.isSuccess, ContinuousClock.now < deadline {
+    try? await Task.sleep(for: .milliseconds(10))
+}
+
+// Bad — fixed delay that may be too short on CI
+try? await Task.sleep(for: .milliseconds(200))
+#expect(presenter.titleState == .success("Song"))
+```
+
+This applies to all Combine + Timer + MainActor tests where DecodeEffect, state transitions, or async operations are involved.
+
+**View testing strategy**: SwiftUI Views (body) are not unit-tested. All display logic is pushed to Presenters, which are thoroughly tested. Views are pure rendering with no business logic.
+
+**SwiftUIResolver**: Config→SwiftUI type conversions (font, color, shapeStyle, lineHeight) are centralized in `SwiftUIResolver` protocol with DI. Views access via `@Dependency(\.swiftUIResolver)` in body. `LiveSwiftUIResolver` is tested directly in `SwiftUIResolverTests`.
+
 ### Version Management
 
 Version is defined in `Sources/CLI/Resources/version.txt` (single source of truth). CI reads this file to auto-create/update git tags on push to main.

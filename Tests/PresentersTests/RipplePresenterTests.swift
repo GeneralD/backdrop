@@ -83,6 +83,34 @@ struct RipplePresenterTests {
         }
     }
 
+    @Suite("config access")
+    struct ConfigAccess {
+        @MainActor
+        @Test("rippleConfig returns interactor config")
+        func rippleConfigAccess() {
+            let config = RippleStyle(enabled: true, duration: 2.0, idle: 5.0)
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+            } operation: {
+                let presenter = RipplePresenter()
+                #expect(presenter.rippleConfig.enabled == true)
+                #expect(presenter.rippleConfig.idle == 5.0)
+                #expect(presenter.rippleConfig.duration == 2.0)
+            }
+        }
+
+        @MainActor
+        @Test("isEnabled reflects ripple config")
+        func isEnabledReflectsConfig() {
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: false))
+            } operation: {
+                let presenter = RipplePresenter()
+                #expect(presenter.isEnabled == false)
+            }
+        }
+    }
+
     @Suite("stop")
     struct Stop {
         @MainActor
@@ -95,6 +123,92 @@ struct RipplePresenterTests {
                 presenter.start()
                 presenter.stop()
                 // No crash = success (mouse monitor removed)
+            }
+        }
+    }
+
+    @Suite("rippleDrawCommands")
+    struct DrawCommands {
+        @MainActor
+        @Test("returns empty when rippleState is nil")
+        func emptyWithoutState() {
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor()
+            } operation: {
+                let presenter = RipplePresenter()
+                let commands = presenter.rippleDrawCommands(
+                    canvasSize: CGSize(width: 400, height: 300),
+                    baseHSB: (0.5, 0.8, 1.0), now: Date())
+                #expect(commands.isEmpty)
+            }
+        }
+
+        @MainActor
+        @Test("returns commands for active ripples")
+        func commandsForActiveRipples() {
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, duration: 2.0))
+            } operation: {
+                let presenter = RipplePresenter(screenOrigin: .zero)
+                presenter.start()
+
+                // Trigger a ripple via mouse move
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 0, y: 0))
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
+
+                let commands = presenter.rippleDrawCommands(
+                    canvasSize: CGSize(width: 400, height: 300),
+                    baseHSB: (0.5, 0.8, 1.0), now: Date())
+                #expect(!commands.isEmpty, "Should have draw commands for active ripples")
+                #expect(commands.first!.radius >= 0)
+                #expect(commands.first!.opacity > 0)
+            }
+        }
+
+        @MainActor
+        @Test("expired ripples are excluded")
+        func expiredExcluded() {
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, duration: 0.1))
+            } operation: {
+                let presenter = RipplePresenter(screenOrigin: .zero)
+                presenter.start()
+
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 0, y: 0))
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
+
+                // Query far in the future — all ripples expired
+                let future = Date().addingTimeInterval(10)
+                let commands = presenter.rippleDrawCommands(
+                    canvasSize: CGSize(width: 400, height: 300),
+                    baseHSB: (0.5, 0.8, 1.0), now: future)
+                #expect(commands.isEmpty, "Expired ripples should not generate commands")
+            }
+        }
+
+        @MainActor
+        @Test("screen origin offsets are applied to commands")
+        func screenOriginOffset() {
+            let origin = CGPoint(x: 100, y: 200)
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, duration: 2.0))
+            } operation: {
+                let presenter = RipplePresenter(screenOrigin: origin)
+                presenter.start()
+
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 0, y: 0))
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 200, y: 300))
+
+                let commands = presenter.rippleDrawCommands(
+                    canvasSize: CGSize(width: 400, height: 400),
+                    baseHSB: (0.5, 0.8, 1.0), now: Date())
+                guard let cmd = commands.first else {
+                    #expect(Bool(false), "Should have at least one command")
+                    return
+                }
+                // x = 200 - 100 = 100, y = 400 - (300 - 200) = 300
+                #expect(abs(cmd.center.x - 100) < 1)
+                #expect(abs(cmd.center.y - 300) < 1)
             }
         }
     }

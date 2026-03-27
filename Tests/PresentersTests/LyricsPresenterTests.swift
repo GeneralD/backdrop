@@ -75,7 +75,10 @@ struct LyricsPresenterTests {
                 presenter.start()
 
                 subject.send(TrackUpdate(lyricsState: .loading))
-                try? await Task.sleep(for: .milliseconds(100))
+                let deadline = ContinuousClock.now + .seconds(3)
+                while !presenter.lyricsState.isLoading, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
 
                 #expect(presenter.lyricsState.isLoading)
             }
@@ -95,7 +98,10 @@ struct LyricsPresenterTests {
                 presenter.start()
 
                 subject.send(TrackUpdate(lyricsState: .notFound))
-                try? await Task.sleep(for: .milliseconds(100))
+                let deadline = ContinuousClock.now + .seconds(3)
+                while presenter.lyricsState != .failure, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
 
                 #expect(presenter.lyricsState == .failure)
                 #expect(presenter.displayLyricLines.isEmpty)
@@ -117,11 +123,17 @@ struct LyricsPresenterTests {
 
                 // First set to loading
                 subject.send(TrackUpdate(lyricsState: .loading))
-                try? await Task.sleep(for: .milliseconds(100))
+                var deadline = ContinuousClock.now + .seconds(3)
+                while !presenter.lyricsState.isLoading, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
 
                 // Then idle
                 subject.send(TrackUpdate(lyricsState: .idle))
-                try? await Task.sleep(for: .milliseconds(100))
+                deadline = ContinuousClock.now + .seconds(3)
+                while !presenter.lyricsState.isIdle, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
 
                 #expect(presenter.lyricsState.isIdle)
                 #expect(presenter.displayLyricLines.isEmpty)
@@ -149,6 +161,40 @@ struct LyricsPresenterTests {
 
                 #expect(presenter.lyricsState == .success(content))
                 #expect(presenter.displayLyricLines.count == 2)
+            }
+        }
+    }
+
+    @Suite("stop")
+    struct Stop {
+        @MainActor
+        @Test("stop cancels subscriptions and effects")
+        func stopCancels() async throws {
+            let subject = PassthroughSubject<TrackUpdate, Never>()
+            let content = LyricsContent.plain(["Line 1"])
+
+            await withDependencies {
+                $0.trackInteractor = StubTrackInteractor(
+                    trackChangePublisher: subject.eraseToAnyPublisher(),
+                    textLayout: TextLayout(decodeEffect: .init(duration: 0))
+                )
+            } operation: {
+                let presenter = LyricsPresenter()
+                presenter.start()
+
+                subject.send(TrackUpdate(lyrics: content, lyricsState: .resolved))
+                await waitForLyricsSuccess(presenter)
+                #expect(presenter.lyricsState == .success(content))
+
+                presenter.stop()
+
+                // After stop, new emissions should not change state
+                let newContent = LyricsContent.plain(["New Line"])
+                subject.send(TrackUpdate(lyrics: newContent, lyricsState: .resolved))
+                try? await Task.sleep(for: .milliseconds(200))
+                #expect(
+                    presenter.lyricsState == .success(content),
+                    "State should not change after stop")
             }
         }
     }

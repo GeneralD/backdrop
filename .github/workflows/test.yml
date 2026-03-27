@@ -25,6 +25,15 @@ jobs:
       - name: Build
         run: swift build
 
+      - name: Check for warnings
+        run: |
+          WARNINGS=$(swift build 2>&1 | grep "warning:" | grep -v ".build/" || true)
+          if [ -n "$WARNINGS" ]; then
+            echo "$WARNINGS"
+            echo "::error::Build produced warnings in project sources"
+            exit 1
+          fi
+
       - name: Run tests with coverage
         run: swift test --enable-code-coverage
 
