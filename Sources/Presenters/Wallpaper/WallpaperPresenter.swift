@@ -14,6 +14,7 @@ public final class WallpaperPresenter: ObservableObject {
     @Published public private(set) var player: AVPlayer?
     private var loopObserver: NSObjectProtocol?
     private var endTimeObserver: Any?
+    private var isSeeking: Bool = false
     private var sleepObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
 
@@ -51,13 +52,14 @@ public final class WallpaperPresenter: ObservableObject {
         }
 
         if let seekEnd {
-            var seeking = false
             let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
-            endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak player] time in
-                guard !seeking, time >= seekEnd else { return }
-                seeking = true
-                player?.seek(to: seekStart, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
-                    seeking = false
+            endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self, weak player] time in
+                MainActor.assumeIsolated {
+                    guard let self, !self.isSeeking, time >= seekEnd else { return }
+                    self.isSeeking = true
+                    player?.seek(to: seekStart, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+                        MainActor.assumeIsolated { self?.isSeeking = false }
+                    }
                 }
             }
         }
