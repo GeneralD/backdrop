@@ -13,6 +13,7 @@ make build                           # release build via Makefile
 make install                         # install to /usr/local/bin
 make lint                            # check formatting (swift-format)
 make format                          # auto-fix formatting
+swift .claude/scripts/check-overlay.swift  # verify overlay is rendering
 ```
 
 ## Architecture
@@ -25,6 +26,7 @@ macOS desktop overlay app showing synced lyrics and video wallpaper. VIPER + Cle
 graph TD
     subgraph Entry
         CLI[CLI]
+        AsyncParsableCommand[AsyncParsableCommand]
     end
 
     subgraph Router
@@ -87,7 +89,7 @@ graph TD
         end
     end
 
-    CLI --> App
+    CLI --> App & AsyncParsableCommand
     App --> Views & Presenters & DependencyInjection
     DependencyInjection --> Implementations
     Views --> Presenters
@@ -110,6 +112,7 @@ graph TD
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
 
+    style AsyncParsableCommand fill:#555,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
     style App fill:#6a5,stroke:#333,color:#fff
     style Views fill:#6a5,stroke:#333,color:#fff
@@ -161,7 +164,8 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 
 | Layer | Modules | Responsibility |
 |---|---|---|
-| Executable / CLI | `CLI` | Entry point (`@main RootCommand: AsyncParsableCommand`), ArgumentParser commands, LaunchAgent. Product name: `lyra` |
+| Executable / CLI | `CLI` | Entry point (`@main RootCommand: ParsableCommand`), ArgumentParser commands, LaunchAgent. Product name: `lyra` |
+| Async Bridge | `AsyncRunnableCommand` | `AsyncRunnableCommand` protocol — bridges `async run()` to sync `ParsableCommand` via `DispatchSemaphore`, keeping the main thread free for `NSApplication.run()` |
 | Router | `App` | `AppRouter` (pure wireframe), `AppDelegate` |
 | View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
 | Presenter | `Presenters` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
@@ -231,6 +235,8 @@ Cache is Repository's responsibility, not DataSource's. DataSources are pure API
 **Track command**: `lyra track` outputs currently playing track info as JSON. Flags: `--resolve` (`-r`) resolves metadata via MusicBrainz/regex, `--lyrics` (`-l`) fetches lyrics from LRCLIB. The two flags are independent and combinable (`-rl`). Default (no flags) returns raw MediaRemote data. Uses `PlaybackUseCase.fetchNowPlaying()` (one-shot) + `MetadataUseCase` + `LyricsUseCase` via `@Dependency`. Output type is `NowPlayingInfo` (Codable).
 
 **NowPlayingRepository dual API**: `fetch()` for one-shot retrieval (used by CLI `track` command), `stream()` for continuous observation (used by GUI via `TrackInteractor`). `PlaybackUseCase` mirrors both: `fetchNowPlaying()` and `observeNowPlaying()`.
+
+**AsyncRunnableCommand vs AsyncParsableCommand**: `@main AsyncParsableCommand` starts Swift's cooperative thread pool and takes ownership of the main thread. `NSApplication.run()` must own the main thread exclusively for SwiftUI rendering. The two are fundamentally incompatible — when both compete, the overlay window is blank. `AsyncRunnableCommand` protocol solves this by keeping `RootCommand` as sync `ParsableCommand` (main thread free for NSApplication) while bridging async subcommands (`TrackCommand`, `HealthcheckCommand`) via `DispatchSemaphore` on a cooperative thread pool thread. `DaemonCommand` stays sync and calls `MainActor.assumeIsolated { app.run() }` directly on the main thread.
 
 **HealthCheckable**: Protocol in Domain with `serviceName` + `healthCheck()`. Implemented by `LRCLibAPI`, `MusicBrainzAPI`, `OpenAICompatibleAPI`. `lyra healthcheck` validates config, API connectivity, and AI token validity.
 
