@@ -20,6 +20,13 @@ struct StartCommand: ParsableCommand {
         task.standardOutput = FileHandle.nullDevice
         task.standardError = FileHandle.nullDevice
         try task.run()
+
+        // Wait briefly to detect immediate exit (e.g. lock contention)
+        usleep(500_000)
+        guard task.isRunning else {
+            print("Failed to start (daemon exited immediately)")
+            throw ExitCode.failure
+        }
         print("Overlay started (PID \(task.processIdentifier))")
     }
 }
