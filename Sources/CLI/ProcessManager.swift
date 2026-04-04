@@ -28,6 +28,7 @@ public enum ProcessManager {
         }
         for pid in pids where kill(pid, 0) == 0 { kill(pid, SIGKILL) }
         usleep(100_000)
+        ProcessLock.shared.cleanup()
         return true
     }
 }
