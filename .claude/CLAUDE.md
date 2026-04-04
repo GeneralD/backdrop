@@ -13,7 +13,7 @@ make build                           # release build via Makefile
 make install                         # install to /usr/local/bin
 make lint                            # check formatting (swift-format)
 make format                          # auto-fix formatting
-swift Scripts/check-overlay.swift    # verify overlay is rendering
+swift .claude/scripts/check-overlay.swift  # verify overlay is rendering
 ```
 
 ## Architecture
