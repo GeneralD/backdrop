@@ -10,10 +10,10 @@ struct DaemonCommand: ParsableCommand {
         shouldDisplay: false
     )
 
-    func run() {
+    func run() throws {
         guard ProcessLock.shared.acquire() else {
             print("Another lyra daemon is already running")
-            return
+            throw ExitCode.failure
         }
 
         MainActor.assumeIsolated {

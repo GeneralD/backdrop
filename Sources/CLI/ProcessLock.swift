@@ -20,7 +20,7 @@ public final class ProcessLock: @unchecked Sendable {
 
         try? FileManager.default.createDirectory(at: Self.lockDir, withIntermediateDirectories: true)
 
-        let fd = open(Self.lockURL.path, O_CREAT | O_RDWR, 0o644)
+        let fd = open(Self.lockURL.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
         guard fd >= 0, flock(fd, LOCK_EX | LOCK_NB) == 0 else {
             if fd >= 0 { close(fd) }
             return false
@@ -45,8 +45,11 @@ public final class ProcessLock: @unchecked Sendable {
         return false
     }
 
-    /// Remove the PID file. Called after stopping existing processes.
+    /// Clear the PID file without removing it, preserving the inode for flock.
     public func cleanup() {
-        try? FileManager.default.removeItem(at: Self.lockURL)
+        let fd = open(Self.lockURL.path, O_WRONLY)
+        guard fd >= 0 else { return }
+        defer { close(fd) }
+        ftruncate(fd, 0)
     }
 }

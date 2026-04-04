@@ -35,6 +35,7 @@ struct ProcessLockTests {
 
         #expect(first.isRunning)
         #expect(!second.isRunning)
+        #expect(second.terminationStatus != 0)
     }
 
     @Test("start command prints Already running when daemon holds lock")
@@ -58,12 +59,9 @@ struct ProcessLockTests {
         let firstPID = try readPID()
         terminate(first)
 
-        // Remove stale PID file so the new daemon writes a fresh one
-        try? FileManager.default.removeItem(atPath: lockPath)
-
         let second = try launchDaemon()
         defer { terminate(second) }
-        try waitUntil { FileManager.default.fileExists(atPath: lockPath) }
+        try waitUntil { (try? readPID()) != firstPID }
 
         let secondPID = try readPID()
         #expect(secondPID != firstPID)
