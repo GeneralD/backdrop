@@ -48,7 +48,10 @@ public final class ProcessLock: Sendable {
     }
 
     /// Check whether another process currently holds the lock.
+    /// Short-circuits to `false` when this instance already owns the lock.
     public var isLocked: Bool {
+        if state.withLock({ $0.fileDescriptor != nil }) { return false }
+
         let fd = open(lockURL.path, O_RDONLY)
         guard fd >= 0 else { return false }
         defer { close(fd) }
