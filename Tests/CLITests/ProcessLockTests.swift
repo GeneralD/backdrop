@@ -132,13 +132,18 @@ struct ProcessLockSpec {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
             let holder = try FlockHelper.launchHolderWithChild(lockPath: lockPath)
+            let pid = holder.processIdentifier
             try FlockHelper.waitForLockFile(atPath: lockPath)
 
-            kill(holder.processIdentifier, SIGKILL)
+            // Kill only the parent — child stays alive
+            kill(pid, SIGKILL)
             holder.waitUntilExit()
 
             let lock = ProcessLock(directory: tempDir)
             #expect(lock.acquire(), "child must not inherit flock fd")
+
+            // Clean up orphaned child process
+            kill(-pid, SIGKILL)
         }
     }
 
@@ -211,6 +216,8 @@ enum FlockHelper {
     static func launchHolderWithChild(lockPath: String) throws -> Process {
         let script = """
             use Fcntl qw(:flock);
+            use POSIX qw(setpgid);
+            setpgid(0, 0);
             open(my $fh, ">", $ARGV[0]) or die;
             flock($fh, LOCK_EX) or die;
             syswrite($fh, "$$\\n");
