@@ -8,7 +8,7 @@ struct StartCommand: ParsableCommand {
     )
 
     func run() throws {
-        guard ProcessManager.findOverlayPIDs().isEmpty else {
+        guard !ProcessLock.shared.isLocked, ProcessManager.findOverlayPIDs().isEmpty else {
             print("Already running")
             return
         }

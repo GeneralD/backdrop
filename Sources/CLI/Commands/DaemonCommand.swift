@@ -11,6 +11,11 @@ struct DaemonCommand: ParsableCommand {
     )
 
     func run() {
+        guard ProcessLock.shared.acquire() else {
+            print("Another lyra daemon is already running")
+            return
+        }
+
         MainActor.assumeIsolated {
             let app = NSApplication.shared
             app.setActivationPolicy(.accessory)
