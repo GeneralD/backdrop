@@ -9,6 +9,5 @@ coverage:
         target: 80%
 
 ignore:
-  - "Sources/Main/**"
   - "Sources/DependencyInjection/**"
   - "Tests/**"
