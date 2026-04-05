@@ -53,19 +53,17 @@ graph TD
         Entity[Entity]
     end
 
-    subgraph CLIImplementations["CLI Implementations"]
-        subgraph Handler
+    subgraph Implementations
+        subgraph CommandHandler["Command Handler"]
             ProcessHandler[ProcessHandler]
             VersionHandler[VersionHandler]
             ServiceHandler[ServiceHandler]
             HealthHandler[HealthHandler]
             TrackHandler[TrackHandler]
             ConfigHandler[ConfigHandler]
+            StandardOutput[StandardOutput]
         end
-        StandardOutput[StandardOutput]
-    end
 
-    subgraph Implementations
         subgraph Interactor
             TrackInteractor[TrackInteractor]
             ScreenInteractor[ScreenInteractor]
@@ -103,7 +101,7 @@ graph TD
 
     CLI --> App & AsyncParsableCommand
     App --> Views & Presenters & DependencyInjection
-    DependencyInjection --> Implementations & CLIImplementations
+    DependencyInjection --> Implementations
     Views --> Presenters
     Presenters --> Domain
     Implementations --> Domain
@@ -124,12 +122,12 @@ graph TD
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
 
-    CLI -.-> Handler
+    CLI -.-> CommandHandler
     Presenters -.-> Interactor
     TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
     HealthHandler -.-> Domain
     ConfigHandler -.-> ConfigUseCase
-    CLIImplementations --> Domain
+    CommandHandler --> Domain
 
     style ProcessHandler fill:#7b5,stroke:#333,color:#fff
     style AsyncParsableCommand fill:#555,stroke:#333,color:#fff
