@@ -8,6 +8,8 @@ public protocol StandardOutput: Sendable {
     func write(_ message: String)
     /// Writes `message` followed by a newline to stderr.
     func writeError(_ message: String)
+    /// Encodes `value` as JSON and writes to stdout.
+    func writeJson(_ value: some Encodable & Sendable)
 
     // MARK: - Typed output (Result)
 
@@ -33,6 +35,7 @@ extension DependencyValues {
 private struct UnimplementedStandardOutput: StandardOutput {
     func write(_ message: String) { fatalError("StandardOutput.write not implemented") }
     func writeError(_ message: String) { fatalError("StandardOutput.writeError not implemented") }
+    func writeJson(_ value: some Encodable & Sendable) { fatalError("StandardOutput.writeJson not implemented") }
     func output(_ result: StartResult) { fatalError("StandardOutput.output not implemented") }
     func output(_ result: StopResult) { fatalError("StandardOutput.output not implemented") }
     func output(_ result: ServiceInstallResult) { fatalError("StandardOutput.output not implemented") }

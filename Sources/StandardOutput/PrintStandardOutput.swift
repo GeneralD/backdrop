@@ -6,6 +6,13 @@ public struct PrintStandardOutput: StandardOutput {
     public func write(_ message: String) { print(message) }
     public func writeError(_ message: String) { fputs(message + "\n", stderr) }
 
+    public func writeJson(_ value: some Encodable & Sendable) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? encoder.encode(value) else { return }
+        write(String(data: data, encoding: .utf8) ?? "{}")
+    }
+
     // MARK: - Process
 
     public func output(_ result: StartResult) {

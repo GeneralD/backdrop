@@ -2,7 +2,6 @@ import ArgumentParser
 import AsyncRunnableCommand
 import Dependencies
 import Domain
-import Foundation
 
 struct TrackCommand: AsyncRunnableCommand {
     static let configuration = CommandConfiguration(
@@ -20,10 +19,6 @@ struct TrackCommand: AsyncRunnableCommand {
         @Dependency(\.trackHandler) var handler
         @Dependency(\.standardOutput) var output
         let info = await handler.fetchInfo(query: TrackQuery(resolve: resolve, lyrics: lyrics))
-
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(info)
-        output.write(String(data: data, encoding: .utf8) ?? "{}")
+        output.writeJson(info)
     }
 }
