@@ -53,7 +53,7 @@ graph TD
         Entity[Entity]
     end
 
-    subgraph CLI Implementations
+    subgraph CLIImplementations["CLI Implementations"]
         subgraph Handler
             ProcessHandler[ProcessHandler]
         end
@@ -97,7 +97,7 @@ graph TD
 
     CLI --> App & AsyncParsableCommand
     App --> Views & Presenters & DependencyInjection
-    DependencyInjection --> Implementations & CLI Implementations
+    DependencyInjection --> Implementations & CLIImplementations
     Views --> Presenters
     Presenters --> Domain
     Implementations --> Domain
@@ -118,7 +118,7 @@ graph TD
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
 
-    CLI Implementations --> Domain
+    CLIImplementations --> Domain
 
     style ProcessHandler fill:#7b5,stroke:#333,color:#fff
     style AsyncParsableCommand fill:#555,stroke:#333,color:#fff
