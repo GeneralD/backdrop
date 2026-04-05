@@ -1,29 +1,34 @@
+import Domain
 import Foundation
 import Testing
 
-@testable import Entity
+@testable import LyricsUseCase
 
-@Suite("LyricsContent")
-struct LyricsContentSpec {
-    // MARK: - init from LyricsResult
+@Suite("LyricsUseCaseImpl.parseLyricsContent")
+struct LyricsContentParsingSpec {
+    private let parser = LyricsUseCaseImpl()
 
-    @Suite("init from LyricsResult")
-    struct InitFromResult {
+    // MARK: - From LyricsResult
+
+    @Suite("from LyricsResult")
+    struct FromResult {
+        private let parser = LyricsUseCaseImpl()
+
         @Test("nil result returns nil")
         func nilResult() {
-            #expect(LyricsContent(from: nil) == nil)
+            #expect(parser.parseLyricsContent(from: nil) == nil)
         }
 
         @Test("result with no lyrics returns nil")
         func noLyrics() {
             let result = LyricsResult(plainLyrics: nil, syncedLyrics: nil)
-            #expect(LyricsContent(from: result) == nil)
+            #expect(parser.parseLyricsContent(from: result) == nil)
         }
 
         @Test("plain lyrics splits by newline")
         func plainLyrics() {
             let result = LyricsResult(plainLyrics: "Line 1\nLine 2\nLine 3")
-            guard case .plain(let lines) = LyricsContent(from: result) else {
+            guard case .plain(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .plain")
                 return
             }
@@ -36,21 +41,23 @@ struct LyricsContentSpec {
                 plainLyrics: "Plain text",
                 syncedLyrics: "[00:01.00] Synced line"
             )
-            guard case .timed = LyricsContent(from: result) else {
+            guard case .timed = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .timed")
                 return
             }
         }
     }
 
-    // MARK: - Synced lyrics parsing
+    // MARK: - Synced Lyrics Parsing
 
     @Suite("synced lyrics parsing")
     struct SyncedParsing {
+        private let parser = LyricsUseCaseImpl()
+
         @Test("parses standard LRC format [mm:ss.xx]")
         func standardLRC() {
             let result = LyricsResult(syncedLyrics: "[01:23.45] Hello world")
-            guard case .timed(let lines) = LyricsContent(from: result) else {
+            guard case .timed(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .timed")
                 return
             }
@@ -67,7 +74,7 @@ struct LyricsContentSpec {
                 [01:00.00] Third line
                 """
             let result = LyricsResult(syncedLyrics: synced)
-            guard case .timed(let lines) = LyricsContent(from: result) else {
+            guard case .timed(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .timed")
                 return
             }
@@ -80,7 +87,7 @@ struct LyricsContentSpec {
         @Test("parses integer seconds without decimal")
         func integerSeconds() {
             let result = LyricsResult(syncedLyrics: "[02:30] No decimal")
-            guard case .timed(let lines) = LyricsContent(from: result) else {
+            guard case .timed(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .timed")
                 return
             }
@@ -97,7 +104,7 @@ struct LyricsContentSpec {
                 [00:02.00] Another good line
                 """
             let result = LyricsResult(syncedLyrics: synced)
-            guard case .timed(let lines) = LyricsContent(from: result) else {
+            guard case .timed(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .timed")
                 return
             }
@@ -107,7 +114,7 @@ struct LyricsContentSpec {
         @Test("empty synced string falls back to plain")
         func emptySynced() {
             let result = LyricsResult(plainLyrics: "Fallback", syncedLyrics: "")
-            guard case .plain(let lines) = LyricsContent(from: result) else {
+            guard case .plain(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .plain")
                 return
             }
@@ -117,7 +124,7 @@ struct LyricsContentSpec {
         @Test("synced with only malformed lines falls back to plain")
         func allMalformed() {
             let result = LyricsResult(plainLyrics: "Fallback", syncedLyrics: "no timestamps here")
-            guard case .plain(let lines) = LyricsContent(from: result) else {
+            guard case .plain(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .plain")
                 return
             }
@@ -127,7 +134,7 @@ struct LyricsContentSpec {
         @Test("trims whitespace from line text")
         func trimWhitespace() {
             let result = LyricsResult(syncedLyrics: "[00:01.00]   Padded text   ")
-            guard case .timed(let lines) = LyricsContent(from: result) else {
+            guard case .timed(let lines) = parser.parseLyricsContent(from: result) else {
                 Issue.record("Expected .timed")
                 return
             }
