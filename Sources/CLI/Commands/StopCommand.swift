@@ -10,14 +10,15 @@ struct StopCommand: ParsableCommand {
 
     func run() {
         @Dependency(\.processHandler) var handler
+        @Dependency(\.standardOutput) var output
 
         switch handler.stop() {
         case .stopped:
-            print("Stopped")
+            output.write("Stopped")
         case .notRunning:
-            print("Not running")
+            output.write("Not running")
         case .lockReleaseTimedOut:
-            print("Stopped (warning: lock release timed out)")
+            output.write("Stopped (warning: lock release timed out)")
         }
     }
 }

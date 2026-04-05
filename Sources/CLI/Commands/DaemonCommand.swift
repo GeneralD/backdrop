@@ -13,9 +13,10 @@ struct DaemonCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.processHandler) var handler
+        @Dependency(\.standardOutput) var output
 
         guard handler.acquireDaemonLock() else {
-            print("Another lyra daemon is already running")
+            output.write("Another lyra daemon is already running")
             throw ExitCode.failure
         }
 

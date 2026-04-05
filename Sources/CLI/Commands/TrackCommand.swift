@@ -18,11 +18,12 @@ struct TrackCommand: AsyncRunnableCommand {
 
     func run() async throws {
         @Dependency(\.trackHandler) var handler
+        @Dependency(\.standardOutput) var output
         let info = await handler.fetchInfo(query: TrackQuery(resolve: resolve, lyrics: lyrics))
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(info)
-        print(String(data: data, encoding: .utf8) ?? "{}")
+        output.write(String(data: data, encoding: .utf8) ?? "{}")
     }
 }

@@ -14,6 +14,7 @@ struct VersionCommand: ParsableCommand {
     )
 
     func run() {
-        print(appVersion)
+        @Dependency(\.standardOutput) var output
+        output.write(appVersion)
     }
 }

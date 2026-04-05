@@ -30,10 +30,11 @@ struct ConfigTemplateCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.configHandler) var handler
-        guard let output = handler.template(format: format) else {
+        @Dependency(\.standardOutput) var output
+        guard let template = handler.template(format: format) else {
             throw ValidationError("Failed to generate template")
         }
-        print(output)
+        output.write(template)
     }
 }
 
@@ -53,8 +54,9 @@ struct ConfigInitCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.configHandler) var handler
+        @Dependency(\.standardOutput) var output
         let path = try handler.writeTemplate(format: format, force: force)
-        print("Config file created at \(path)")
+        output.write("Config file created at \(path)")
     }
 }
 

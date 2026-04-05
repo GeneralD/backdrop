@@ -11,6 +11,7 @@ struct HealthcheckCommand: AsyncRunnableCommand {
 
     func run() async throws {
         @Dependency(\.healthHandler) var handler
+        @Dependency(\.standardOutput) var output
         let report = await handler.check()
 
         for entry in report.entries {
@@ -20,14 +21,16 @@ struct HealthcheckCommand: AsyncRunnableCommand {
             case .fail: tag = "[FAIL]"
             case .skip: tag = "[SKIP]"
             }
-            print("\(tag) \(entry.serviceName.padding(toLength: 20, withPad: ".", startingAt: 0)) \(entry.result.detail)")
+            output.write(
+                "\(tag) \(entry.serviceName.padding(toLength: 20, withPad: ".", startingAt: 0)) \(entry.result.detail)"
+            )
         }
 
-        print("")
+        output.write("")
         guard report.allPassed else {
-            print("\(report.failedCount) check(s) failed.")
+            output.write("\(report.failedCount) check(s) failed.")
             throw ExitCode.failure
         }
-        print("All checks passed.")
+        output.write("All checks passed.")
     }
 }

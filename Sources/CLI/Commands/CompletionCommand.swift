@@ -1,4 +1,6 @@
 import ArgumentParser
+import Dependencies
+import Domain
 
 struct CompletionCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -13,7 +15,7 @@ struct CompletionCommand: ParsableCommand {
         guard let shell = CompletionShell(rawValue: shell.lowercased()) else {
             throw ValidationError("Unsupported shell: \(self.shell). Use 'zsh', 'bash', or 'fish'.")
         }
-        let script = RootCommand.completionScript(for: shell)
-        print(script)
+        @Dependency(\.standardOutput) var output
+        output.write(RootCommand.completionScript(for: shell))
     }
 }
