@@ -8,7 +8,7 @@ struct StartCommand: ParsableCommand {
     )
 
     func run() throws {
-        guard ProcessManager.findOverlayPIDs().isEmpty else {
+        guard !ProcessLock.shared.isLocked, ProcessManager.findOverlayPIDs().isEmpty else {
             print("Already running")
             return
         }
@@ -20,19 +20,13 @@ struct StartCommand: ParsableCommand {
         task.standardOutput = FileHandle.nullDevice
         task.standardError = FileHandle.nullDevice
         try task.run()
+
+        // Wait briefly to detect immediate exit (e.g. lock contention)
+        usleep(500_000)
+        guard task.isRunning else {
+            print("Failed to start (daemon exited immediately)")
+            throw ExitCode.failure
+        }
         print("Overlay started (PID \(task.processIdentifier))")
-    }
-}
-
-struct RestartCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "restart",
-        abstract: "Stop and start the overlay"
-    )
-
-    func run() throws {
-        ProcessManager.stopExisting()
-        let start = StartCommand()
-        try start.run()
     }
 }

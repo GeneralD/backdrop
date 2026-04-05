@@ -1,12 +1,4 @@
 import ArgumentParser
-import Foundation
-
-private let appVersion: String = {
-    guard let url = Bundle.module.url(forResource: "version", withExtension: "txt"),
-        let content = try? String(contentsOf: url, encoding: .utf8)
-    else { return "unknown" }
-    return content.trimmingCharacters(in: .whitespacesAndNewlines)
-}()
 
 @main
 public struct RootCommand: ParsableCommand {
@@ -30,15 +22,4 @@ public struct RootCommand: ParsableCommand {
     )
 
     public init() {}
-}
-
-struct VersionCommand: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "version",
-        abstract: "Show version"
-    )
-
-    func run() {
-        print(RootCommand.configuration.version)
-    }
 }
