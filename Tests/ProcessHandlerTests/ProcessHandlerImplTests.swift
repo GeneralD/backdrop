@@ -76,7 +76,7 @@ struct ProcessHandlerImplSpec {
             let lock = MockLock(locked: true, releaseOnCleanup: false)
             let handler = ProcessHandlerImpl(
                 lock: lock,
-                processManager: MockProcessManager(pids: [99999])
+                processManager: MockProcessManager(pids: [Int32.max])
             )
             let result = handler.restart()
             guard case .failure(.stopFailed) = result else {
