@@ -5,11 +5,6 @@ import Testing
 
 @Suite("ServiceHandlerImpl", .serialized)
 struct ServiceHandlerImplSpec {
-    private let tempDir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("lyra-service-test-\(ProcessInfo.processInfo.processIdentifier)")
-
-    private var tempPath: String { tempDir.path }
-
     // MARK: - install
 
     @Suite("install", .serialized)
@@ -121,7 +116,10 @@ private func createDir(_ path: String) throws {
 
 private func createFile(at dir: String, named name: String) throws {
     let filePath = "\(dir)/\(name)"
-    FileManager.default.createFile(atPath: filePath, contents: Data())
+    guard FileManager.default.createFile(atPath: filePath, contents: Data()) else {
+        struct FileCreationError: Error {}
+        throw FileCreationError()
+    }
 }
 
 private func cleanup(_ path: String) {
