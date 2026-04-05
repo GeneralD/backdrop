@@ -10,15 +10,8 @@ struct StartCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.processHandler) var handler
-
-        switch try handler.start() {
-        case .started(let pid):
-            print("Overlay started (PID \(pid))")
-        case .alreadyRunning:
-            print("Already running")
-        case .daemonExitedImmediately:
-            print("Failed to start (daemon exited immediately)")
-            throw ExitCode.failure
-        }
+        let result = try handler.start()
+        print(result.message)
+        guard result.succeeded else { throw ExitCode.failure }
     }
 }

@@ -30,7 +30,12 @@ public struct ProcessHandlerImpl: ProcessHandler {
 
     public func stop() -> StopResult {
         let pids = processManager.findOverlayPIDs()
-        guard !pids.isEmpty else { return .notRunning }
+        guard !pids.isEmpty else {
+            // No PID found, but lock may be stale — clean up
+            guard lock.isLocked else { return .notRunning }
+            lock.cleanup()
+            return .notRunning
+        }
 
         for pid in pids { kill(pid, SIGTERM) }
         for _ in 0..<20 {
