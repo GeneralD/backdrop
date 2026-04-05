@@ -8,16 +8,11 @@ struct StopCommand: ParsableCommand {
         abstract: "Stop the running overlay"
     )
 
-    func run() {
+    func run() throws {
         @Dependency(\.processHandler) var handler
-
-        switch handler.stop() {
-        case .stopped:
-            print("Stopped")
-        case .notRunning:
-            print("Not running")
-        case .lockReleaseTimedOut:
-            print("Stopped (warning: lock release timed out)")
-        }
+        @Dependency(\.standardOutput) var output
+        let result = handler.stop()
+        output.write(result)
+        guard case .success = result else { throw ExitCode.failure }
     }
 }

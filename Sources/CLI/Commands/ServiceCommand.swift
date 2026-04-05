@@ -6,43 +6,36 @@ struct ServiceCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "service",
         abstract: "Manage login item service",
-        subcommands: [Install.self, Uninstall.self]
+        subcommands: [ServiceInstallCommand.self, ServiceUninstallCommand.self]
+    )
+}
+
+private struct ServiceInstallCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "install",
+        abstract: "Register as login item (LaunchAgent)"
     )
 
-    struct Install: ParsableCommand {
-        static let configuration = CommandConfiguration(
-            abstract: "Register as login item (LaunchAgent)"
-        )
-
-        func run() throws {
-            @Dependency(\.serviceHandler) var handler
-            switch try handler.install() {
-            case .installed(let path):
-                print("Installed and started: \(path)")
-            case .managedByHomebrew:
-                print("Already managed by brew services. Run 'brew services stop lyra' first.")
-            case .bootstrapFailed(let status):
-                print("Bootstrap failed (status \(status))")
-                throw ExitCode.failure
-            }
-        }
+    func run() throws {
+        @Dependency(\.serviceHandler) var handler
+        @Dependency(\.standardOutput) var output
+        let result = handler.install()
+        output.write(result)
+        guard case .success = result else { throw ExitCode.failure }
     }
+}
 
-    struct Uninstall: ParsableCommand {
-        static let configuration = CommandConfiguration(
-            abstract: "Remove login item"
-        )
+private struct ServiceUninstallCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "uninstall",
+        abstract: "Remove login item"
+    )
 
-        func run() throws {
-            @Dependency(\.serviceHandler) var handler
-            switch try handler.uninstall() {
-            case .uninstalled:
-                print("Uninstalled")
-            case .managedByHomebrew:
-                print("Managed by brew services. Run 'brew services stop lyra' instead.")
-            case .notInstalled:
-                print("Not installed")
-            }
-        }
+    func run() throws {
+        @Dependency(\.serviceHandler) var handler
+        @Dependency(\.standardOutput) var output
+        let result = handler.uninstall()
+        output.write(result)
+        guard case .success = result else { throw ExitCode.failure }
     }
 }

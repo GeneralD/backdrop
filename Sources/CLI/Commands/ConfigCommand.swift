@@ -30,10 +30,11 @@ struct ConfigTemplateCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.configHandler) var handler
-        guard let output = handler.template(format: format) else {
+        @Dependency(\.standardOutput) var output
+        guard let template = handler.template(format: format) else {
             throw ValidationError("Failed to generate template")
         }
-        print(output)
+        output.write(template)
     }
 }
 
@@ -53,8 +54,10 @@ struct ConfigInitCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.configHandler) var handler
-        let path = try handler.writeTemplate(format: format, force: force)
-        print("Config file created at \(path)")
+        @Dependency(\.standardOutput) var output
+        let result = handler.writeTemplate(format: format, force: force)
+        output.write(result)
+        guard case .success = result else { throw ExitCode.failure }
     }
 }
 
@@ -68,7 +71,12 @@ struct ConfigEditCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.configHandler) var handler
-        let path = try handler.configPath()
+        @Dependency(\.standardOutput) var output
+        let result = handler.configPath()
+        guard case .success(.found(let path)) = result else {
+            output.write(result)
+            throw ExitCode.failure
+        }
 
         guard let editor = ProcessInfo.processInfo.environment["EDITOR"] else {
             throw ValidationError("$EDITOR is not set. Set it with: export EDITOR=vim")
@@ -93,7 +101,12 @@ struct ConfigOpenCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.configHandler) var handler
-        let path = try handler.configPath()
+        @Dependency(\.standardOutput) var output
+        let result = handler.configPath()
+        guard case .success(.found(let path)) = result else {
+            output.write(result)
+            throw ExitCode.failure
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")

@@ -1,24 +1,22 @@
-public enum StartResult: Sendable {
+public typealias StartResult = Result<StartSuccess, StartFailure>
+public typealias StopResult = Result<StopSuccess, StopFailure>
+
+public enum StartSuccess: Sendable, Equatable {
     case started(pid: Int32)
-    case alreadyRunning
-    case daemonExitedImmediately
-
-    public var message: String {
-        switch self {
-        case .started(let pid): "Overlay started (PID \(pid))"
-        case .alreadyRunning: "Already running"
-        case .daemonExitedImmediately: "Failed to start (daemon exited immediately)"
-        }
-    }
-
-    public var succeeded: Bool {
-        guard case .started = self else { return false }
-        return true
-    }
 }
 
-public enum StopResult: Sendable, Equatable {
+public enum StartFailure: Error, Sendable, Equatable {
+    case alreadyRunning
+    case daemonExitedImmediately
+    case spawnFailed(detail: String)
+    case stopFailed
+}
+
+public enum StopSuccess: Sendable, Equatable {
     case stopped
     case notRunning
+}
+
+public enum StopFailure: Error, Sendable, Equatable {
     case lockReleaseTimedOut
 }

@@ -10,8 +10,9 @@ struct StartCommand: ParsableCommand {
 
     func run() throws {
         @Dependency(\.processHandler) var handler
-        let result = try handler.start()
-        print(result.message)
-        guard result.succeeded else { throw ExitCode.failure }
+        @Dependency(\.standardOutput) var output
+        let result = handler.start()
+        output.write(result)
+        guard case .success = result else { throw ExitCode.failure }
     }
 }

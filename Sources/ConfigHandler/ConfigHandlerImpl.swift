@@ -9,17 +9,23 @@ public struct ConfigHandlerImpl: ConfigHandler {
         return configUseCase.template(format: format)
     }
 
-    public func writeTemplate(format: ConfigFormat, force: Bool) throws -> String {
+    public func writeTemplate(format: ConfigFormat, force: Bool) -> ConfigWriteResult {
         @Dependency(\.configUseCase) var configUseCase
-        return try configUseCase.writeTemplate(format: format, force: force)
+        guard let path = try? configUseCase.writeTemplate(format: format, force: force) else {
+            return .failure(.failed(detail: "Failed to write config file"))
+        }
+        return .success(.created(path: path))
     }
 
-    public func configPath() throws -> String {
+    public func configPath() -> ConfigPathResult {
         @Dependency(\.configDataSource) var dataSource
 
         if let existing = dataSource.existingConfigPath() {
-            return existing
+            return .success(.found(path: existing))
         }
-        return try writeTemplate(format: .toml, force: false)
+        switch writeTemplate(format: .toml, force: false) {
+        case .success(.created(let path)): return .success(.found(path: path))
+        case .failure(let error): return .failure(error)
+        }
     }
 }

@@ -10,9 +10,9 @@ public struct ProcessHandlerImpl: ProcessHandler {
         self.processManager = processManager
     }
 
-    public func start() throws -> StartResult {
+    public func start() -> StartResult {
         guard !lock.isLocked, processManager.findOverlayPIDs().isEmpty else {
-            return .alreadyRunning
+            return .failure(.alreadyRunning)
         }
 
         let executablePath = Bundle.main.executablePath ?? CommandLine.arguments[0]
@@ -21,20 +21,21 @@ public struct ProcessHandlerImpl: ProcessHandler {
         task.arguments = ["daemon"]
         task.standardOutput = FileHandle.nullDevice
         task.standardError = FileHandle.nullDevice
-        try task.run()
+        guard (try? task.run()) != nil else {
+            return .failure(.spawnFailed(detail: "Failed to launch daemon process"))
+        }
 
         usleep(500_000)
-        guard task.isRunning else { return .daemonExitedImmediately }
-        return .started(pid: task.processIdentifier)
+        guard task.isRunning else { return .failure(.daemonExitedImmediately) }
+        return .success(.started(pid: task.processIdentifier))
     }
 
     public func stop() -> StopResult {
         let pids = processManager.findOverlayPIDs()
         guard !pids.isEmpty else {
-            // No PID found, but lock may be stale — clean up
-            guard lock.isLocked else { return .notRunning }
+            guard lock.isLocked else { return .success(.notRunning) }
             lock.cleanup()
-            return .notRunning
+            return .success(.notRunning)
         }
 
         for pid in pids { kill(pid, SIGTERM) }
@@ -47,16 +48,15 @@ public struct ProcessHandlerImpl: ProcessHandler {
         lock.cleanup()
 
         for _ in 0..<20 {
-            guard lock.isLocked else { return .stopped }
+            guard lock.isLocked else { return .success(.stopped) }
             usleep(100_000)
         }
-        return lock.isLocked ? .lockReleaseTimedOut : .stopped
+        return lock.isLocked ? .failure(.lockReleaseTimedOut) : .success(.stopped)
     }
 
-    public func restart() throws -> StartResult {
-        let stopResult = stop()
-        guard stopResult != .lockReleaseTimedOut else { return .alreadyRunning }
-        return try start()
+    public func restart() -> StartResult {
+        guard case .success = stop() else { return .failure(.stopFailed) }
+        return start()
     }
 
     public func acquireDaemonLock() -> Bool {

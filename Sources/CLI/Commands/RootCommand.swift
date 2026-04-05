@@ -1,8 +1,8 @@
 import ArgumentParser
 
 @main
-public struct RootCommand: ParsableCommand {
-    public static let configuration = CommandConfiguration(
+struct RootCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
         commandName: "lyra",
         abstract: "Desktop lyrics overlay, video wallpaper, and more",
         version: appVersion,
@@ -20,6 +20,4 @@ public struct RootCommand: ParsableCommand {
         ],
         defaultSubcommand: StartCommand.self
     )
-
-    public init() {}
 }
