@@ -19,8 +19,8 @@ extension DependencyValues {
 }
 
 private struct UnimplementedProcessHandler: ProcessHandler {
-    func start() throws -> StartResult { .alreadyRunning }
-    func stop() -> StopResult { .notRunning }
-    func restart() throws -> StartResult { .alreadyRunning }
-    func acquireDaemonLock() -> Bool { false }
+    func start() throws -> StartResult { fatalError("ProcessHandler.start not implemented") }
+    func stop() -> StopResult { fatalError("ProcessHandler.stop not implemented") }
+    func restart() throws -> StartResult { fatalError("ProcessHandler.restart not implemented") }
+    func acquireDaemonLock() -> Bool { fatalError("ProcessHandler.acquireDaemonLock not implemented") }
 }

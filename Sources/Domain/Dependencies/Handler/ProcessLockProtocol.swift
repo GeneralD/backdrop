@@ -18,7 +18,7 @@ extension DependencyValues {
 }
 
 private struct UnimplementedProcessLock: ProcessLockProtocol {
-    func acquire() -> Bool { false }
-    var isLocked: Bool { false }
-    func cleanup() {}
+    func acquire() -> Bool { fatalError("ProcessLock.acquire not implemented") }
+    var isLocked: Bool { fatalError("ProcessLock.isLocked not implemented") }
+    func cleanup() { fatalError("ProcessLock.cleanup not implemented") }
 }

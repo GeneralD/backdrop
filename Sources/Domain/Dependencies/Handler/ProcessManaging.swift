@@ -16,5 +16,5 @@ extension DependencyValues {
 }
 
 private struct UnimplementedProcessManaging: ProcessManaging {
-    func findOverlayPIDs() -> [Int32] { [] }
+    func findOverlayPIDs() -> [Int32] { fatalError("ProcessManaging.findOverlayPIDs not implemented") }
 }

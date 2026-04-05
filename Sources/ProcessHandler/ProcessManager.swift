@@ -11,7 +11,7 @@ public struct ProcessManager: ProcessManaging {
         task.arguments = ["-f", "lyra"]
         let pipe = Pipe()
         task.standardOutput = pipe
-        try? task.run()
+        guard (try? task.run()) != nil else { return [] }
         task.waitUntilExit()
         return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
             .split(separator: "\n")

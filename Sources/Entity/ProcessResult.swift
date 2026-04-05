@@ -4,7 +4,7 @@ public enum StartResult: Sendable {
     case daemonExitedImmediately
 }
 
-public enum StopResult: Sendable {
+public enum StopResult: Sendable, Equatable {
     case stopped
     case notRunning
     case lockReleaseTimedOut

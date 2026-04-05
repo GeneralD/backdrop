@@ -49,7 +49,8 @@ public struct ProcessHandlerImpl: ProcessHandler {
     }
 
     public func restart() throws -> StartResult {
-        _ = stop()
+        let stopResult = stop()
+        guard stopResult != .lockReleaseTimedOut else { return .alreadyRunning }
         return try start()
     }
 
