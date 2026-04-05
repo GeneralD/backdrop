@@ -1,4 +1,6 @@
 import ArgumentParser
+import Dependencies
+import Domain
 
 struct ServiceCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -13,7 +15,16 @@ struct ServiceCommand: ParsableCommand {
         )
 
         func run() throws {
-            try LaunchAgentManager().install()
+            @Dependency(\.serviceHandler) var handler
+            switch try handler.install() {
+            case .installed(let path):
+                print("Installed and started: \(path)")
+            case .managedByHomebrew:
+                print("Already managed by brew services. Run 'brew services stop lyra' first.")
+            case .bootstrapFailed(let status):
+                print("Bootstrap failed (status \(status))")
+                throw ExitCode.failure
+            }
         }
     }
 
@@ -23,7 +34,15 @@ struct ServiceCommand: ParsableCommand {
         )
 
         func run() throws {
-            try LaunchAgentManager().uninstall()
+            @Dependency(\.serviceHandler) var handler
+            switch try handler.uninstall() {
+            case .uninstalled:
+                print("Uninstalled")
+            case .managedByHomebrew:
+                print("Managed by brew services. Run 'brew services stop lyra' instead.")
+            case .notInstalled:
+                print("Not installed")
+            }
         }
     }
 }

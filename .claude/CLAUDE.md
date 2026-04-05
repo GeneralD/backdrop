@@ -57,6 +57,7 @@ graph TD
         subgraph Handler
             ProcessHandler[ProcessHandler]
             VersionHandler[VersionHandler]
+            ServiceHandler[ServiceHandler]
         end
     end
 
@@ -181,7 +182,7 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 | Router | `App` | `AppRouter` (pure wireframe), `AppDelegate` |
 | View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
 | Presenter | `Presenters` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
-| Handler | `ProcessHandler`, `VersionHandler` | CLI command logic. ProcessHandler: process lifecycle (start/stop/restart/lock). VersionHandler: version string from bundled resource. Protocols in Domain, injected via `@Dependency` |
+| Handler | `ProcessHandler`, `VersionHandler`, `ServiceHandler` | CLI command logic. ProcessHandler: process lifecycle. VersionHandler: version string. ServiceHandler: LaunchAgent install/uninstall. Protocols in Domain, injected via `@Dependency` |
 | Interactor | `TrackInteractor`, `ScreenInteractor`, `WallpaperInteractor` | Combine-based reactive pipelines over UseCases (GUI) |
 | DI Wiring | `DependencyInjection` | All liveValue registrations, FontMetrics, HealthCheck |
 | Entity | `Entity` | Pure data types, zero external dependencies |

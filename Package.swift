@@ -25,7 +25,6 @@ let package = Package(
                 "AsyncRunnableCommand",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
-                .product(name: "Files", package: "Files"),
             ]
         ),
 
@@ -34,6 +33,16 @@ let package = Package(
             name: "ProcessHandler",
             dependencies: [
                 "Domain",
+            ]
+        ),
+
+        // ── ServiceHandler ──
+        .target(
+            name: "ServiceHandler",
+            dependencies: [
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "Files", package: "Files"),
             ]
         ),
 
@@ -112,6 +121,7 @@ let package = Package(
                 "SQLiteDataStore",
                 "ProcessHandler",
                 "VersionHandler",
+                "ServiceHandler",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),

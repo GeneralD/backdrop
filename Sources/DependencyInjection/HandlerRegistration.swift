@@ -1,6 +1,7 @@
 import Dependencies
 import Domain
 import ProcessHandler
+import ServiceHandler
 import VersionHandler
 
 extension ProcessHandlerKey: DependencyKey {
@@ -20,4 +21,8 @@ extension ProcessManagingKey: DependencyKey {
 
 extension VersionHandlerKey: DependencyKey {
     public static let liveValue: any VersionHandler = VersionHandlerImpl()
+}
+
+extension ServiceHandlerKey: DependencyKey {
+    public static let liveValue: any ServiceHandler = ServiceHandlerImpl()
 }
