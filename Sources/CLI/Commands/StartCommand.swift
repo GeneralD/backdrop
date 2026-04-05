@@ -1,5 +1,6 @@
 import ArgumentParser
-import Foundation
+import Dependencies
+import Domain
 
 struct StartCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -8,25 +9,16 @@ struct StartCommand: ParsableCommand {
     )
 
     func run() throws {
-        guard !ProcessLock.shared.isLocked, ProcessManager.findOverlayPIDs().isEmpty else {
+        @Dependency(\.processHandler) var handler
+
+        switch try handler.start() {
+        case .started(let pid):
+            print("Overlay started (PID \(pid))")
+        case .alreadyRunning:
             print("Already running")
-            return
-        }
-
-        let executablePath = Bundle.main.executablePath ?? CommandLine.arguments[0]
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: executablePath)
-        task.arguments = ["daemon"]
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = FileHandle.nullDevice
-        try task.run()
-
-        // Wait briefly to detect immediate exit (e.g. lock contention)
-        usleep(500_000)
-        guard task.isRunning else {
+        case .daemonExitedImmediately:
             print("Failed to start (daemon exited immediately)")
             throw ExitCode.failure
         }
-        print("Overlay started (PID \(task.processIdentifier))")
     }
 }
