@@ -10,4 +10,3 @@ coverage:
 
 ignore:
   - "Sources/DependencyInjection/**"
-  - "Tests/**"
