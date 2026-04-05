@@ -20,7 +20,9 @@ private struct ServiceInstallCommand: ParsableCommand {
         @Dependency(\.processHandler) var processHandler
         @Dependency(\.serviceHandler) var handler
         @Dependency(\.standardOutput) var output
-        _ = processHandler.stop()
+        let stopResult = processHandler.stop()
+        output.write(stopResult)
+        guard case .success = stopResult else { throw ExitCode.failure }
         let result = handler.install()
         output.write(result)
         guard case .success = result else { throw ExitCode.failure }
@@ -38,8 +40,10 @@ private struct ServiceUninstallCommand: ParsableCommand {
         @Dependency(\.serviceHandler) var handler
         @Dependency(\.standardOutput) var output
         let result = handler.uninstall()
-        _ = processHandler.stop()
         output.write(result)
         guard case .success = result else { throw ExitCode.failure }
+        let stopResult = processHandler.stop()
+        output.write(stopResult)
+        guard case .success = stopResult else { throw ExitCode.failure }
     }
 }
