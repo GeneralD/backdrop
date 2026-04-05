@@ -118,6 +118,7 @@ graph TD
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
 
+    CLI -.-> ProcessHandler
     CLIImplementations --> Domain
 
     style ProcessHandler fill:#7b5,stroke:#333,color:#fff
