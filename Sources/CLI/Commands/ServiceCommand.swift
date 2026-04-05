@@ -10,7 +10,7 @@ struct ServiceCommand: ParsableCommand {
     )
 }
 
-struct ServiceInstallCommand: ParsableCommand {
+private struct ServiceInstallCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "install",
         abstract: "Register as login item (LaunchAgent)"
@@ -25,7 +25,7 @@ struct ServiceInstallCommand: ParsableCommand {
     }
 }
 
-struct ServiceUninstallCommand: ParsableCommand {
+private struct ServiceUninstallCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "uninstall",
         abstract: "Remove login item"
