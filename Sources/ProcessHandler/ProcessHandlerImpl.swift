@@ -55,7 +55,7 @@ public struct ProcessHandlerImpl: ProcessHandler {
     }
 
     public func restart() -> StartResult {
-        guard case .success = stop() else { return .failure(.spawnFailed(detail: "Failed to stop existing process")) }
+        guard case .success = stop() else { return .failure(.stopFailed) }
         return start()
     }
 

@@ -21,6 +21,7 @@ public struct PrintStandardOutput: StandardOutput {
         case .failure(.alreadyRunning): writeError("Already running")
         case .failure(.daemonExitedImmediately): writeError("Failed to start (daemon exited immediately)")
         case .failure(.spawnFailed(let detail)): writeError("Failed to start: \(detail)")
+        case .failure(.stopFailed): writeError("Failed to restart (could not stop existing process)")
         }
     }
 

@@ -125,11 +125,9 @@ graph TD
     CLI -.-> CommandHandler
     Presenters -.-> Interactor
     TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
-    HealthHandler -.-> Domain
-    ConfigHandler -.-> ConfigUseCase
-    CommandHandler --> Domain
+    ConfigHandler -.-> ConfigUseCase & ConfigDataSource
+    ServiceHandler -.-> ProcessHandler
 
-    style ProcessHandler fill:#7b5,stroke:#333,color:#fff
     style AsyncParsableCommand fill:#555,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
     style App fill:#6a5,stroke:#333,color:#fff
