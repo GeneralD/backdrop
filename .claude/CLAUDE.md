@@ -126,6 +126,9 @@ graph TD
 
     CLI -.-> Handler
     Presenters -.-> Interactor
+    TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
+    HealthHandler -.-> Domain
+    ConfigHandler -.-> ConfigUseCase
     CLIImplementations --> Domain
 
     style ProcessHandler fill:#7b5,stroke:#333,color:#fff
