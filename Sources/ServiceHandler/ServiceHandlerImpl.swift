@@ -3,14 +3,13 @@ import Domain
 import Files
 import Foundation
 
-public struct LaunchAgentManager {
+public struct ServiceHandlerImpl: ServiceHandler {
+    public init() {}
     private let label = "com.generald.lyra"
     private let homebrewLabel = "homebrew.mxcl.lyra"
-
-    public init() {}
 }
 
-extension LaunchAgentManager {
+extension ServiceHandlerImpl {
     private var launchAgentsFolder: Folder {
         get throws { try Folder.home.subfolder(at: "Library/LaunchAgents") }
     }
@@ -23,11 +22,8 @@ extension LaunchAgentManager {
         try? launchAgentsFolder.file(named: "\(homebrewLabel).plist")
     }
 
-    func install() throws {
-        guard homebrewPlistFile == nil else {
-            print("Already managed by brew services. Run 'brew services stop lyra' first.")
-            return
-        }
+    public func install() throws -> ServiceInstallResult {
+        guard homebrewPlistFile == nil else { return .managedByHomebrew }
 
         let plistDict: [String: Any] = [
             "Label": label,
@@ -51,31 +47,26 @@ extension LaunchAgentManager {
         try file.write(plistData)
 
         let status = runLaunchctl(["bootstrap", target, file.path])
-        guard status == 0 else {
-            throw LaunchAgentError.bootstrapFailed(status)
-        }
-        print("Installed and started: \(file.path)")
+        guard status == 0 else { return .bootstrapFailed(status: status) }
+        return .installed(path: file.path)
     }
 
-    func uninstall() throws {
+    public func uninstall() throws -> ServiceUninstallResult {
         guard let file = plistFile else {
-            if homebrewPlistFile != nil {
-                print("Managed by brew services. Run 'brew services stop lyra' instead.")
-            } else {
-                print("Not installed")
-            }
-            return
+            return homebrewPlistFile != nil ? .managedByHomebrew : .notInstalled
         }
         let uid = getuid()
         runLaunchctl(["bootout", "gui/\(uid)/\(label)"])
+
         @Dependency(\.processHandler) var processHandler
         _ = processHandler.stop()
+
         try file.delete()
-        print("Uninstalled")
+        return .uninstalled
     }
 }
 
-extension LaunchAgentManager {
+extension ServiceHandlerImpl {
     fileprivate var programArguments: [String] {
         guard let mintPath = mintRunPath else {
             return [installedPath ?? currentExecutablePath, "daemon"]
@@ -93,7 +84,8 @@ extension LaunchAgentManager {
     }
 
     fileprivate var currentExecutablePath: String {
-        URL(fileURLWithPath: Bundle.main.executablePath ?? CommandLine.arguments[0]).standardizedFileURL.path
+        URL(fileURLWithPath: Bundle.main.executablePath ?? CommandLine.arguments[0]).standardizedFileURL
+            .path
     }
 
     @discardableResult
@@ -102,7 +94,7 @@ extension LaunchAgentManager {
         task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         task.arguments = arguments
         task.standardError = FileHandle.nullDevice
-        try? task.run()
+        guard (try? task.run()) != nil else { return -1 }
         task.waitUntilExit()
         return task.terminationStatus
     }
@@ -126,8 +118,4 @@ extension LaunchAgentManager {
         guard FileManager.default.isExecutableFile(atPath: resolved) else { return nil }
         return resolved
     }
-}
-
-enum LaunchAgentError: Error {
-    case bootstrapFailed(Int32)
 }
