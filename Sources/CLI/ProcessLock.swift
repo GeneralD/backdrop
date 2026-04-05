@@ -53,7 +53,7 @@ public final class ProcessLock: Sendable {
     public var isLocked: Bool {
         if state.withLock({ $0.fileDescriptor != nil }) { return false }
 
-        let fd = open(lockURL.path, O_RDONLY)
+        let fd = open(lockURL.path, O_RDONLY | O_CLOEXEC)
         guard fd >= 0 else { return errno != ENOENT }
         defer { close(fd) }
 
@@ -70,7 +70,7 @@ public final class ProcessLock: Sendable {
             return
         }
 
-        let fd = open(lockURL.path, O_WRONLY)
+        let fd = open(lockURL.path, O_WRONLY | O_CLOEXEC)
         guard fd >= 0 else { return }
         defer { close(fd) }
 
