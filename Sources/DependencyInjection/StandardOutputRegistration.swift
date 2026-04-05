@@ -1,5 +1,6 @@
 import Dependencies
 import Domain
+import Foundation
 
 extension StandardOutputKey: DependencyKey {
     public static let liveValue: any StandardOutput = PrintStandardOutput()
@@ -7,83 +8,62 @@ extension StandardOutputKey: DependencyKey {
 
 private struct PrintStandardOutput: StandardOutput {
     func write(_ message: String) { print(message) }
+    func writeError(_ message: String) { fputs(message + "\n", stderr) }
 
     // MARK: - Process
 
-    func output(_ result: StartSuccess) {
+    func output(_ result: StartResult) {
         switch result {
-        case .started(let pid): write("Overlay started (PID \(pid))")
+        case .success(.started(let pid)): write("Overlay started (PID \(pid))")
+        case .failure(.alreadyRunning): writeError("Already running")
+        case .failure(.daemonExitedImmediately): writeError("Failed to start (daemon exited immediately)")
+        case .failure(.spawnFailed(let detail)): writeError("Failed to start: \(detail)")
         }
     }
 
-    func output(_ error: StartFailure) {
-        switch error {
-        case .alreadyRunning: write("Already running")
-        case .daemonExitedImmediately: write("Failed to start (daemon exited immediately)")
-        case .spawnFailed(let detail): write("Failed to start: \(detail)")
-        }
-    }
-
-    func output(_ result: StopSuccess) {
+    func output(_ result: StopResult) {
         switch result {
-        case .stopped: write("Stopped")
-        case .notRunning: write("Not running")
-        }
-    }
-
-    func output(_ error: StopFailure) {
-        switch error {
-        case .lockReleaseTimedOut: write("Stopped (warning: lock release timed out)")
+        case .success(.stopped): write("Stopped")
+        case .success(.notRunning): write("Not running")
+        case .failure(.lockReleaseTimedOut): writeError("Stopped (warning: lock release timed out)")
         }
     }
 
     // MARK: - Service
 
-    func output(_ result: ServiceInstallSuccess) {
+    func output(_ result: ServiceInstallResult) {
         switch result {
-        case .installed(let path): write("Installed and started: \(path)")
+        case .success(.installed(let path)): write("Installed and started: \(path)")
+        case .failure(.managedByHomebrew):
+            writeError("Already managed by brew services. Run 'brew services stop lyra' first.")
+        case .failure(.bootstrapFailed(let status)): writeError("Bootstrap failed (status \(status))")
+        case .failure(.failed(let detail)): writeError("Install failed: \(detail)")
         }
     }
 
-    func output(_ error: ServiceInstallFailure) {
-        switch error {
-        case .managedByHomebrew: write("Already managed by brew services. Run 'brew services stop lyra' first.")
-        case .bootstrapFailed(let status): write("Bootstrap failed (status \(status))")
-        case .failed(let detail): write("Install failed: \(detail)")
-        }
-    }
-
-    func output(_ result: ServiceUninstallSuccess) {
+    func output(_ result: ServiceUninstallResult) {
         switch result {
-        case .uninstalled: write("Uninstalled")
-        }
-    }
-
-    func output(_ error: ServiceUninstallFailure) {
-        switch error {
-        case .managedByHomebrew: write("Managed by brew services. Run 'brew services stop lyra' instead.")
-        case .notInstalled: write("Not installed")
-        case .failed(let detail): write("Uninstall failed: \(detail)")
+        case .success(.uninstalled): write("Uninstalled")
+        case .failure(.managedByHomebrew):
+            writeError("Managed by brew services. Run 'brew services stop lyra' instead.")
+        case .failure(.notInstalled): writeError("Not installed")
+        case .failure(.failed(let detail)): writeError("Uninstall failed: \(detail)")
         }
     }
 
     // MARK: - Config
 
-    func output(_ result: ConfigWriteSuccess) {
+    func output(_ result: ConfigWriteResult) {
         switch result {
-        case .created(let path): write("Config file created at \(path)")
+        case .success(.created(let path)): write("Config file created at \(path)")
+        case .failure(.failed(let detail)): writeError("Config error: \(detail)")
         }
     }
 
-    func output(_ result: ConfigPathSuccess) {
+    func output(_ result: ConfigPathResult) {
         switch result {
-        case .found(let path): write(path)
-        }
-    }
-
-    func output(_ error: ConfigFailure) {
-        switch error {
-        case .failed(let detail): write("Config error: \(detail)")
+        case .success(.found(let path)): write(path)
+        case .failure(.failed(let detail)): writeError("Config error: \(detail)")
         }
     }
 }

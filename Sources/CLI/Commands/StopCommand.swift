@@ -11,11 +11,8 @@ struct StopCommand: ParsableCommand {
     func run() throws {
         @Dependency(\.processHandler) var handler
         @Dependency(\.standardOutput) var output
-        switch handler.stop() {
-        case .success(let s): output.output(s)
-        case .failure(let e):
-            output.output(e)
-            throw ExitCode.failure
-        }
+        let result = handler.stop()
+        output.output(result)
+        guard case .success = result else { throw ExitCode.failure }
     }
 }
