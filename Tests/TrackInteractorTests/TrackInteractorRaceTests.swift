@@ -69,6 +69,41 @@ private struct StubConfigUseCase: ConfigUseCase, Sendable {
     var existingConfigPath: String? { nil }
 }
 
+// MARK: - Helpers
+
+/// Thread-safe collector for TrackUpdate values.
+private final class UpdateCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _updates: [TrackUpdate] = []
+
+    var updates: [TrackUpdate] {
+        lock.withLock { _updates }
+    }
+
+    func append(_ update: TrackUpdate) {
+        lock.withLock { _updates.append(update) }
+    }
+
+    func contains(where predicate: (TrackUpdate) -> Bool) -> Bool {
+        lock.withLock { _updates.contains(where: predicate) }
+    }
+}
+
+/// Poll until condition is met or timeout.
+private func waitUntil(
+    timeout: Duration = .seconds(5),
+    condition: @Sendable () -> Bool
+) async throws {
+    let deadline = ContinuousClock.now + timeout
+    while !condition() {
+        guard ContinuousClock.now < deadline else {
+            struct Timeout: Error {}
+            throw Timeout()
+        }
+        try await Task.sleep(for: .milliseconds(50))
+    }
+}
+
 // MARK: - Tests
 
 @Suite("TrackInteractor race condition", .serialized)
@@ -87,9 +122,9 @@ struct TrackInteractorRaceTests {
             TrackInteractorImpl()
         }
 
-        var received: [TrackUpdate] = []
+        let collector = UpdateCollector()
         let cancellable = interactor.trackChange
-            .sink { received.append($0) }
+            .sink { collector.append($0) }
 
         // Send track A
         playback.subject.send(
@@ -102,13 +137,15 @@ struct TrackInteractorRaceTests {
         playback.subject.send(
             NowPlaying(title: "Track B", artist: "Artist B", artworkData: nil, duration: nil, rawElapsed: nil, playbackRate: 1, timestamp: nil))
 
-        // Wait for B to fully resolve
-        try await Task.sleep(for: .milliseconds(1500))
+        // Poll until Track B resolves
+        try await waitUntil {
+            collector.updates.contains { $0.title == "Track B" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
+        }
 
         cancellable.cancel()
 
         // Filter to only resolved updates (not loading)
-        let resolved = received.filter { $0.lyricsState == .resolved || $0.lyricsState == .notFound }
+        let resolved = collector.updates.filter { $0.lyricsState == .resolved || $0.lyricsState == .notFound }
 
         // Track A's resolved should NOT be present (cancelled by switchToLatest)
         let hasTrackA = resolved.contains { $0.title == "Track A" }
@@ -131,9 +168,9 @@ struct TrackInteractorRaceTests {
             TrackInteractorImpl()
         }
 
-        var received: [TrackUpdate] = []
+        let collector = UpdateCollector()
         let cancellable = interactor.trackChange
-            .sink { received.append($0) }
+            .sink { collector.append($0) }
 
         // Send a track
         playback.subject.send(
@@ -141,26 +178,24 @@ struct TrackInteractorRaceTests {
                 title: "Track A", artist: "Artist A", artworkData: nil,
                 duration: nil, rawElapsed: nil, playbackRate: 1, timestamp: nil))
 
-        try await Task.sleep(for: .milliseconds(800))
+        // Wait for Track A to resolve (Combine pipeline + withDependencies scope limitation
+        // prevents polling — async resolution runs outside the dependency scope)
+        try await Task.sleep(for: .seconds(2))
+
+        let countBeforeNil = collector.updates.count
 
         // Send nil (playback stopped)
         playback.subject.send(nil)
 
-        try await Task.sleep(for: .milliseconds(300))
+        // Wait to confirm no new emission
+        try await Task.sleep(for: .milliseconds(500))
 
         cancellable.cancel()
 
-        // nil NowPlaying must NOT produce any TrackUpdate (no "idle/clear" emission)
-        // The UI intentionally keeps showing the last track info
-        let afterNil = received.filter { $0.title != "Track A" }
+        // nil NowPlaying must NOT produce any TrackUpdate
+        let afterNil = collector.updates.dropFirst(countBeforeNil)
         #expect(afterNil.isEmpty, "nil NowPlaying should not emit any TrackUpdate — last track stays visible")
     }
-
-    // NOTE: Artwork retention on nil NowPlaying is ensured by the compactMap { $0 }
-    // filter in activeNowPlaying. The full Combine pipeline test was removed due to
-    // unreliable withDependencies + lazy var subscription timing. The filtering behavior
-    // is verified by the existing nilNowPlayingKeepsLastTrack test (trackChange) and
-    // the architecture: artwork derives from the same activeNowPlaying publisher.
 
     @Test("track A loading emits but resolved does not when B arrives quickly")
     func staleLoadingVisibleButResolvedCancelled() async throws {
@@ -175,9 +210,9 @@ struct TrackInteractorRaceTests {
             TrackInteractorImpl()
         }
 
-        var received: [TrackUpdate] = []
+        let collector = UpdateCollector()
         let cancellable = interactor.trackChange
-            .sink { received.append($0) }
+            .sink { collector.append($0) }
 
         playback.subject.send(
             NowPlaying(title: "Track A", artist: "Artist A", artworkData: nil, duration: nil, rawElapsed: nil, playbackRate: 1, timestamp: nil))
@@ -187,26 +222,23 @@ struct TrackInteractorRaceTests {
         playback.subject.send(
             NowPlaying(title: "Track B", artist: "Artist B", artworkData: nil, duration: nil, rawElapsed: nil, playbackRate: 1, timestamp: nil))
 
-        try await Task.sleep(for: .milliseconds(1500))
+        // Poll until Track B resolves
+        try await waitUntil {
+            collector.updates.contains { $0.title == "Track B" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
+        }
 
         cancellable.cancel()
 
-        // But resolved for Track A must NOT appear
-        let resolvedA = received.filter { $0.title == "Track A" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
+        // Resolved for Track A must NOT appear
+        let resolvedA = collector.updates.filter { $0.title == "Track A" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
 
         #expect(resolvedA.isEmpty, "Track A resolution must be cancelled by switchToLatest")
-        // Loading A is allowed (it emits before cancellation)
     }
 
     // MARK: - Volume mute deduplication
 
-    // NOTE: Volume mute deduplication (empty artist treated as same track) is tested
-    // via unit test of the comparison logic below, since the full Combine pipeline
-    // tests have withDependencies scope limitations with newly added test functions.
-
     @Test("dedup logic: same title with empty artist on either side is treated as same track")
     func dedupLogicVolumeMute() {
-        // Simulates the removeDuplicates closure behavior directly
         let isDuplicate: (NowPlaying, NowPlaying) -> Bool = { prev, cur in
             let prevArtist = prev.artist ?? ""
             let curArtist = cur.artist ?? ""
@@ -232,23 +264,11 @@ struct TrackInteractorRaceTests {
             title: "Song", artist: "Other Artist", artworkData: nil,
             duration: nil, rawElapsed: nil, playbackRate: 1, timestamp: nil)
 
-        // Volume mute: same title, artist cleared → same track
         #expect(isDuplicate(normal, muted), "Muted (empty artist) should match normal")
         #expect(isDuplicate(muted, normal), "Restored should match muted")
         #expect(isDuplicate(normal, nilArtist), "Nil artist should match normal")
-
-        // Genuinely different track → not same
         #expect(!isDuplicate(normal, differentTrack), "Different title should not match")
-
-        // Same title, different non-empty artist (e.g. cover) → not same
         #expect(!isDuplicate(normal, sameTitleDiffArtist), "Different non-empty artist should not match")
-
-        // Both empty artist, same title → same
         #expect(isDuplicate(muted, muted), "Both empty artist, same title should match")
     }
-
-    // TODO: Add tests for metadata-first emission (3-phase emit)
-    // Tests for CorrectingMetadataUseCase + DelayedLyricsUseCase fail due to
-    // swift-dependencies withDependencies scope + Combine async bridging issue.
-    // The behavior works in production but test infrastructure needs investigation.
 }
