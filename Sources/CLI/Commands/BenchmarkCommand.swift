@@ -3,6 +3,8 @@ import AsyncRunnableCommand
 import Dependencies
 import Domain
 
+extension BenchmarkScenario: ExpressibleByArgument {}
+
 struct BenchmarkCommand: AsyncRunnableCommand {
     static let configuration = CommandConfiguration(
         commandName: "benchmark",
@@ -12,12 +14,8 @@ struct BenchmarkCommand: AsyncRunnableCommand {
     @Option(name: .shortAndLong, help: "Duration per scenario in seconds")
     var duration: Int = 5
 
-    @Option(
-        name: .shortAndLong,
-        help:
-            "Scenarios to run (comma-separated: \(BenchmarkScenario.allCases.map(\.rawValue).joined(separator: ", ")))"
-    )
-    var scenarios: String = ""
+    @Option(name: .shortAndLong, help: "Scenarios to run (repeatable)")
+    var scenarios: [BenchmarkScenario] = []
 
     @Flag(help: "Output results as JSON")
     var json: Bool = false
@@ -26,24 +24,12 @@ struct BenchmarkCommand: AsyncRunnableCommand {
         @Dependency(\.benchmarkHandler) var handler
         @Dependency(\.standardOutput) var output
 
-        let stream = handler.run(scenarios: parsedScenarios, duration: Double(duration))
-
         if json {
-            var entries: [BenchmarkEntry] = []
-            for await case .completed(let entry) in stream {
-                entries.append(entry)
-            }
-            output.writeJson(entries)
+            output.writeJson(await handler.measure(scenarios: scenarios, duration: Double(duration)))
         } else {
-            for await update in stream {
+            for await update in handler.run(scenarios: scenarios, duration: Double(duration)) {
                 output.write(update)
             }
         }
-    }
-
-    private var parsedScenarios: [BenchmarkScenario] {
-        guard !scenarios.isEmpty else { return [] }
-        return scenarios.split(separator: ",")
-            .compactMap { BenchmarkScenario(rawValue: $0.trimmingCharacters(in: .whitespaces)) }
     }
 }

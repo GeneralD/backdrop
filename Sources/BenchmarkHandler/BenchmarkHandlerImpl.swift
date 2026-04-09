@@ -20,6 +20,15 @@ extension BenchmarkHandlerImpl: BenchmarkHandler {
             }
         }
     }
+    public func measure(scenarios: [BenchmarkScenario], duration: Double) async -> [BenchmarkEntry] {
+        let selected = scenarios.isEmpty ? BenchmarkScenario.allCases : scenarios
+        return await selected.asyncMap { scenario in
+            let baseline = ProcessSnapshot.current
+            let start = ContinuousClock.now
+            await runScenario(scenario, duration: duration)
+            return snapshot(scenario: scenario, since: start, baseline: baseline)
+        }
+    }
 }
 
 extension BenchmarkHandlerImpl {
@@ -137,5 +146,16 @@ extension Duration {
     fileprivate var fractionalSeconds: Double {
         let (s, a) = components
         return Double(s) + Double(a) / 1_000_000_000_000_000_000
+    }
+}
+
+extension Array {
+    fileprivate func asyncMap<T>(_ transform: (Element) async -> T) async -> [T] {
+        var results: [T] = []
+        results.reserveCapacity(count)
+        for element in self {
+            results.append(await transform(element))
+        }
+        return results
     }
 }
