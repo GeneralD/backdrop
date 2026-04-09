@@ -122,6 +122,26 @@ public struct PrintStandardOutput: StandardOutput {
         write(line)
     }
 
+    public func writeBenchmarkLive(
+        scenario: String, elapsed: Double, metrics: ProcessMetrics, baseline: ProcessMetrics
+    ) {
+        let line =
+            scenario.padding(toLength: 16, withPad: " ", startingAt: 0)
+            + formatted(seconds: elapsed).padding(toLength: 10, withPad: " ", startingAt: 0)
+            + formatted(seconds: metrics.cpuUser - baseline.cpuUser).padding(toLength: 11, withPad: " ", startingAt: 0)
+            + formatted(seconds: metrics.cpuSystem - baseline.cpuSystem).padding(
+                toLength: 11, withPad: " ", startingAt: 0)
+            + formatted(megabytes: metrics.rssBytes).padding(toLength: 10, withPad: " ", startingAt: 0)
+            + formatted(megabytes: metrics.peakRSSBytes)
+        let padded = line.padding(toLength: 80, withPad: " ", startingAt: 0)
+        print("\r\(padded)", terminator: "")
+        fflush(stdout)
+    }
+
+    public func finalizeBenchmarkLine() {
+        print()
+    }
+
     private func formatted(seconds: Double) -> String {
         String(format: "%.3fs", seconds)
     }

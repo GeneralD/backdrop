@@ -19,3 +19,12 @@ For Handler modules specifically:
 - Implementation module (e.g., `BenchmarkHandler/BenchmarkHandlerImpl.swift`)
 - CLI command (e.g., `CLI/Commands/BenchmarkCommand.swift`)
 - Register in `RootCommand.subcommands`
+
+## Data Type Placement
+
+- **Pure data types (structs/enums with no logic) → Entity module**. This includes
+  result types, metrics structs, config types, etc. Domain re-exports Entity via
+  `@_exported import Entity`, so all layers can access them.
+- **Never define data types in Domain** — Domain contains only protocols and
+  DependencyKey definitions. If you need a new type for a protocol signature,
+  put it in Entity first.

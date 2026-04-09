@@ -11,6 +11,11 @@ extension BenchmarkHandlerImpl: BenchmarkHandler {
         ["idle", "cpu_spike", "memory_alloc"]
     }
 
+    public var currentMetrics: ProcessMetrics {
+        let snap = ProcessSnapshot.current
+        return ProcessMetrics(cpuUser: snap.cpuUser, cpuSystem: snap.cpuSystem, rssBytes: snap.currentRSS, peakRSSBytes: snap.peakRSS)
+    }
+
     public func measure(scenario: String, duration: Double) async -> BenchmarkEntry {
         let before = ProcessSnapshot.current
         let start = ContinuousClock.now

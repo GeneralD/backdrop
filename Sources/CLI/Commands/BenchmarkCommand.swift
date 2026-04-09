@@ -41,10 +41,45 @@ struct BenchmarkCommand: AsyncRunnableCommand {
         } else {
             output.writeBenchmarkHeader()
             for scenario in selected {
-                output.write("  \(scenario)...")
-                let entry = await handler.measure(scenario: scenario, duration: Double(duration))
+                let entry = await measureWithLiveDisplay(
+                    handler: handler, output: output, scenario: scenario, duration: Double(duration))
                 output.write(entry)
             }
+        }
+    }
+
+    private func measureWithLiveDisplay(
+        handler: any BenchmarkHandler, output: any StandardOutput, scenario: String, duration: Double
+    ) async -> BenchmarkEntry {
+        let baseline = handler.currentMetrics
+        let start = ContinuousClock.now
+
+        return await withTaskGroup(of: BenchmarkEntry?.self) { group in
+            group.addTask {
+                await handler.measure(scenario: scenario, duration: duration)
+            }
+
+            group.addTask {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled else { break }
+                    let elapsed = Double(start.duration(to: .now).components.seconds)
+                    output.writeBenchmarkLive(
+                        scenario: scenario, elapsed: elapsed,
+                        metrics: handler.currentMetrics, baseline: baseline)
+                }
+                return nil
+            }
+
+            var entry: BenchmarkEntry!
+            for await result in group {
+                guard let result else { continue }
+                entry = result
+                group.cancelAll()
+                break
+            }
+            output.finalizeBenchmarkLine()
+            return entry
         }
     }
 }
