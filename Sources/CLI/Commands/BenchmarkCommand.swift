@@ -31,12 +31,20 @@ struct BenchmarkCommand: AsyncRunnableCommand {
 
         if json {
             var entries: [BenchmarkEntry] = []
-            for await entry in handler.run(scenarios: selected, duration: Double(duration)) {
+            for await case .completed(let entry) in handler.run(scenarios: selected, duration: Double(duration)) {
                 entries.append(entry)
             }
             output.writeJson(entries)
         } else {
-            await output.writeBenchmark(handler: handler, scenarios: selected, duration: Double(duration))
+            output.suppressEcho()
+            defer { output.restoreEcho() }
+            output.writeBenchmarkHeader()
+            for await update in handler.run(scenarios: selected, duration: Double(duration)) {
+                switch update {
+                case .live(let entry): output.writeBenchmarkLive(entry)
+                case .completed(let entry): output.writeBenchmarkResult(entry)
+                }
+            }
         }
     }
 }

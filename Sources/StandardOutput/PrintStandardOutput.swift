@@ -100,52 +100,7 @@ public struct PrintStandardOutput: StandardOutput {
 
     // MARK: - Benchmark
 
-    public func writeBenchmark(
-        handler: any BenchmarkHandler, scenarios: [String], duration: Double
-    ) async {
-        var old = termios()
-        tcgetattr(STDIN_FILENO, &old)
-        var raw = old
-        raw.c_lflag &= ~UInt(ECHO | ICANON)
-        tcsetattr(STDIN_FILENO, TCSANOW, &raw)
-        defer { tcsetattr(STDIN_FILENO, TCSANOW, &old) }
-
-        writeHeader()
-
-        for scenario in scenarios {
-            let baseline = handler.currentMetrics
-            let start = ContinuousClock.now
-
-            let entry: BenchmarkEntry = await withTaskGroup(of: BenchmarkEntry?.self) { group in
-                group.addTask {
-                    await handler.measure(scenario: scenario, duration: duration)
-                }
-                group.addTask {
-                    while !Task.isCancelled {
-                        try? await Task.sleep(for: .milliseconds(250))
-                        guard !Task.isCancelled else { break }
-                        let (s, a) = start.duration(to: .now).components
-                        let elapsed = Double(s) + Double(a) / 1_000_000_000_000_000_000
-                        writeLive(
-                            scenario: scenario, elapsed: elapsed,
-                            metrics: handler.currentMetrics, baseline: baseline)
-                    }
-                    return nil
-                }
-                var result: BenchmarkEntry!
-                for await r in group {
-                    guard let r else { continue }
-                    result = r
-                    group.cancelAll()
-                    break
-                }
-                return result
-            }
-            writeRow(entry)
-        }
-    }
-
-    private func writeHeader() {
+    public func writeBenchmarkHeader() {
         let header =
             "Scenario".padding(toLength: 16, withPad: " ", startingAt: 0)
             + "Duration".padding(toLength: 10, withPad: " ", startingAt: 0)
@@ -157,42 +112,38 @@ public struct PrintStandardOutput: StandardOutput {
         write(String(repeating: "─", count: header.count))
     }
 
-    private func writeRow(_ entry: BenchmarkEntry) {
-        let padded = formatRow(
-            scenario: entry.scenario,
-            duration: entry.durationSeconds,
-            cpuUser: entry.cpuUserSeconds,
-            cpuSystem: entry.cpuSystemSeconds,
-            rss: entry.currentRSSBytes,
-            peak: entry.peakRSSBytes
-        ).padding(toLength: 80, withPad: " ", startingAt: 0)
-        print("\r\(padded)")
-    }
-
-    private func writeLive(
-        scenario: String, elapsed: Double, metrics: ProcessMetrics, baseline: ProcessMetrics
-    ) {
-        let padded = formatRow(
-            scenario: scenario,
-            duration: elapsed,
-            cpuUser: metrics.cpuUser - baseline.cpuUser,
-            cpuSystem: metrics.cpuSystem - baseline.cpuSystem,
-            rss: metrics.rssBytes,
-            peak: metrics.peakRSSBytes
-        ).padding(toLength: 80, withPad: " ", startingAt: 0)
+    public func writeBenchmarkLive(_ entry: BenchmarkEntry) {
+        let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
         print("\r\(padded)", terminator: "")
         fflush(stdout)
     }
 
-    private func formatRow(
-        scenario: String, duration: Double, cpuUser: Double, cpuSystem: Double, rss: Int64, peak: Int64
-    ) -> String {
-        scenario.padding(toLength: 16, withPad: " ", startingAt: 0)
-            + formatted(seconds: duration).padding(toLength: 10, withPad: " ", startingAt: 0)
-            + formatted(seconds: cpuUser).padding(toLength: 11, withPad: " ", startingAt: 0)
-            + formatted(seconds: cpuSystem).padding(toLength: 11, withPad: " ", startingAt: 0)
-            + formatted(megabytes: rss).padding(toLength: 10, withPad: " ", startingAt: 0)
-            + formatted(megabytes: peak)
+    public func writeBenchmarkResult(_ entry: BenchmarkEntry) {
+        let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
+        print("\r\(padded)")
+    }
+
+    public func suppressEcho() {
+        var attr = termios()
+        tcgetattr(STDIN_FILENO, &attr)
+        attr.c_lflag &= ~UInt(ECHO | ICANON)
+        tcsetattr(STDIN_FILENO, TCSANOW, &attr)
+    }
+
+    public func restoreEcho() {
+        var attr = termios()
+        tcgetattr(STDIN_FILENO, &attr)
+        attr.c_lflag |= UInt(ECHO | ICANON)
+        tcsetattr(STDIN_FILENO, TCSANOW, &attr)
+    }
+
+    private func benchmarkRow(_ entry: BenchmarkEntry) -> String {
+        entry.scenario.padding(toLength: 16, withPad: " ", startingAt: 0)
+            + formatted(seconds: entry.durationSeconds).padding(toLength: 10, withPad: " ", startingAt: 0)
+            + formatted(seconds: entry.cpuUserSeconds).padding(toLength: 11, withPad: " ", startingAt: 0)
+            + formatted(seconds: entry.cpuSystemSeconds).padding(toLength: 11, withPad: " ", startingAt: 0)
+            + formatted(megabytes: entry.currentRSSBytes).padding(toLength: 10, withPad: " ", startingAt: 0)
+            + formatted(megabytes: entry.peakRSSBytes)
     }
 
     private func formatted(seconds: Double) -> String {

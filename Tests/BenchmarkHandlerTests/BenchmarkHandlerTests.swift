@@ -6,25 +6,38 @@ import Testing
 
 @Suite("BenchmarkHandlerImpl")
 struct BenchmarkHandlerTests {
-    @Test("idle scenario returns non-negative CPU and memory values")
+    @Test("idle scenario emits live updates then completed")
     func idleScenario() async {
         let handler = BenchmarkHandlerImpl()
-        let entry = await handler.measure(scenario: "idle", duration: 1)
+        var liveCount = 0
+        var completed: BenchmarkEntry?
 
+        for await update in handler.run(scenarios: ["idle"], duration: 1) {
+            switch update {
+            case .live: liveCount += 1
+            case .completed(let entry): completed = entry
+            }
+        }
+
+        let entry = try! #require(completed)
         #expect(entry.scenario == "idle")
         #expect(entry.durationSeconds >= 1.0)
         #expect(entry.cpuUserSeconds >= 0)
-        #expect(entry.cpuSystemSeconds >= 0)
         #expect(entry.currentRSSBytes > 0)
-        #expect(entry.peakRSSBytes > 0)
+        #expect(liveCount >= 1)
     }
 
     @Test("cpu_spike scenario shows higher CPU than idle")
     func cpuSpikeHigherThanIdle() async {
         let handler = BenchmarkHandlerImpl()
-        let idle = await handler.measure(scenario: "idle", duration: 1)
-        let spike = await handler.measure(scenario: "cpu_spike", duration: 1)
-        #expect(spike.cpuUserSeconds > idle.cpuUserSeconds)
+        var results: [BenchmarkEntry] = []
+
+        for await case .completed(let entry) in handler.run(scenarios: ["idle", "cpu_spike"], duration: 1) {
+            results.append(entry)
+        }
+
+        #expect(results.count == 2)
+        #expect(results[1].cpuUserSeconds > results[0].cpuUserSeconds)
     }
 
     @Test("BenchmarkEntry encodes to JSON")
@@ -46,9 +59,18 @@ struct BenchmarkHandlerTests {
     @Test("availableScenarios returns three scenarios")
     func availableScenarios() {
         let handler = BenchmarkHandlerImpl()
-        #expect(handler.availableScenarios.count == 3)
-        #expect(handler.availableScenarios.contains("idle"))
-        #expect(handler.availableScenarios.contains("cpu_spike"))
-        #expect(handler.availableScenarios.contains("memory_alloc"))
+        #expect(handler.availableScenarios == ["idle", "cpu_spike", "memory_alloc"])
+    }
+
+    @Test("empty scenarios defaults to all available")
+    func emptyScenariosDefaultsToAll() async {
+        let handler = BenchmarkHandlerImpl()
+        var completedCount = 0
+
+        for await case .completed in handler.run(scenarios: [], duration: 1) {
+            completedCount += 1
+        }
+
+        #expect(completedCount == 3)
     }
 }

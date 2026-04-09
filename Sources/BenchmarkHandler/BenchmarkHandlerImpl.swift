@@ -11,46 +11,71 @@ extension BenchmarkHandlerImpl: BenchmarkHandler {
         ["idle", "cpu_spike", "memory_alloc"]
     }
 
-    public func run(scenarios: [String], duration: Double) -> AsyncStream<BenchmarkEntry> {
+    public func run(scenarios: [String], duration: Double) -> AsyncStream<BenchmarkUpdate> {
         let available = availableScenarios
         let selected = scenarios.isEmpty ? available : scenarios.filter { available.contains($0) }
         return AsyncStream { continuation in
             Task {
                 for scenario in selected {
-                    let entry = await measure(scenario: scenario, duration: duration)
-                    continuation.yield(entry)
+                    await measureWithLiveUpdates(
+                        scenario: scenario, duration: duration, continuation: continuation)
                 }
                 continuation.finish()
             }
         }
     }
-
-    public var currentMetrics: ProcessMetrics {
-        let snap = ProcessSnapshot.current
-        return ProcessMetrics(cpuUser: snap.cpuUser, cpuSystem: snap.cpuSystem, rssBytes: snap.currentRSS, peakRSSBytes: snap.peakRSS)
-    }
-
-    public func measure(scenario: String, duration: Double) async -> BenchmarkEntry {
-        let before = ProcessSnapshot.current
-        let start = ContinuousClock.now
-
-        await runScenario(scenario, duration: duration)
-
-        let elapsed = start.duration(to: .now)
-        let after = ProcessSnapshot.current
-
-        return BenchmarkEntry(
-            scenario: scenario,
-            durationSeconds: elapsed.seconds,
-            cpuUserSeconds: after.cpuUser - before.cpuUser,
-            cpuSystemSeconds: after.cpuSystem - before.cpuSystem,
-            peakRSSBytes: after.peakRSS,
-            currentRSSBytes: after.currentRSS
-        )
-    }
 }
 
 extension BenchmarkHandlerImpl {
+    private func measureWithLiveUpdates(
+        scenario: String, duration: Double, continuation: AsyncStream<BenchmarkUpdate>.Continuation
+    ) async {
+        let before = ProcessSnapshot.current
+        let start = ContinuousClock.now
+
+        await withTaskGroup(of: BenchmarkEntry?.self) { group in
+            group.addTask {
+                await runScenario(scenario, duration: duration)
+                let after = ProcessSnapshot.current
+                let elapsed = start.duration(to: .now)
+                return BenchmarkEntry(
+                    scenario: scenario,
+                    durationSeconds: elapsed.fractionalSeconds,
+                    cpuUserSeconds: after.cpuUser - before.cpuUser,
+                    cpuSystemSeconds: after.cpuSystem - before.cpuSystem,
+                    peakRSSBytes: after.peakRSS,
+                    currentRSSBytes: after.currentRSS
+                )
+            }
+
+            group.addTask {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { break }
+                    let now = ProcessSnapshot.current
+                    let elapsed = start.duration(to: .now)
+                    let entry = BenchmarkEntry(
+                        scenario: scenario,
+                        durationSeconds: elapsed.fractionalSeconds,
+                        cpuUserSeconds: now.cpuUser - before.cpuUser,
+                        cpuSystemSeconds: now.cpuSystem - before.cpuSystem,
+                        peakRSSBytes: now.peakRSS,
+                        currentRSSBytes: now.currentRSS
+                    )
+                    continuation.yield(.live(entry))
+                }
+                return nil
+            }
+
+            for await result in group {
+                guard let result else { continue }
+                continuation.yield(.completed(result))
+                group.cancelAll()
+                break
+            }
+        }
+    }
+
     private func runScenario(_ scenario: String, duration: Double) async {
         switch scenario {
         case "idle":
@@ -119,7 +144,7 @@ extension timeval {
 }
 
 extension Duration {
-    fileprivate var seconds: Double {
+    fileprivate var fractionalSeconds: Double {
         let (s, a) = components
         return Double(s) + Double(a) / 1_000_000_000_000_000_000
     }

@@ -1,15 +1,6 @@
-public struct ProcessMetrics: Sendable {
-    public let cpuUser: Double
-    public let cpuSystem: Double
-    public let rssBytes: Int64
-    public let peakRSSBytes: Int64
-
-    public init(cpuUser: Double, cpuSystem: Double, rssBytes: Int64, peakRSSBytes: Int64) {
-        self.cpuUser = cpuUser
-        self.cpuSystem = cpuSystem
-        self.rssBytes = rssBytes
-        self.peakRSSBytes = peakRSSBytes
-    }
+public enum BenchmarkUpdate: Sendable {
+    case live(BenchmarkEntry)
+    case completed(BenchmarkEntry)
 }
 
 public struct BenchmarkEntry: Sendable, Codable {
