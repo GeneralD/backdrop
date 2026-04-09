@@ -24,12 +24,11 @@ struct BenchmarkCommand: AsyncRunnableCommand {
         @Dependency(\.benchmarkHandler) var handler
         @Dependency(\.standardOutput) var output
 
-        if json {
-            output.writeJson(await handler.measure(scenarios: scenarios, duration: Double(duration)))
-        } else {
-            for await update in handler.run(scenarios: scenarios, duration: Double(duration)) {
-                output.write(update)
-            }
+        guard !json else {
+            return output.writeJson(await handler.measure(scenarios: scenarios, duration: Double(duration)))
+        }
+        for await update in handler.run(scenarios: scenarios, duration: Double(duration)) {
+            output.write(update)
         }
     }
 }
