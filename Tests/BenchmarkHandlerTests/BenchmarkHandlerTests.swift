@@ -6,25 +6,29 @@ import Testing
 
 @Suite("BenchmarkHandlerImpl")
 struct BenchmarkHandlerTests {
-    @Test("idle scenario emits live updates then completed")
+    @Test("idle scenario emits header, live updates, then completed")
     func idleScenario() async {
         let handler = BenchmarkHandlerImpl()
+        var hasHeader = false
         var liveCount = 0
         var completed: BenchmarkEntry?
 
         for await update in handler.run(scenarios: [.idle], duration: 1) {
             switch update {
+            case .header: hasHeader = true
             case .live: liveCount += 1
             case .completed(let entry): completed = entry
             }
         }
+
+        #expect(hasHeader)
+        #expect(liveCount >= 1)
 
         let entry = try! #require(completed)
         #expect(entry.scenario == .idle)
         #expect(entry.durationSeconds >= 1.0)
         #expect(entry.cpuUserSeconds >= 0)
         #expect(entry.currentRSSBytes > 0)
-        #expect(liveCount >= 1)
     }
 
     @Test("cpu_spike scenario shows higher CPU than idle")

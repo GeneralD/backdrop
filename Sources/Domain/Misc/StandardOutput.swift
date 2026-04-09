@@ -23,11 +23,8 @@ public protocol StandardOutput: Sendable {
 
     // MARK: - Benchmark
 
-    func writeBenchmarkHeader()
-    func writeBenchmarkLive(_ entry: BenchmarkEntry)
-    func writeBenchmarkResult(_ entry: BenchmarkEntry)
-    func suppressEcho()
-    func restoreEcho()
+    func write(_ update: BenchmarkUpdate)
+    func finalizeBenchmark()
 }
 
 public enum StandardOutputKey: TestDependencyKey {
@@ -52,9 +49,6 @@ private struct UnimplementedStandardOutput: StandardOutput {
     func write(_ result: ConfigWriteResult) { fatalError("StandardOutput.output not implemented") }
     func write(_ result: ConfigPathResult) { fatalError("StandardOutput.output not implemented") }
     func write(_ result: HealthCheckReport) { fatalError("StandardOutput.output not implemented") }
-    func writeBenchmarkHeader() {}
-    func writeBenchmarkLive(_ entry: BenchmarkEntry) {}
-    func writeBenchmarkResult(_ entry: BenchmarkEntry) {}
-    func suppressEcho() {}
-    func restoreEcho() {}
+    func write(_ update: BenchmarkUpdate) {}
+    func finalizeBenchmark() {}
 }

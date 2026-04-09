@@ -14,7 +14,8 @@ struct BenchmarkCommand: AsyncRunnableCommand {
 
     @Option(
         name: .shortAndLong,
-        help: "Scenarios to run (comma-separated: \(BenchmarkScenario.allCases.map(\.rawValue).joined(separator: ", ")))"
+        help:
+            "Scenarios to run (comma-separated: \(BenchmarkScenario.allCases.map(\.rawValue).joined(separator: ", ")))"
     )
     var scenarios: String = ""
 
@@ -25,23 +26,18 @@ struct BenchmarkCommand: AsyncRunnableCommand {
         @Dependency(\.benchmarkHandler) var handler
         @Dependency(\.standardOutput) var output
 
-        let selected = parsedScenarios
+        let stream = handler.run(scenarios: parsedScenarios, duration: Double(duration))
 
         if json {
             var entries: [BenchmarkEntry] = []
-            for await case .completed(let entry) in handler.run(scenarios: selected, duration: Double(duration)) {
+            for await case .completed(let entry) in stream {
                 entries.append(entry)
             }
             output.writeJson(entries)
         } else {
-            output.suppressEcho()
-            defer { output.restoreEcho() }
-            output.writeBenchmarkHeader()
-            for await update in handler.run(scenarios: selected, duration: Double(duration)) {
-                switch update {
-                case .live(let entry): output.writeBenchmarkLive(entry)
-                case .completed(let entry): output.writeBenchmarkResult(entry)
-                }
+            defer { output.finalizeBenchmark() }
+            for await update in stream {
+                output.write(update)
             }
         }
     }

@@ -100,37 +100,43 @@ public struct PrintStandardOutput: StandardOutput {
 
     // MARK: - Benchmark
 
-    public func writeBenchmarkHeader() {
-        let header =
-            "Scenario".padding(toLength: 16, withPad: " ", startingAt: 0)
-            + "Duration".padding(toLength: 10, withPad: " ", startingAt: 0)
-            + "CPU(user)".padding(toLength: 11, withPad: " ", startingAt: 0)
-            + "CPU(sys)".padding(toLength: 11, withPad: " ", startingAt: 0)
-            + "RSS(MB)".padding(toLength: 10, withPad: " ", startingAt: 0)
-            + "Peak(MB)"
-        write(header)
-        write(String(repeating: "─", count: header.count))
+    public func write(_ update: BenchmarkUpdate) {
+        switch update {
+        case .header:
+            suppressEcho()
+            let header =
+                "Scenario".padding(toLength: 16, withPad: " ", startingAt: 0)
+                + "Duration".padding(toLength: 10, withPad: " ", startingAt: 0)
+                + "CPU(user)".padding(toLength: 11, withPad: " ", startingAt: 0)
+                + "CPU(sys)".padding(toLength: 11, withPad: " ", startingAt: 0)
+                + "RSS(MB)".padding(toLength: 10, withPad: " ", startingAt: 0)
+                + "Peak(MB)"
+            write(header)
+            write(String(repeating: "─", count: header.count))
+
+        case .live(let entry):
+            let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
+            print("\r\(padded)", terminator: "")
+            fflush(stdout)
+
+        case .completed(let entry):
+            let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
+            print("\r\(padded)")
+        }
     }
 
-    public func writeBenchmarkLive(_ entry: BenchmarkEntry) {
-        let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
-        print("\r\(padded)", terminator: "")
-        fflush(stdout)
+    public func finalizeBenchmark() {
+        restoreEcho()
     }
 
-    public func writeBenchmarkResult(_ entry: BenchmarkEntry) {
-        let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
-        print("\r\(padded)")
-    }
-
-    public func suppressEcho() {
+    private func suppressEcho() {
         var attr = termios()
         tcgetattr(STDIN_FILENO, &attr)
         attr.c_lflag &= ~UInt(ECHO | ICANON)
         tcsetattr(STDIN_FILENO, TCSANOW, &attr)
     }
 
-    public func restoreEcho() {
+    private func restoreEcho() {
         var attr = termios()
         tcgetattr(STDIN_FILENO, &attr)
         attr.c_lflag |= UInt(ECHO | ICANON)

@@ -11,6 +11,7 @@ extension BenchmarkHandlerImpl: BenchmarkHandler {
         let selected = scenarios.isEmpty ? BenchmarkScenario.allCases : scenarios
         return AsyncStream { continuation in
             Task {
+                continuation.yield(.header)
                 for scenario in selected {
                     await measureWithLiveUpdates(
                         scenario: scenario, duration: duration, continuation: continuation)
