@@ -35,7 +35,6 @@ struct BenchmarkCommand: AsyncRunnableCommand {
             }
             output.writeJson(entries)
         } else {
-            defer { output.finalizeBenchmark() }
             for await update in stream {
                 output.write(update)
             }

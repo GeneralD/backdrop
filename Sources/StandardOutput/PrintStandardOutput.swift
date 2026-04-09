@@ -103,7 +103,6 @@ public struct PrintStandardOutput: StandardOutput {
     public func write(_ update: BenchmarkUpdate) {
         switch update {
         case .header:
-            suppressEcho()
             let header =
                 "Scenario".padding(toLength: 16, withPad: " ", startingAt: 0)
                 + "Duration".padding(toLength: 10, withPad: " ", startingAt: 0)
@@ -115,18 +114,16 @@ public struct PrintStandardOutput: StandardOutput {
             write(String(repeating: "─", count: header.count))
 
         case .live(let entry):
+            suppressEcho()
             let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
             print("\r\(padded)", terminator: "")
             fflush(stdout)
 
         case .completed(let entry):
+            restoreEcho()
             let padded = benchmarkRow(entry).padding(toLength: 80, withPad: " ", startingAt: 0)
             print("\r\(padded)")
         }
-    }
-
-    public func finalizeBenchmark() {
-        restoreEcho()
     }
 
     private func suppressEcho() {
