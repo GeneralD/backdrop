@@ -7,7 +7,7 @@ public struct ConfigDataSourceImpl: Sendable {
     private let configHomeOverride: String?
 
     public init(configHome: String? = nil) {
-        configHomeOverride = configHome
+        configHomeOverride = configHome?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
