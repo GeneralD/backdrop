@@ -67,7 +67,8 @@ struct BenchmarkCommand: AsyncRunnableCommand {
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .milliseconds(250))
                     guard !Task.isCancelled else { break }
-                    let elapsed = Double(start.duration(to: .now).components.seconds)
+                    let (s, a) = start.duration(to: .now).components
+                    let elapsed = Double(s) + Double(a) / 1_000_000_000_000_000_000
                     output.writeBenchmarkLive(
                         scenario: scenario, elapsed: elapsed,
                         metrics: handler.currentMetrics, baseline: baseline)
