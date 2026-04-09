@@ -11,6 +11,20 @@ extension BenchmarkHandlerImpl: BenchmarkHandler {
         ["idle", "cpu_spike", "memory_alloc"]
     }
 
+    public func run(scenarios: [String], duration: Double) -> AsyncStream<BenchmarkEntry> {
+        let available = availableScenarios
+        let selected = scenarios.isEmpty ? available : scenarios.filter { available.contains($0) }
+        return AsyncStream { continuation in
+            Task {
+                for scenario in selected {
+                    let entry = await measure(scenario: scenario, duration: duration)
+                    continuation.yield(entry)
+                }
+                continuation.finish()
+            }
+        }
+    }
+
     public var currentMetrics: ProcessMetrics {
         let snap = ProcessSnapshot.current
         return ProcessMetrics(cpuUser: snap.cpuUser, cpuSystem: snap.cpuSystem, rssBytes: snap.currentRSS, peakRSSBytes: snap.peakRSS)

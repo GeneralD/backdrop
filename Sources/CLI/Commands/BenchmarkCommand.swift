@@ -1,6 +1,5 @@
 import ArgumentParser
 import AsyncRunnableCommand
-import Darwin
 import Dependencies
 import Domain
 
@@ -23,76 +22,21 @@ struct BenchmarkCommand: AsyncRunnableCommand {
         @Dependency(\.benchmarkHandler) var handler
         @Dependency(\.standardOutput) var output
 
-        let requested = scenarios.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        let available = handler.availableScenarios
-        let selected = requested.isEmpty ? available : requested.filter { available.contains($0) }
+        let selected = scenarios.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
 
         guard !selected.isEmpty else {
-            output.writeError("No valid scenarios. Available: \(available.joined(separator: ", "))")
+            output.writeError("No valid scenarios. Available: \(handler.availableScenarios.joined(separator: ", "))")
             throw ExitCode.failure
         }
 
         if json {
             var entries: [BenchmarkEntry] = []
-            for scenario in selected {
-                let entry = await handler.measure(scenario: scenario, duration: Double(duration))
+            for await entry in handler.run(scenarios: selected, duration: Double(duration)) {
                 entries.append(entry)
             }
             output.writeJson(entries)
         } else {
-            let restore = suppressEcho()
-            defer { restore() }
-
-            output.writeBenchmarkHeader()
-            for scenario in selected {
-                let entry = await measureWithLiveDisplay(
-                    handler: handler, output: output, scenario: scenario, duration: Double(duration))
-                output.write(entry)
-            }
+            await output.writeBenchmark(handler: handler, scenarios: selected, duration: Double(duration))
         }
-    }
-
-    private func measureWithLiveDisplay(
-        handler: any BenchmarkHandler, output: any StandardOutput, scenario: String, duration: Double
-    ) async -> BenchmarkEntry {
-        let baseline = handler.currentMetrics
-        let start = ContinuousClock.now
-
-        return await withTaskGroup(of: BenchmarkEntry?.self) { group in
-            group.addTask {
-                await handler.measure(scenario: scenario, duration: duration)
-            }
-
-            group.addTask {
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .milliseconds(250))
-                    guard !Task.isCancelled else { break }
-                    let (s, a) = start.duration(to: .now).components
-                    let elapsed = Double(s) + Double(a) / 1_000_000_000_000_000_000
-                    output.writeBenchmarkLive(
-                        scenario: scenario, elapsed: elapsed,
-                        metrics: handler.currentMetrics, baseline: baseline)
-                }
-                return nil
-            }
-
-            var entry: BenchmarkEntry!
-            for await result in group {
-                guard let result else { continue }
-                entry = result
-                group.cancelAll()
-                break
-            }
-            return entry
-        }
-    }
-
-    private func suppressEcho() -> () -> Void {
-        var old = termios()
-        tcgetattr(STDIN_FILENO, &old)
-        var raw = old
-        raw.c_lflag &= ~UInt(ECHO | ICANON)
-        tcsetattr(STDIN_FILENO, TCSANOW, &raw)
-        return { tcsetattr(STDIN_FILENO, TCSANOW, &old) }
     }
 }

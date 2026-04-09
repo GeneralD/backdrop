@@ -2,6 +2,7 @@ import Dependencies
 
 public protocol BenchmarkHandler: Sendable {
     var availableScenarios: [String] { get }
+    func run(scenarios: [String], duration: Double) -> AsyncStream<BenchmarkEntry>
     func measure(scenario: String, duration: Double) async -> BenchmarkEntry
     var currentMetrics: ProcessMetrics { get }
 }
@@ -19,6 +20,9 @@ extension DependencyValues {
 
 private struct UnimplementedBenchmarkHandler: BenchmarkHandler {
     var availableScenarios: [String] { [] }
+    func run(scenarios: [String], duration: Double) -> AsyncStream<BenchmarkEntry> {
+        AsyncStream { $0.finish() }
+    }
     func measure(scenario: String, duration: Double) async -> BenchmarkEntry {
         fatalError("BenchmarkHandler.measure not implemented")
     }
