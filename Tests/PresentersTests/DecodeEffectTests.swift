@@ -117,4 +117,50 @@ struct DecodeEffectStateTests {
         #expect(completed)
         #expect(state.displayText == "AB")
     }
+
+    @MainActor
+    @Test("startLoading uses default placeholder length of 12")
+    func startLoadingDefaultLength() {
+        let state = DecodeEffectState(config: DecodeEffect(duration: 1.0, charsets: [.latin]))
+        state.startLoading()
+        #expect(state.isAnimating)
+        #expect(state.displayText.count == 12)
+    }
+
+    @MainActor
+    @Test("startLoading timer randomizes display text on tick")
+    func startLoadingTicksRandomize() async {
+        let state = DecodeEffectState(config: DecodeEffect(duration: 1.0, charsets: [.latin]))
+        state.startLoading(placeholderLength: 6)
+        let initial = state.displayText
+
+        // Wait for at least one timer tick (interval: 0.05s)
+        let deadline = ContinuousClock.now + .seconds(2)
+        while state.displayText == initial, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+
+        // Display text should have changed due to tickLoading
+        #expect(state.displayText.count == 6)
+        state.stop()
+    }
+
+    @MainActor
+    @Test("decode with non-zero duration animates then completes")
+    func decodeWithNonZeroDuration() async {
+        let state = DecodeEffectState(config: DecodeEffect(duration: 0.1, charsets: [.latin]))
+        var completed = false
+        state.decode(to: "Test") { completed = true }
+
+        #expect(state.isAnimating)
+
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !completed, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(30))
+        }
+
+        #expect(completed)
+        #expect(state.displayText == "Test")
+        #expect(!state.isAnimating)
+    }
 }
