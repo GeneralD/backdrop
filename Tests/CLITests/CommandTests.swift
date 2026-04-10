@@ -80,10 +80,14 @@ private struct StubVersionHandler: VersionHandler {
     var version: String = "1.0.0"
 }
 
-private struct SpyStandardOutput: StandardOutput {
-    func write(_ message: String) {}
+private final class SpyStandardOutput: StandardOutput, @unchecked Sendable {
+    private(set) var writtenMessages: [String] = []
+    private(set) var writtenJsonCount = 0
+    private(set) var writtenBenchmarkUpdates: [BenchmarkUpdate] = []
+
+    func write(_ message: String) { writtenMessages.append(message) }
     func writeError(_ message: String) {}
-    func writeJson(_ value: some Encodable & Sendable) {}
+    func writeJson(_ value: some Encodable & Sendable) { writtenJsonCount += 1 }
     func write(_ result: StartResult) {}
     func write(_ result: StopResult) {}
     func write(_ result: ServiceInstallResult) {}
@@ -91,7 +95,7 @@ private struct SpyStandardOutput: StandardOutput {
     func write(_ result: ConfigWriteResult) {}
     func write(_ result: ConfigPathResult) {}
     func write(_ result: HealthCheckReport) {}
-    func write(_ update: BenchmarkUpdate) {}
+    func write(_ update: BenchmarkUpdate) { writtenBenchmarkUpdates.append(update) }
 }
 
 // MARK: - StartCommand
@@ -450,24 +454,29 @@ struct BenchmarkCommandTests {
 
     @Test("json mode calls measure and writeJson")
     func jsonMode() async throws {
+        let spy = SpyStandardOutput()
         try await withDependencies {
             $0.benchmarkHandler = StubBenchmarkHandler()
-            $0.standardOutput = SpyStandardOutput()
+            $0.standardOutput = spy
         } operation: {
             var cmd = try BenchmarkCommand.parse(["--json"])
             try await cmd.run()
         }
+        #expect(spy.writtenJsonCount == 1)
     }
 
     @Test("stream mode iterates run and calls write for each update")
     func streamMode() async throws {
+        let spy = SpyStandardOutput()
         try await withDependencies {
             $0.benchmarkHandler = StubBenchmarkHandler()
-            $0.standardOutput = SpyStandardOutput()
+            $0.standardOutput = spy
         } operation: {
             var cmd = try BenchmarkCommand.parse([])
             try await cmd.run()
         }
+        #expect(spy.writtenBenchmarkUpdates.contains { if case .header = $0 { true } else { false } })
+        #expect(spy.writtenBenchmarkUpdates.contains { if case .completed = $0 { true } else { false } })
     }
 }
 
@@ -476,13 +485,15 @@ struct BenchmarkCommandTests {
 @Suite("VersionCommand unit")
 struct VersionCommandUnitTests {
     @Test("writes version string")
-    func writesVersion() async throws {
+    func writesVersion() {
+        let spy = SpyStandardOutput()
         withDependencies {
             $0.versionHandler = StubVersionHandler(version: "2.0.0")
-            $0.standardOutput = SpyStandardOutput()
+            $0.standardOutput = spy
         } operation: {
             let cmd = VersionCommand()
             cmd.run()
         }
+        #expect(spy.writtenMessages.contains("2.0.0"))
     }
 }
