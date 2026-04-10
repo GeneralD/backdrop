@@ -135,6 +135,39 @@ struct TrackHandlerImplTests {
             #expect(info.title == "Lyrics Title")
             #expect(info.artist == "Lyrics Artist")
         }
+
+        @Test("includes synced lyrics lines when available")
+        func syncedLyrics() async {
+            let synced = "[00:05.00] Line A\n[00:10.00] Line B"
+            let info = await fetchWith(
+                nowPlaying: .stub(title: "Song", artist: "Artist", elapsed: 7),
+                query: TrackQuery(lyrics: true),
+                lyricsHandler: { _ in LyricsResult(syncedLyrics: synced) }
+            )
+            #expect(info.syncedLyrics?.count == 2)
+            #expect(info.currentLyric == "Line A")
+        }
+
+        @Test("includes album name from lyrics result")
+        func albumName() async {
+            let info = await fetchWith(
+                nowPlaying: .stub(title: "Song", artist: "Artist"),
+                query: TrackQuery(lyrics: true),
+                lyricsHandler: { _ in LyricsResult(albumName: "Best Album") }
+            )
+            #expect(info.album == "Best Album")
+        }
+
+        @Test("resolve + lyrics uses resolved metadata for lyrics search")
+        func resolveAndLyrics() async {
+            let info = await fetchWith(
+                nowPlaying: .stub(title: "Raw", artist: "Raw"),
+                query: TrackQuery(resolve: true, lyrics: true),
+                metadataHandler: { _ in [Track(title: "Resolved", artist: "Resolved", duration: nil)] },
+                lyricsHandler: { _ in LyricsResult(plainLyrics: "Found lyrics") }
+            )
+            #expect(info.lyrics == "Found lyrics")
+        }
     }
 }
 
