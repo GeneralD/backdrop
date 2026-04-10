@@ -59,6 +59,7 @@ let package = Package(
             name: "BenchmarkHandler",
             dependencies: [
                 "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
 
@@ -403,7 +404,8 @@ let package = Package(
             name: "BenchmarkHandlerTests",
             dependencies: [
                 "BenchmarkHandler",
-                "Entity",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
         .testTarget(
