@@ -57,6 +57,20 @@ struct RipplePresenterTests {
                 #expect(presenter.rippleState != nil)
             }
         }
+
+        @MainActor
+        @Test("creates rippleState but skips mouse monitor when disabled")
+        func createsStateWhenDisabled() {
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: false))
+            } operation: {
+                let presenter = RipplePresenter()
+                presenter.start()
+                #expect(presenter.rippleState != nil)
+                // stop should not crash even without mouse monitor
+                presenter.stop()
+            }
+        }
     }
 
     @Suite("idle")
