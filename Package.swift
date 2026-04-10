@@ -378,7 +378,14 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
-        .testTarget(name: "CLITests", dependencies: ["CLI"]),
+        .testTarget(
+            name: "CLITests",
+            dependencies: [
+                "CLI",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
         .testTarget(name: "ProcessHandlerTests", dependencies: ["ProcessHandler", "Domain"]),
         .testTarget(name: "VersionHandlerTests", dependencies: ["VersionHandler"]),
         .testTarget(name: "ServiceHandlerTests", dependencies: ["ServiceHandler"]),
