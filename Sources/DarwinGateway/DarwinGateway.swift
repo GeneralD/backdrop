@@ -230,6 +230,9 @@ extension DarwinGateway: ProcessGateway {
                     }
                     buffer.append(byte)
                 }
+                if !buffer.isEmpty, let line = String(data: buffer, encoding: .utf8) {
+                    continuation.yield(line)
+                }
                 continuation.finish()
             }
         }

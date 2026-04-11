@@ -102,6 +102,7 @@ struct YouTubeToolDetectionTests {
             let ds = YouTubeWallpaperDataSourceImpl()
             let path = ds.findExecutable("ls")
             #expect(path != nil)
+            #expect(FileManager.default.isExecutableFile(atPath: path ?? ""))
         }
     }
 
@@ -118,7 +119,9 @@ struct YouTubeToolDetectionTests {
             )
             #expect(args.contains("-f"))
             #expect(args.contains("--no-audio"))
+            #expect(args.contains("/tmp/out.mp4"))
             #expect(args.contains(url.absoluteString))
+            #expect(args.first { $0.contains("vcodec^=avc") } != nil)
         }
     }
 
