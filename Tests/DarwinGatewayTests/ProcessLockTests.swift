@@ -75,6 +75,15 @@ struct DarwinGatewayLockTests {
             let lock = DarwinGateway(lockDirectory: tempDir)
             #expect(!lock.isLocked)
         }
+
+        @Test("isLocked returns true when current instance holds the lock")
+        func isLockedForCurrentHolder() {
+            let lock = DarwinGateway(lockDirectory: tempDir)
+            defer { try? FileManager.default.removeItem(at: tempDir) }
+
+            #expect(lock.acquireLock())
+            #expect(lock.isLocked)
+        }
     }
 
     // MARK: - Lock Release on Process Death
@@ -167,6 +176,16 @@ struct DarwinGatewayLockTests {
             #expect(FileManager.default.fileExists(atPath: lockPath))
             let content = try String(contentsOfFile: lockPath, encoding: .utf8)
             #expect(content.isEmpty)
+        }
+
+        @Test("releaseLock lets same instance reacquire")
+        func releaseThenReacquire() {
+            let lock = DarwinGateway(lockDirectory: tempDir)
+            defer { try? FileManager.default.removeItem(at: tempDir) }
+
+            #expect(lock.acquireLock())
+            lock.releaseLock()
+            #expect(lock.acquireLock())
         }
 
         @Test("does not crash when lock file does not exist")

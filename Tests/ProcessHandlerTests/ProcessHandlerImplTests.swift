@@ -49,10 +49,23 @@ struct ProcessHandlerImplTests {
             }
         }
 
+        @Test("returns daemonExitedImmediately when spawned daemon dies before health check")
+        func daemonExitedImmediately() {
+            withDependencies {
+                $0.processGateway = StubProcessGateway(spawnResult: 42)
+            } operation: {
+                let result = ProcessHandlerImpl().start()
+                guard case .failure(.daemonExitedImmediately) = result else {
+                    Issue.record("Expected .daemonExitedImmediately, got \(result)")
+                    return
+                }
+            }
+        }
+
         @Test("returns started with PID on success")
         func success() {
             withDependencies {
-                $0.processGateway = StubProcessGateway(spawnResult: 42)
+                $0.processGateway = StubProcessGateway(spawnResult: 42, runningPIDs: [42])
             } operation: {
                 let result = ProcessHandlerImpl().start()
                 guard case .success(.started(let pid)) = result else {
@@ -105,7 +118,7 @@ struct ProcessHandlerImplTests {
         func stopFails() {
             // PIDs exist but isRunning always true → stop can't kill → lockReleaseTimedOut → restart fails
             withDependencies {
-                $0.processGateway = StubProcessGateway(pids: [99], locked: true, alwaysRunning: true)
+                $0.processGateway = StubProcessGateway(pids: [99], locked: true, runningPIDs: [99])
             } operation: {
                 let result = ProcessHandlerImpl().restart()
                 guard case .failure(.stopFailed) = result else {
@@ -147,13 +160,13 @@ private struct StubProcessGateway: ProcessGateway {
     var locked: Bool = false
     var spawnResult: Int32? = 42
     var acquireResult: Bool = false
-    var alwaysRunning: Bool = false
+    var runningPIDs: Set<Int32> = []
 
     var resourceSnapshot: ResourceSnapshot { .init(cpuUser: 0, cpuSystem: 0, peakRSS: 0, currentRSS: 0) }
     var overlayPIDs: [Int32] { pids }
     func spawnDaemon(executablePath: String) -> Int32? { spawnResult }
     func sendSignal(_ pid: Int32, signal: Int32) -> Bool { true }
-    func isRunning(_ pid: Int32) -> Bool { alwaysRunning }
+    func isRunning(_ pid: Int32) -> Bool { runningPIDs.contains(pid) }
     func acquireLock() -> Bool { acquireResult }
     var isLocked: Bool { locked }
     func releaseLock() {}

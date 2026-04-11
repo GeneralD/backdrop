@@ -76,9 +76,6 @@ extension DarwinGateway: ProcessGateway {
         task.standardOutput = FileHandle.nullDevice
         task.standardError = FileHandle.nullDevice
         guard (try? task.run()) != nil else { return nil }
-
-        usleep(500_000)
-        guard task.isRunning else { return nil }
         return task.processIdentifier
     }
 
@@ -118,7 +115,7 @@ extension DarwinGateway: ProcessGateway {
     }
 
     public var isLocked: Bool {
-        if lockState.withLock({ $0.fileDescriptor != nil }) { return false }
+        if lockState.withLock({ $0.fileDescriptor != nil }) { return true }
 
         let fd = open(lockURL.path, O_RDONLY | O_CLOEXEC)
         guard fd >= 0 else { return errno != ENOENT }
@@ -130,8 +127,14 @@ extension DarwinGateway: ProcessGateway {
     }
 
     public func releaseLock() {
-        if let fd = lockState.withLock({ $0.fileDescriptor }) {
+        if let fd = lockState.withLock({ state -> Int32? in
+            let fd = state.fileDescriptor
+            state.fileDescriptor = nil
+            return fd
+        }) {
             ftruncate(fd, 0)
+            flock(fd, LOCK_UN)
+            close(fd)
             return
         }
 
@@ -218,17 +221,19 @@ extension DarwinGateway: ProcessGateway {
             let reader = pipe.fileHandleForReading
             DispatchQueue.global().async {
                 var buffer = Data()
+                let newline = UInt8(ascii: "\n")
                 while true {
-                    let byte = reader.readData(ofLength: 1)
-                    guard !byte.isEmpty else { break }
-                    guard byte.first != UInt8(ascii: "\n") else {
-                        if let line = String(data: buffer, encoding: .utf8) {
+                    let chunk = reader.readData(ofLength: 4096)
+                    guard !chunk.isEmpty else { break }
+                    buffer.append(chunk)
+
+                    while let newlineIndex = buffer.firstIndex(of: newline) {
+                        let lineData = buffer[..<newlineIndex]
+                        if let line = String(data: Data(lineData), encoding: .utf8) {
                             continuation.yield(line)
                         }
-                        buffer = Data()
-                        continue
+                        buffer.removeSubrange(...newlineIndex)
                     }
-                    buffer.append(byte)
                 }
                 if !buffer.isEmpty, let line = String(data: buffer, encoding: .utf8) {
                     continuation.yield(line)

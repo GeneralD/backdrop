@@ -17,12 +17,32 @@ private struct LiveGateway: ProcessGateway {
     func runLaunchctl(_ arguments: [String]) -> Int32 { 0 }
 
     func findExecutable(_ name: String) -> String? {
-        ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)", "/usr/bin/\(name)", "/bin/\(name)"]
+        let known = ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)", "/usr/bin/\(name)", "/bin/\(name)"]
             .first { FileManager.default.isExecutableFile(atPath: $0) }
+        if let known { return known }
+
+        guard let output = runCapturingOutput(executable: "/usr/bin/which", arguments: [name]),
+            !output.isEmpty
+        else { return nil }
+        let resolved = URL(fileURLWithPath: output).standardizedFileURL.path
+        guard FileManager.default.isExecutableFile(atPath: resolved) else { return nil }
+        return resolved
     }
 
     func run(executable: String, arguments: [String]) -> Int32 { 0 }
-    func runCapturingOutput(executable: String, arguments: [String]) -> String? { nil }
+    func runCapturingOutput(executable: String, arguments: [String]) -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: executable)
+        task.arguments = arguments
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return nil }
+        task.waitUntilExit()
+        guard task.terminationStatus == 0 else { return nil }
+        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     func runStreaming(executable: String, arguments: [String]) -> AsyncStream<String> {
         AsyncStream { $0.finish() }
     }

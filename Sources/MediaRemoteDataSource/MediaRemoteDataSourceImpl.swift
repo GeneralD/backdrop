@@ -2,13 +2,11 @@ import Dependencies
 import Domain
 import Files
 import Foundation
-import os
 
 public final class MediaRemoteDataSourceImpl: @unchecked Sendable {
     @Dependency(\.processGateway) private var gateway
 
-    private let lock = OSAllocatedUnfairLock(initialState: false)
-    private var iterator: AsyncStream<String>.AsyncIterator?
+    private let state = StreamStateBox()
     private static let scriptPath: String = ensureScript()
 
     public init() {}
@@ -16,22 +14,21 @@ public final class MediaRemoteDataSourceImpl: @unchecked Sendable {
 
 extension MediaRemoteDataSourceImpl: MediaRemoteDataSource {
     public func poll() async -> MediaRemotePollResult {
-        let needsInit = lock.withLock { state in
-            guard !state else { return false }
-            state = true
-            return true
-        }
-        if needsInit {
-            let stream = gateway.runStreaming(
-                executable: "/usr/bin/env", arguments: ["swift", Self.scriptPath])
-            iterator = stream.makeAsyncIterator()
+        let currentIterator: AsyncStream<String>.AsyncIterator
+        while true {
+            if let nextIterator = takeIterator() {
+                currentIterator = nextIterator
+                break
+            }
+            await Task.yield()
         }
 
-        guard let line = await iterator?.next() else {
-            lock.withLock { $0 = false }
-            iterator = nil
+        var iterator = currentIterator
+        guard let line = await iterator.next() else {
+            finishPolling(nextIterator: nil)
             return .eof
         }
+        finishPolling(nextIterator: iterator)
 
         guard let data = line.data(using: .utf8),
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -74,8 +71,53 @@ extension MediaRemoteDataSourceImpl {
         else {
             return destPath
         }
-        try? FileManager.default.removeItem(atPath: destPath)
-        try? FileManager.default.copyItem(atPath: source.path, toPath: destPath)
+
+        let fileManager = FileManager.default
+        let needsCopy: Bool
+        if fileManager.fileExists(atPath: destPath),
+            let sourceData = try? Data(contentsOf: source),
+            let destData = try? Data(contentsOf: URL(fileURLWithPath: destPath))
+        {
+            needsCopy = sourceData != destData
+        } else {
+            needsCopy = true
+        }
+
+        if needsCopy {
+            try? fileManager.removeItem(atPath: destPath)
+            try? fileManager.copyItem(atPath: source.path, toPath: destPath)
+        }
         return destPath
     }
+}
+
+extension MediaRemoteDataSourceImpl {
+    private func takeIterator() -> AsyncStream<String>.AsyncIterator? {
+        state.lock.lock()
+        defer { state.lock.unlock() }
+
+        guard !state.isPolling else { return nil }
+        if state.iterator == nil {
+            let stream = gateway.runStreaming(
+                executable: "/usr/bin/env", arguments: ["swift", Self.scriptPath])
+            state.iterator = stream.makeAsyncIterator()
+        }
+        state.isPolling = true
+        let iterator = state.iterator
+        state.iterator = nil
+        return iterator
+    }
+
+    private func finishPolling(nextIterator: AsyncStream<String>.AsyncIterator?) {
+        state.lock.lock()
+        defer { state.lock.unlock() }
+        state.isPolling = false
+        state.iterator = nextIterator
+    }
+}
+
+private final class StreamStateBox: @unchecked Sendable {
+    let lock = NSLock()
+    var iterator: AsyncStream<String>.AsyncIterator?
+    var isPolling = false
 }

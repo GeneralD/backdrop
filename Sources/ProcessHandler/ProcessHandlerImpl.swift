@@ -18,6 +18,10 @@ extension ProcessHandlerImpl: ProcessHandler {
         guard let pid = gateway.spawnDaemon(executablePath: executablePath) else {
             return .failure(.spawnFailed(detail: "Failed to launch daemon process"))
         }
+        usleep(500_000)
+        guard gateway.isRunning(pid) else {
+            return .failure(.daemonExitedImmediately)
+        }
         return .success(.started(pid: pid))
     }
 
