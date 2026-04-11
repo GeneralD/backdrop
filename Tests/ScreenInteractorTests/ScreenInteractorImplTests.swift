@@ -134,6 +134,18 @@ struct ScreenInteractorImplTests {
             #expect(layout.windowFrame == largeScreen.frame)
         }
 
+        @Test(".index negative falls back to first screen")
+        func indexNegative() {
+            let interactor = withDependencies {
+                $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .index(-1)))
+                $0.screenProvider = StubScreenProvider(screens: twoScreens)
+            } operation: {
+                ScreenInteractorImpl()
+            }
+            let layout = interactor.resolveLayout()
+            #expect(layout.windowFrame == largeScreen.frame)
+        }
+
         @Test(".smallest selector picks smallest by area")
         func smallestSelector() {
             let interactor = withDependencies {
