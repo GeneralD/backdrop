@@ -558,6 +558,14 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "MediaRemoteDataSourceTests",
+            dependencies: [
+                "MediaRemoteDataSource",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
+        .testTarget(
             name: "WallpaperDataSourceTests",
             dependencies: [
                 "WallpaperDataSource",
