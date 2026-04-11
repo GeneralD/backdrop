@@ -42,9 +42,11 @@ struct MusicBrainzMetadataDataSourceImplTests {
         let hasMissingArtist = result.contains { metadata in
             metadata.musicbrainzId == "2"
         }
+        let uniqueKeys = Set(result.map { "\($0.musicbrainzId)|\($0.artist)|\($0.title)" })
         #expect(hasCanonical)
         #expect(hasBracketed)
         #expect(!hasMissingArtist)
+        #expect(uniqueKeys.count == result.count)
     }
 
     @Test("resolve returns matches from the first successful query")
@@ -68,7 +70,10 @@ struct MusicBrainzMetadataDataSourceImplTests {
         #expect(result.count >= 1)
         #expect(result.first?.title == "Brave Shine")
         #expect(result.first?.artist == "Aimer")
-        #expect(queries.count == 1)
+        guard queries.count == 1 else {
+            Issue.record("Expected exactly one query, got \(queries.count)")
+            return
+        }
         guard case .searchRecording(let title, let artist, let duration) = queries[0] else {
             Issue.record("Expected searchRecording query")
             return
@@ -101,7 +106,10 @@ struct MusicBrainzMetadataDataSourceImplTests {
 
         let queries = await calls.values
         #expect(result.count >= 1)
-        #expect(queries.count == 2)
+        guard queries.count == 2 else {
+            Issue.record("Expected exactly two queries, got \(queries.count)")
+            return
+        }
         guard case .searchRecording(_, let firstArtist, _) = queries[0],
             case .searchRecording(_, let secondArtist, _) = queries[1]
         else {

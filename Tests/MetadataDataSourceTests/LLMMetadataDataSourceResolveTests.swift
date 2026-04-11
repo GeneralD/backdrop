@@ -8,9 +8,10 @@ import Testing
 @Suite("LLMMetadataDataSourceImpl resolve")
 struct LLMMetadataDataSourceResolveTests {
     @Test("resolve returns normalized track from API response")
-    func resolveSuccess() async {
+    func resolveSuccess() async throws {
+        let config = try makeConfig()
         let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: makeConfig())
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
             LLMMetadataDataSourceImpl { request in
                 let response = HTTPURLResponse(
@@ -32,9 +33,10 @@ struct LLMMetadataDataSourceResolveTests {
     }
 
     @Test("resolve returns empty when API status is not successful")
-    func resolveHTTPFailure() async {
+    func resolveHTTPFailure() async throws {
+        let config = try makeConfig()
         let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: makeConfig())
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
             LLMMetadataDataSourceImpl { request in
                 let response = HTTPURLResponse(
@@ -53,9 +55,10 @@ struct LLMMetadataDataSourceResolveTests {
     }
 
     @Test("resolve returns empty when response content cannot be decoded")
-    func resolveInvalidContent() async {
+    func resolveInvalidContent() async throws {
+        let config = try makeConfig()
         let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: makeConfig())
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
             LLMMetadataDataSourceImpl { request in
                 let response = HTTPURLResponse(
@@ -77,9 +80,10 @@ struct LLMMetadataDataSourceResolveTests {
     }
 
     @Test("resolve returns empty when request performer throws")
-    func resolveRequestError() async {
+    func resolveRequestError() async throws {
+        let config = try makeConfig()
         let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: makeConfig())
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
             LLMMetadataDataSourceImpl { _ in
                 throw LLMStubError()
@@ -92,9 +96,10 @@ struct LLMMetadataDataSourceResolveTests {
     }
 
     @Test("resolve returns empty when extracted title is empty")
-    func resolveEmptyTitle() async {
+    func resolveEmptyTitle() async throws {
+        let config = try makeConfig()
         let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: makeConfig())
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
             LLMMetadataDataSourceImpl { request in
                 let response = HTTPURLResponse(
@@ -116,17 +121,25 @@ struct LLMMetadataDataSourceResolveTests {
     }
 }
 
-private func makeConfig() -> ConfigLoadResult {
-    let data = """
-        {
-          "ai": {
-            "endpoint": "https://api.example.com",
-            "model": "gpt-test",
-            "api_key": "secret-key"
-          }
-        }
-        """.data(using: .utf8)!
-    let config = try! JSONDecoder().decode(AppConfig.self, from: data)
+private enum LLMFixtureError: Error {
+    case invalidUTF8
+}
+
+private func makeConfig() throws -> ConfigLoadResult {
+    guard
+        let data = """
+            {
+              "ai": {
+                "endpoint": "https://api.example.com",
+                "model": "gpt-test",
+                "api_key": "secret-key"
+              }
+            }
+            """.data(using: .utf8)
+    else {
+        throw LLMFixtureError.invalidUTF8
+    }
+    let config = try JSONDecoder().decode(AppConfig.self, from: data)
     return ConfigLoadResult(
         config: config,
         configDir: "/tmp",

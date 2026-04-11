@@ -62,7 +62,7 @@ struct PrintStandardOutputTests {
         #expect(started == "Overlay started (PID 42)\n")
         #expect(alreadyRunning == "Already running\n")
         #expect(daemonExited == "Failed to start (daemon exited immediately)\n")
-        #expect(spawnFailed == "Failed to start: detail\n")
+        #expect(spawnFailed.trimmingCharacters(in: .newlines) == "Failed to start: detail")
         #expect(stopFailed == "Failed to restart (could not stop existing process)\n")
     }
 
@@ -241,19 +241,47 @@ private func captureStderr(_ operation: () throws -> Void) throws -> String {
 private func captureOutput(_ operation: () throws -> Void) throws -> (stdout: String, stderr: String) {
     let stdoutPipe = try makePipe()
     let stderrPipe = try makePipe()
-    let savedStdout = dup(STDOUT_FILENO)
-    let savedStderr = dup(STDERR_FILENO)
-    #expect(savedStdout >= 0)
-    #expect(savedStderr >= 0)
-    defer {
+    var savedStdout = dup(STDOUT_FILENO)
+    guard savedStdout >= 0 else {
+        _ = close(stdoutPipe.readFD)
+        _ = close(stdoutPipe.writeFD)
+        _ = close(stderrPipe.readFD)
+        _ = close(stderrPipe.writeFD)
+        throw currentPOSIXError()
+    }
+    var savedStderr = dup(STDERR_FILENO)
+    guard savedStderr >= 0 else {
+        let error = currentPOSIXError()
         _ = close(savedStdout)
-        _ = close(savedStderr)
+        _ = close(stdoutPipe.readFD)
+        _ = close(stdoutPipe.writeFD)
+        _ = close(stderrPipe.readFD)
+        _ = close(stderrPipe.writeFD)
+        throw error
+    }
+    defer {
+        if savedStdout >= 0 { _ = close(savedStdout) }
+        if savedStderr >= 0 { _ = close(savedStderr) }
     }
 
     fflush(stdout)
     fflush(stderr)
-    #expect(dup2(stdoutPipe.writeFD, STDOUT_FILENO) >= 0)
-    #expect(dup2(stderrPipe.writeFD, STDERR_FILENO) >= 0)
+    guard dup2(stdoutPipe.writeFD, STDOUT_FILENO) >= 0 else {
+        _ = close(stdoutPipe.readFD)
+        _ = close(stdoutPipe.writeFD)
+        _ = close(stderrPipe.readFD)
+        _ = close(stderrPipe.writeFD)
+        throw currentPOSIXError()
+    }
+    guard dup2(stderrPipe.writeFD, STDERR_FILENO) >= 0 else {
+        let error = currentPOSIXError()
+        _ = dup2(savedStdout, STDOUT_FILENO)
+        _ = close(stdoutPipe.readFD)
+        _ = close(stdoutPipe.writeFD)
+        _ = close(stderrPipe.readFD)
+        _ = close(stderrPipe.writeFD)
+        throw error
+    }
 
     do {
         try operation()
@@ -289,18 +317,23 @@ private func capture(
     stream: UnsafeMutablePointer<FILE>,
     _ operation: () throws -> Void
 ) throws -> String {
-    let readWrite = UnsafeMutablePointer<Int32>.allocate(capacity: 2)
-    defer { readWrite.deallocate() }
-    #expect(pipe(readWrite) == 0)
-
-    let readFD = readWrite[0]
-    let writeFD = readWrite[1]
+    let (readFD, writeFD) = try makePipe()
     let savedFD = dup(fileDescriptor)
-    #expect(savedFD >= 0)
+    guard savedFD >= 0 else {
+        let error = currentPOSIXError()
+        _ = close(readFD)
+        _ = close(writeFD)
+        throw error
+    }
     defer { _ = close(savedFD) }
 
     fflush(stream)
-    #expect(dup2(writeFD, fileDescriptor) >= 0)
+    guard dup2(writeFD, fileDescriptor) >= 0 else {
+        let error = currentPOSIXError()
+        _ = close(readFD)
+        _ = close(writeFD)
+        throw error
+    }
 
     do {
         try operation()
@@ -323,6 +356,12 @@ private func capture(
 private func makePipe() throws -> (readFD: Int32, writeFD: Int32) {
     let readWrite = UnsafeMutablePointer<Int32>.allocate(capacity: 2)
     defer { readWrite.deallocate() }
-    #expect(pipe(readWrite) == 0)
+    guard pipe(readWrite) == 0 else {
+        throw currentPOSIXError()
+    }
     return (readWrite[0], readWrite[1])
+}
+
+private func currentPOSIXError() -> POSIXError {
+    POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
 }

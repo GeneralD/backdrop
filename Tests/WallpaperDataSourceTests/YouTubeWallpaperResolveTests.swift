@@ -235,6 +235,10 @@ private actor ProcessRunner {
 
     func run(executablePath: String, arguments: [String]) -> ResultTuple {
         calls.append((executablePath, arguments))
+        guard !results.isEmpty else {
+            Issue.record("ProcessRunner.run called more times than stubbed results for \(executablePath) \(arguments)")
+            return (status: 1, stderr: "No stubbed process result available.")
+        }
         return results.removeFirst()
     }
 }
