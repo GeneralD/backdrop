@@ -42,6 +42,7 @@ let package = Package(
             name: "ServiceHandler",
             dependencies: [
                 "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
                 .product(name: "Files", package: "Files"),
             ]
         ),
@@ -406,7 +407,14 @@ let package = Package(
             ]
         ),
         .testTarget(name: "VersionHandlerTests", dependencies: ["VersionHandler"]),
-        .testTarget(name: "ServiceHandlerTests", dependencies: ["ServiceHandler"]),
+        .testTarget(
+            name: "ServiceHandlerTests",
+            dependencies: [
+                "ServiceHandler",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
         .testTarget(
             name: "ConfigHandlerTests",
             dependencies: [
