@@ -1,3 +1,4 @@
+import Darwin
 import Dependencies
 import Domain
 import Testing
@@ -15,7 +16,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(locked: true)
             } operation: {
-                let result = ProcessHandlerImpl().start()
+                let result = makeHandler().start()
                 guard case .failure(.alreadyRunning) = result else {
                     Issue.record("Expected .alreadyRunning")
                     return
@@ -28,7 +29,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(pids: [12345])
             } operation: {
-                let result = ProcessHandlerImpl().start()
+                let result = makeHandler().start()
                 guard case .failure(.alreadyRunning) = result else {
                     Issue.record("Expected .alreadyRunning")
                     return
@@ -41,7 +42,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(spawnResult: nil)
             } operation: {
-                let result = ProcessHandlerImpl().start()
+                let result = makeHandler().start()
                 guard case .failure(.spawnFailed) = result else {
                     Issue.record("Expected .spawnFailed, got \(result)")
                     return
@@ -54,7 +55,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(spawnResult: 42)
             } operation: {
-                let result = ProcessHandlerImpl().start()
+                let result = makeHandler().start()
                 guard case .failure(.daemonExitedImmediately) = result else {
                     Issue.record("Expected .daemonExitedImmediately, got \(result)")
                     return
@@ -67,7 +68,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(spawnResult: 42, runningPIDs: [42])
             } operation: {
-                let result = ProcessHandlerImpl().start()
+                let result = makeHandler().start()
                 guard case .success(.started(let pid)) = result else {
                     Issue.record("Expected .started, got \(result)")
                     return
@@ -86,7 +87,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway()
             } operation: {
-                let result = ProcessHandlerImpl().stop()
+                let result = makeHandler().stop()
                 guard case .success(.notRunning) = result else {
                     Issue.record("Expected .notRunning")
                     return
@@ -100,11 +101,62 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = spy
             } operation: {
-                let result = ProcessHandlerImpl().stop()
+                let result = makeHandler().stop()
                 guard case .success(.notRunning) = result else {
                     Issue.record("Expected .notRunning")
                     return
                 }
+            }
+            #expect(spy.releaseLockCalled)
+        }
+
+        @Test("stops after TERM when process exits cleanly")
+        func stopsAfterTerm() {
+            let spy = SpyProcessGateway(
+                overlayPIDs: [42],
+                locked: true,
+                runningResponses: [42: [false, false]]
+            )
+            withDependencies {
+                $0.processGateway = spy
+            } operation: {
+                let result = makeHandler().stop()
+                #expect(result == .success(.stopped))
+            }
+            #expect(spy.sentSignals == [.init(pid: 42, signal: SIGTERM)])
+            #expect(spy.releaseLockCalled)
+        }
+
+        @Test("falls back to KILL when TERM does not stop the process")
+        func escalatesToKill() {
+            let spy = SpyProcessGateway(
+                overlayPIDs: [42],
+                locked: true,
+                runningResponses: [42: Array(repeating: true, count: 21)]
+            )
+            withDependencies {
+                $0.processGateway = spy
+            } operation: {
+                let result = makeHandler().stop()
+                #expect(result == .success(.stopped))
+            }
+            #expect(spy.sentSignals == [.init(pid: 42, signal: SIGTERM), .init(pid: 42, signal: SIGKILL)])
+            #expect(spy.releaseLockCalled)
+        }
+
+        @Test("fails when lock never releases after stopping")
+        func lockReleaseTimesOut() {
+            let spy = SpyProcessGateway(
+                overlayPIDs: [42],
+                locked: true,
+                runningResponses: [42: [false, false]],
+                releaseClearsLock: false
+            )
+            withDependencies {
+                $0.processGateway = spy
+            } operation: {
+                let result = makeHandler().stop()
+                #expect(result == .failure(.lockReleaseTimedOut))
             }
             #expect(spy.releaseLockCalled)
         }
@@ -120,7 +172,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(pids: [99], locked: true, runningPIDs: [99])
             } operation: {
-                let result = ProcessHandlerImpl().restart()
+                let result = makeHandler().restart()
                 guard case .failure(.stopFailed) = result else {
                     Issue.record("Expected .stopFailed, got \(result)")
                     return
@@ -138,7 +190,7 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(acquireResult: true)
             } operation: {
-                #expect(ProcessHandlerImpl().acquireDaemonLock())
+                #expect(makeHandler().acquireDaemonLock())
             }
         }
 
@@ -147,10 +199,19 @@ struct ProcessHandlerImplTests {
             withDependencies {
                 $0.processGateway = StubProcessGateway(acquireResult: false)
             } operation: {
-                #expect(!ProcessHandlerImpl().acquireDaemonLock())
+                #expect(!makeHandler().acquireDaemonLock())
             }
         }
     }
+}
+
+private func makeHandler() -> ProcessHandlerImpl {
+    ProcessHandlerImpl(
+        startupDelayMicroseconds: 0,
+        pollDelayMicroseconds: 0,
+        maxPollingAttempts: 20,
+        sleepMicroseconds: { _ in }
+    )
 }
 
 // MARK: - Stubs
@@ -180,21 +241,50 @@ private struct StubProcessGateway: ProcessGateway {
 }
 
 private final class SpyProcessGateway: ProcessGateway, @unchecked Sendable {
-    var locked: Bool
-    private(set) var releaseLockCalled = false
+    struct SignalCall: Equatable {
+        let pid: Int32
+        let signal: Int32
+    }
 
-    init(locked: Bool = false) { self.locked = locked }
+    let overlayPIDsValue: [Int32]
+    var locked: Bool
+    private let releaseClearsLock: Bool
+    private var runningResponses: [Int32: [Bool]]
+    private(set) var releaseLockCalled = false
+    private(set) var sentSignals: [SignalCall] = []
+
+    init(
+        overlayPIDs: [Int32] = [],
+        locked: Bool = false,
+        runningResponses: [Int32: [Bool]] = [:],
+        releaseClearsLock: Bool = true
+    ) {
+        self.overlayPIDsValue = overlayPIDs
+        self.locked = locked
+        self.runningResponses = runningResponses
+        self.releaseClearsLock = releaseClearsLock
+    }
 
     var resourceSnapshot: ResourceSnapshot { .init(cpuUser: 0, cpuSystem: 0, peakRSS: 0, currentRSS: 0) }
-    var overlayPIDs: [Int32] { [] }
+    var overlayPIDs: [Int32] { overlayPIDsValue }
     func spawnDaemon(executablePath: String) -> Int32? { nil }
-    func sendSignal(_ pid: Int32, signal: Int32) -> Bool { true }
-    func isRunning(_ pid: Int32) -> Bool { false }
+    func sendSignal(_ pid: Int32, signal: Int32) -> Bool {
+        sentSignals.append(.init(pid: pid, signal: signal))
+        return true
+    }
+    func isRunning(_ pid: Int32) -> Bool {
+        guard var responses = runningResponses[pid], let next = responses.first else { return false }
+        responses.removeFirst()
+        runningResponses[pid] = responses
+        return next
+    }
     func acquireLock() -> Bool { false }
     var isLocked: Bool { locked }
     func releaseLock() {
         releaseLockCalled = true
-        locked = false
+        if releaseClearsLock {
+            locked = false
+        }
     }
     func runLaunchctl(_ arguments: [String]) -> Int32 { 0 }
     func findExecutable(_ name: String) -> String? { nil }
