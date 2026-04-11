@@ -1,9 +1,10 @@
-import AppKit
+import CoreGraphics
 import Dependencies
 import Domain
 
 public struct ScreenInteractorImpl {
     @Dependency(\.configUseCase) private var configService
+    @Dependency(\.screenProvider) private var screenProvider
 
     public init() {}
 }
@@ -31,16 +32,16 @@ extension ScreenInteractorImpl: ScreenInteractor {
         )
     }
 
-    private func resolveScreen() -> NSScreen? {
-        let screens = NSScreen.screens
+    private func resolveScreen() -> ScreenInfo? {
+        let screens = screenProvider.screens
         guard let fallback = screens.first else { return nil }
         switch screenSelector {
         case .main:
-            return .main ?? fallback
+            return screenProvider.mainScreen ?? fallback
         case .primary:
             return fallback
         case .index(let n):
-            return n < screens.count ? screens[n] : fallback
+            return screens.indices.contains(n) ? screens[n] : fallback
         case .smallest:
             return screens.min { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
                 ?? fallback
