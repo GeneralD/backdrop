@@ -9,7 +9,7 @@ import Testing
 // MARK: - Stubs
 
 private final class StubPlaybackUseCase: PlaybackUseCase, @unchecked Sendable {
-    let subject = PassthroughSubject<NowPlaying?, Never>()
+    let subject = CurrentValueSubject<NowPlaying?, Never>(nil)
 
     func fetchNowPlaying() async -> NowPlaying? { nil }
 
