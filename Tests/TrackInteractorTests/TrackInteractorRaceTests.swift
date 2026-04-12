@@ -26,12 +26,43 @@ private final class StubPlaybackUseCase: PlaybackUseCase, @unchecked Sendable {
     func elapsedTime(for np: NowPlaying) -> TimeInterval? { np.rawElapsed }
 }
 
-private struct DelayedMetadataUseCase: MetadataUseCase, Sendable {
-    let delay: Duration
+private actor ResolutionGate {
+    private var waiters: [String: CheckedContinuation<Void, Never>] = [:]
+    private var preReleasedTitles: Set<String> = []
+
+    func wait(for title: String) async {
+        if preReleasedTitles.remove(title) != nil {
+            return
+        }
+
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                waiters[title] = continuation
+            }
+        } onCancel: {
+            Task { await self.release(title) }
+        }
+    }
+
+    func release(_ title: String) {
+        if let waiter = waiters.removeValue(forKey: title) {
+            waiter.resume()
+            return
+        }
+
+        preReleasedTitles.insert(title)
+    }
+}
+
+private struct GatedMetadataUseCase: MetadataUseCase, Sendable {
+    let delayedTitles: Set<String>
+    let gate: ResolutionGate
 
     func resolve(track: Track) async -> Track? { nil }
     func resolveCandidates(track: Track) async -> [Track] {
-        try? await Task.sleep(for: delay)
+        if delayedTitles.contains(track.title) {
+            await gate.wait(for: track.title)
+        }
         return [track]
     }
 }
@@ -133,9 +164,10 @@ struct TrackInteractorRaceTests {
     @Test("rapid track change cancels stale resolution — only latest track emits resolved")
     func rapidTrackChangeCancelsStale() async throws {
         let playback = StubPlaybackUseCase()
+        let gate = ResolutionGate()
         let interactor = makeInteractor(
             playback: playback,
-            metadata: DelayedMetadataUseCase(delay: .milliseconds(500))
+            metadata: GatedMetadataUseCase(delayedTitles: ["Track A"], gate: gate)
         )
 
         let collector = UpdateCollector()
@@ -156,6 +188,9 @@ struct TrackInteractorRaceTests {
         try await waitUntil("Track B resolved") {
             collector.contains { $0.title == "Track B" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
         }
+
+        await gate.release("Track A")
+        await Task.yield()
 
         let resolved = collector.updates.filter { $0.lyricsState == .resolved || $0.lyricsState == .notFound }
         #expect(!resolved.contains { $0.title == "Track A" }, "Track A resolution should be cancelled")
@@ -197,9 +232,10 @@ struct TrackInteractorRaceTests {
     @Test("track A loading emits but resolved does not when B arrives quickly")
     func staleLoadingVisibleButResolvedCancelled() async throws {
         let playback = StubPlaybackUseCase()
+        let gate = ResolutionGate()
         let interactor = makeInteractor(
             playback: playback,
-            metadata: DelayedMetadataUseCase(delay: .milliseconds(500))
+            metadata: GatedMetadataUseCase(delayedTitles: ["Track A"], gate: gate)
         )
 
         let collector = UpdateCollector()
@@ -220,6 +256,9 @@ struct TrackInteractorRaceTests {
         try await waitUntil("Track B resolved") {
             collector.contains { $0.title == "Track B" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
         }
+
+        await gate.release("Track A")
+        await Task.yield()
 
         let resolvedA = collector.updates.filter { $0.title == "Track A" && ($0.lyricsState == .resolved || $0.lyricsState == .notFound) }
         #expect(resolvedA.isEmpty, "Track A resolution must be cancelled by switchToLatest")
