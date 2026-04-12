@@ -25,10 +25,10 @@ struct AppLaunchEnvironmentTests {
     func parsesEnvironment() {
         let environment = AppLaunchEnvironment(
             environment: [
-                AppLaunchEnvironment.Keys.uiTestMode: "true",
-                AppLaunchEnvironment.Keys.lyricsTitle: "Test Song",
-                AppLaunchEnvironment.Keys.lyricsArtist: "Test Artist",
-                AppLaunchEnvironment.Keys.lyricsLines: "Line 1\nLine 2\n\nLine 3",
+                .uiTestMode: "true",
+                .lyricsTitle: "Test Song",
+                .lyricsArtist: "Test Artist",
+                .lyricsLines: "Line 1\nLine 2\n\nLine 3",
             ]
         )
 
@@ -52,8 +52,8 @@ struct AppLaunchEnvironmentTests {
     func defaultsForEmptyLyrics() {
         let environment = AppLaunchEnvironment(
             environment: [
-                AppLaunchEnvironment.Keys.uiTestMode: "on",
-                AppLaunchEnvironment.Keys.lyricsLines: " \n \n",
+                .uiTestMode: "on",
+                .lyricsLines: " \n \n",
             ]
         )
 
@@ -70,10 +70,10 @@ struct AppDependencyBootstrapTests {
         let bootstrap = AppDependencyBootstrap(
             launchEnvironment: .init(
                 environment: [
-                    AppLaunchEnvironment.Keys.uiTestMode: "1",
-                    AppLaunchEnvironment.Keys.lyricsTitle: "Bootstrap Song",
-                    AppLaunchEnvironment.Keys.lyricsArtist: "Bootstrap Artist",
-                    AppLaunchEnvironment.Keys.lyricsLines: "Alpha\nBeta",
+                    .uiTestMode: "1",
+                    .lyricsTitle: "Bootstrap Song",
+                    .lyricsArtist: "Bootstrap Artist",
+                    .lyricsLines: "Alpha\nBeta",
                 ]
             )
         )
@@ -109,9 +109,9 @@ struct AppDependencyBootstrapTests {
         let bootstrap = AppDependencyBootstrap(
             launchEnvironment: .init(
                 environment: [
-                    AppLaunchEnvironment.Keys.uiTestMode: "true",
-                    AppLaunchEnvironment.Keys.lyricsTitle: "Layout Song",
-                    AppLaunchEnvironment.Keys.lyricsArtist: "Layout Artist",
+                    .uiTestMode: "true",
+                    .lyricsTitle: "Layout Song",
+                    .lyricsArtist: "Layout Artist",
                 ]
             )
         )
@@ -174,10 +174,10 @@ struct AppRouterTests {
         let router = AppRouter(
             launchEnvironment: .init(
                 environment: [
-                    AppLaunchEnvironment.Keys.uiTestMode: "true",
-                    AppLaunchEnvironment.Keys.lyricsTitle: "Router Song",
-                    AppLaunchEnvironment.Keys.lyricsArtist: "Router Artist",
-                    AppLaunchEnvironment.Keys.lyricsLines: "One\nTwo",
+                    .uiTestMode: "true",
+                    .lyricsTitle: "Router Song",
+                    .lyricsArtist: "Router Artist",
+                    .lyricsLines: "One\nTwo",
                 ]
             ),
             windowFactory: { _, _, _, _, _ in window },
@@ -228,7 +228,7 @@ struct AppRouterTests {
         let driver = SpyDisplayLinkDriver()
 
         let router = AppRouter(
-            launchEnvironment: .init(environment: [AppLaunchEnvironment.Keys.uiTestMode: "true"]),
+            launchEnvironment: .init(environment: [.uiTestMode: "true"]),
             windowFactory: { _, _, _, _, _ in window },
             displayLinkDriverFactory: { onFrame in
                 driver.onFrame = onFrame
@@ -327,10 +327,10 @@ struct AccessibilityHooksTests {
         let bootstrap = AppDependencyBootstrap(
             launchEnvironment: .init(
                 environment: [
-                    AppLaunchEnvironment.Keys.uiTestMode: "true",
-                    AppLaunchEnvironment.Keys.lyricsTitle: "Accessible Song",
-                    AppLaunchEnvironment.Keys.lyricsArtist: "Accessible Artist",
-                    AppLaunchEnvironment.Keys.lyricsLines: "First\nSecond",
+                    .uiTestMode: "true",
+                    .lyricsTitle: "Accessible Song",
+                    .lyricsArtist: "Accessible Artist",
+                    .lyricsLines: "First\nSecond",
                 ]
             )
         )

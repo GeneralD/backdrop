@@ -1,11 +1,11 @@
 import Foundation
 
 public struct AppLaunchEnvironment: Sendable, Equatable {
-    public enum Keys {
-        public static let uiTestMode = "LYRA_UI_TEST_MODE"
-        public static let lyricsTitle = "LYRA_UI_TEST_TITLE"
-        public static let lyricsArtist = "LYRA_UI_TEST_ARTIST"
-        public static let lyricsLines = "LYRA_UI_TEST_LYRICS"
+    public enum Key: String, CaseIterable, Sendable {
+        case uiTestMode = "LYRA_UI_TEST_MODE"
+        case lyricsTitle = "LYRA_UI_TEST_TITLE"
+        case lyricsArtist = "LYRA_UI_TEST_ARTIST"
+        case lyricsLines = "LYRA_UI_TEST_LYRICS"
     }
 
     public let isUITestMode: Bool
@@ -13,15 +13,25 @@ public struct AppLaunchEnvironment: Sendable, Equatable {
     public let artist: String
     public let lyricsLines: [String]
 
-    public init(environment: [String: String]) {
-        isUITestMode = Self.parseBoolean(environment[Keys.uiTestMode])
-        title = environment[Keys.lyricsTitle] ?? "UI Test Song"
-        artist = environment[Keys.lyricsArtist] ?? "UI Test Artist"
-        lyricsLines = Self.parseLyrics(environment[Keys.lyricsLines])
+    public init(environment: [Key: String]) {
+        isUITestMode = Self.parseBoolean(environment[.uiTestMode])
+        title = environment[.lyricsTitle] ?? "UI Test Song"
+        artist = environment[.lyricsArtist] ?? "UI Test Artist"
+        lyricsLines = Self.parseLyrics(environment[.lyricsLines])
+    }
+
+    public init(rawEnvironment: [String: String]) {
+        self.init(
+            environment: Dictionary(
+                uniqueKeysWithValues: Key.allCases.compactMap { key in
+                    rawEnvironment[key.rawValue].map { (key, $0) }
+                }
+            )
+        )
     }
 
     public static var current: Self {
-        .init(environment: ProcessInfo.processInfo.environment)
+        .init(rawEnvironment: ProcessInfo.processInfo.environment)
     }
 
     private static func parseBoolean(_ value: String?) -> Bool {
