@@ -1,4 +1,5 @@
 import AppKit
+import AppRouter
 
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {

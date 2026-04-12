@@ -122,6 +122,12 @@ let package = Package(
         .target(
             name: "App",
             dependencies: [
+                "AppRouter",
+            ]
+        ),
+        .target(
+            name: "AppRouter",
+            dependencies: [
                 "Views",
                 "Presenters",
                 "Domain",
@@ -461,9 +467,9 @@ let package = Package(
         ),
         .testTarget(name: "ViewsTests", dependencies: ["Views", "Domain"]),
         .testTarget(
-            name: "AppTests",
+            name: "AppRouterTests",
             dependencies: [
-                "App",
+                "AppRouter",
                 "Presenters",
                 "Views",
                 "Domain",

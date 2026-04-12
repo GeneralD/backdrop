@@ -107,8 +107,9 @@ graph TD
         end
     end
 
-    CLI --> App & AsyncParsableCommand
-    App --> Views & Presenters & DependencyInjection
+    CLI --> App & AppRouter & AsyncParsableCommand
+    App --> AppRouter
+    AppRouter --> Views & Presenters & DependencyInjection
     DependencyInjection --> Implementations
     Views --> Presenters
     Presenters --> Domain
@@ -129,9 +130,6 @@ graph TD
     MetadataRepository -.-> SQLiteDataStore
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
-    ProcessHandler -.-> Domain
-    ServiceHandler -.-> Domain
-    BenchmarkHandler -.-> Domain
     DependencyInjection -.-> DarwinGateway
 
     CLI -.-> CommandHandler
@@ -194,7 +192,7 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 |---|---|---|
 | Executable / CLI | `CLI` | Entry point (`@main RootCommand: ParsableCommand`), ArgumentParser commands, LaunchAgent. Product name: `lyra` |
 | Async Bridge | `AsyncRunnableCommand` | `AsyncRunnableCommand` protocol — bridges `async run()` to sync `ParsableCommand` via `DispatchSemaphore`, keeping the main thread free for `NSApplication.run()` |
-| Router | `App` | `AppRouter` (pure wireframe), `AppDelegate` |
+| Router | `App`, `AppRouter` | `App` holds `AppDelegate`; `AppRouter` holds `AppRouter`, bootstrap, and launch environment wiring |
 | View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
 | Presenter | `Presenters` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
     | Handler | `ProcessHandler`, `VersionHandler`, `ServiceHandler`, `HealthHandler`, `TrackHandler`, `ConfigHandler`, `BenchmarkHandler` | CLI command logic. ProcessHandler: process lifecycle. VersionHandler: version string. ServiceHandler: LaunchAgent install/uninstall. HealthHandler: connectivity checks. TrackHandler: now-playing info with metadata/lyrics resolution. ConfigHandler: config template/init/path resolution. BenchmarkHandler: CPU/memory measurement via `ProcessGateway`. Protocols in Domain, injected via `@Dependency`. All handlers return `Result<Success, Failure>` — never throw |
@@ -261,7 +259,7 @@ Cache is Repository's responsibility, not DataSource's. DataSources are pure API
 
 **ColorStyle**: Domain-level enum (`.solid(hex)`, `.gradient([hex])`) enabling any text style to use either solid colors or gradients. Polymorphic TOML decoding supports both `color = "#FFF"` and `color = ["#AAA", "#BBB"]`.
 
-**DI with swift-dependencies**: Protocol definitions + `TestDependencyKey` in `Domain`, all `liveValue` registrations centralized in `DependencyInjection` module (`InteractorRegistration`, `UseCaseRegistration`, `RepositoryRegistration`, `DataSourceRegistration`, `DataStoreRegistration`, `HealthCheckRegistration`). No direct instantiation — everything through `@Dependency`. UI-test mode is the one exception in wiring location: `App` may override a small fixture graph at launch based on environment variables, but feature code still reads dependencies normally through `@Dependency`.
+**DI with swift-dependencies**: Protocol definitions + `TestDependencyKey` in `Domain`, all `liveValue` registrations centralized in `DependencyInjection` module (`InteractorRegistration`, `UseCaseRegistration`, `RepositoryRegistration`, `DataSourceRegistration`, `DataStoreRegistration`, `HealthCheckRegistration`). No direct instantiation — everything through `@Dependency`. UI-test mode is the one exception in wiring location: `AppRouter` may override a small fixture graph at launch based on environment variables, but feature code still reads dependencies normally through `@Dependency`.
 
 **UI Test Bootstrap**: `XCUIApplication` launches the app as a separate process, so UI tests cannot directly override in-memory `DependencyValues` the way unit tests do with `withDependencies`. Any UI-test fixture graph must therefore be selected during app startup (for example via launch arguments/environment in `AppDelegate`/`AppRouter`). Treat this as bootstrap responsibility, not Presenter responsibility: avoid sprinkling `isUITest` checks through feature code.
 

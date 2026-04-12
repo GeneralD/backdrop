@@ -1,31 +1,6 @@
-import AppKit
 import Dependencies
 import Presenters
 import Views
-
-@MainActor
-protocol AppWindowing: AnyObject {
-    func orderOut(_ sender: Any?)
-    func close()
-}
-
-extension AppWindow: AppWindowing {}
-
-@MainActor
-protocol DisplayLinkDriving: AnyObject {
-    func start(in window: any AppWindowing)
-    func stop()
-}
-
-extension DisplayLinkDriver: DisplayLinkDriving {
-    func start(in window: any AppWindowing) {
-        guard let window = window as? NSWindow else {
-            assertionFailure("DisplayLinkDriver requires an NSWindow-backed AppWindowing")
-            return
-        }
-        start(in: window)
-    }
-}
 
 /// Wireframe: creates Presenters, builds window, manages lifecycle.
 @MainActor

@@ -6,7 +6,7 @@ import SwiftUI
 import Testing
 import Views
 
-@testable import App
+@testable import AppRouter
 
 @MainActor
 private func waitUntil(
