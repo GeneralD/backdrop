@@ -32,15 +32,13 @@ graph TD
         AsyncParsableCommand[AsyncParsableCommand]
     end
 
-    subgraph Router
+    subgraph AppLayer["App"]
         App[App]
     end
 
-    subgraph View
+    subgraph GUI
+        AppRouter[AppRouter]
         Views[Views]
-    end
-
-    subgraph Presenter
         Presenters[Presenters]
     end
 
@@ -65,7 +63,6 @@ graph TD
             TrackHandler[TrackHandler]
             ConfigHandler[ConfigHandler]
             BenchmarkHandler[BenchmarkHandler]
-            StandardOutput[StandardOutput]
         end
 
         subgraph Interactor
@@ -98,12 +95,14 @@ graph TD
             WallpaperDataSource[WallpaperDataSource]
         end
 
-        subgraph DataStore
-            SQLiteDataStore[SQLiteDataStore]
+        subgraph Support["Provider / Support"]
+            AppKitScreenProvider[AppKitScreenProvider]
+            StandardOutput[StandardOutput]
+            DarwinGateway[DarwinGateway]
         end
 
-        subgraph Gateway
-            DarwinGateway[DarwinGateway]
+        subgraph DataStore
+            SQLiteDataStore[SQLiteDataStore]
         end
     end
 
@@ -115,6 +114,14 @@ graph TD
     Presenters --> Domain
     Implementations --> Domain
     Domain --> Entity
+
+    CLI -.-> CommandHandler
+    Presenters -.-> Interactor
+    TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
+    ConfigHandler -.-> ConfigUseCase
+    ProcessHandler -.-> DarwinGateway
+    ServiceHandler -.-> DarwinGateway
+    BenchmarkHandler -.-> DarwinGateway
     TrackInteractor -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase & ConfigUseCase
     ScreenInteractor -.-> ConfigUseCase
     WallpaperInteractor -.-> WallpaperUseCase & ConfigUseCase
@@ -123,23 +130,18 @@ graph TD
     PlaybackUseCase -.-> NowPlayingRepository
     NowPlayingRepository -.-> MediaRemoteDataSource
     LyricsUseCase -.-> LyricsRepository
-    LyricsRepository -.-> LyricsDataSource
-    LyricsRepository -.-> SQLiteDataStore
+    LyricsRepository -.-> LyricsDataSource & SQLiteDataStore
     MetadataUseCase -.-> MetadataRepository
-    MetadataRepository -.-> MetadataDataSource
-    MetadataRepository -.-> SQLiteDataStore
+    MetadataRepository -.-> MetadataDataSource & SQLiteDataStore
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
-    DependencyInjection -.-> DarwinGateway
-
-    CLI -.-> CommandHandler
-    Presenters -.-> Interactor
-    TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
-    ConfigHandler -.-> ConfigUseCase
+    MediaRemoteDataSource -.-> DarwinGateway
+    WallpaperDataSource -.-> DarwinGateway
 
     style AsyncParsableCommand fill:#555,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
-    style App fill:#6a5,stroke:#333,color:#fff
+    style App fill:#4c78a8,stroke:#333,color:#fff
+    style AppRouter fill:#6a5,stroke:#333,color:#fff
     style Views fill:#6a5,stroke:#333,color:#fff
     style Presenters fill:#6a5,stroke:#333,color:#fff
     style TrackInteractor fill:#7b5,stroke:#333,color:#fff
@@ -163,7 +165,9 @@ graph TD
     style ConfigDataSource fill:#c84,stroke:#333,color:#fff
     style MediaRemoteDataSource fill:#c84,stroke:#333,color:#fff
     style WallpaperDataSource fill:#c84,stroke:#333,color:#fff
-    style BenchmarkHandler fill:#555,stroke:#333,color:#fff
+    style AppKitScreenProvider fill:#a75,stroke:#333,color:#fff
+    style StandardOutput fill:#a75,stroke:#333,color:#fff
+    style DarwinGateway fill:#a75,stroke:#333,color:#fff
     style SQLiteDataStore fill:#a75,stroke:#333,color:#fff
 ```
 
@@ -196,8 +200,7 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 | View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
 | Presenter | `Presenters` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
     | Handler | `ProcessHandler`, `VersionHandler`, `ServiceHandler`, `HealthHandler`, `TrackHandler`, `ConfigHandler`, `BenchmarkHandler` | CLI command logic. ProcessHandler: process lifecycle. VersionHandler: version string. ServiceHandler: LaunchAgent install/uninstall. HealthHandler: connectivity checks. TrackHandler: now-playing info with metadata/lyrics resolution. ConfigHandler: config template/init/path resolution. BenchmarkHandler: CPU/memory measurement via `ProcessGateway`. Protocols in Domain, injected via `@Dependency`. All handlers return `Result<Success, Failure>` — never throw |
-    | StandardOutput | `StandardOutput` | `StandardOutput` protocol (Domain/Misc) + `PrintStandardOutput` impl. CLI commands call `write(_ result:)` for typed results (success → stdout, failure → stderr), `write(_ message:)` for strings, `writeJson` for Encodable. Single source of all CLI message strings |
-    | Gateway | `DarwinGateway` | macOS/OS boundary implementation for `ProcessGateway`: process spawning, signals, PID-file flock locking, resource sampling, launchctl, executable discovery, and streaming subprocess output |
+| Provider / Support | `AppKitScreenProvider`, `StandardOutput`, `DarwinGateway` | Platform/provider implementations that do not fit the core Clean Architecture layers directly. `AppKitScreenProvider` adapts `NSScreen` into `ScreenProvider`; `StandardOutput` owns CLI output rendering; `DarwinGateway` owns macOS process/system calls |
 | Interactor | `TrackInteractor`, `ScreenInteractor`, `WallpaperInteractor` | Combine-based reactive pipelines over UseCases (GUI) |
 | DI Wiring | `DependencyInjection` | All liveValue registrations, FontMetrics, HealthCheck |
 | Entity | `Entity` | Pure data types, zero external dependencies |

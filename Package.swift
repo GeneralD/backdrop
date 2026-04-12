@@ -63,6 +63,12 @@ let package = Package(
                 "Domain"
             ]
         ),
+        .target(
+            name: "AppKitScreenProvider",
+            dependencies: [
+                "Domain"
+            ]
+        ),
 
         // ── BenchmarkHandler ──
         .target(
@@ -159,6 +165,7 @@ let package = Package(
         .target(
             name: "DependencyInjection",
             dependencies: [
+                "AppKitScreenProvider",
                 "Domain",
                 "TrackInteractor",
                 "ScreenInteractor",
@@ -408,6 +415,7 @@ let package = Package(
             ]
         ),
         .testTarget(name: "DarwinGatewayTests", dependencies: ["DarwinGateway"]),
+        .testTarget(name: "AppKitScreenProviderTests", dependencies: ["AppKitScreenProvider", "Domain"]),
         .testTarget(
             name: "ProcessHandlerTests",
             dependencies: [
