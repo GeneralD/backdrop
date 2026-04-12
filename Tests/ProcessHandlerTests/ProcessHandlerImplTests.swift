@@ -11,6 +11,16 @@ struct ProcessHandlerImplTests {
 
     @Suite("start")
     struct Start {
+        @Test("public init returns notRunning on stop when no process exists")
+        func publicInitSmoke() {
+            withDependencies {
+                $0.processGateway = StubProcessGateway()
+            } operation: {
+                let result = ProcessHandlerImpl().stop()
+                #expect(result == .success(.notRunning))
+            }
+        }
+
         @Test("returns alreadyRunning when lock is held")
         func lockedReturnsAlreadyRunning() {
             withDependencies {
@@ -74,6 +84,20 @@ struct ProcessHandlerImplTests {
                     return
                 }
                 #expect(pid == 42)
+            }
+        }
+
+        @Test("default sleep closure path still starts daemon")
+        func defaultSleepClosureStart() {
+            withDependencies {
+                $0.processGateway = StubProcessGateway(spawnResult: 42, runningPIDs: [42])
+            } operation: {
+                let result = ProcessHandlerImpl(
+                    startupDelayMicroseconds: 0,
+                    pollDelayMicroseconds: 0,
+                    maxPollingAttempts: 1
+                ).start()
+                #expect(result == .success(.started(pid: 42)))
             }
         }
     }
