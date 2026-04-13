@@ -198,6 +198,26 @@ struct RipplePresenterTests {
         }
 
         @MainActor
+        @Test("gradient color uses first color for HSB base")
+        func gradientColorBase() {
+            let config = RippleStyle(enabled: true, color: .gradient(["#FF0000", "#00FF00"]), duration: 2.0)
+            withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+            } operation: {
+                let presenter = RipplePresenter(screenOrigin: .zero)
+                presenter.start()
+
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 0, y: 0))
+                presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
+
+                let commands = presenter.drawingContexts(
+                    canvasSize: CGSize(width: 400, height: 300), now: Date())
+                #expect(!commands.isEmpty)
+                #expect(commands.first!.color.alpha > 0)
+            }
+        }
+
+        @MainActor
         @Test("screen origin offsets are applied to commands")
         func screenOriginOffset() {
             let origin = CGPoint(x: 100, y: 200)

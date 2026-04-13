@@ -473,7 +473,7 @@ let package = Package(
                 "Domain",
             ]
         ),
-        .testTarget(name: "ViewsTests", dependencies: ["Views", "Domain"]),
+        .testTarget(name: "ViewsTests", dependencies: ["Views", "Domain", "Presenters"]),
         .testTarget(
             name: "AppRouterTests",
             dependencies: [
