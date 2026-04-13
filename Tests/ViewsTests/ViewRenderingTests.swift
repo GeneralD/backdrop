@@ -52,6 +52,9 @@ private struct FixtureTrackInteractor: TrackInteractor, @unchecked Sendable {
     let title: String
     let artist: String
     let lyrics: [String]
+    var artworkData: Data? = nil
+    var opacity: Double = 1.0
+
     var trackChange: AnyPublisher<TrackUpdate, Never> {
         Just(
             TrackUpdate(
@@ -62,11 +65,11 @@ private struct FixtureTrackInteractor: TrackInteractor, @unchecked Sendable {
             )
         ).eraseToAnyPublisher()
     }
-    let artwork: AnyPublisher<Data?, Never> = Just(nil).eraseToAnyPublisher()
+    var artwork: AnyPublisher<Data?, Never> { Just(artworkData).eraseToAnyPublisher() }
     let playbackPosition: AnyPublisher<PlaybackPosition, Never> = Empty().eraseToAnyPublisher()
     var decodeEffectConfig: DecodeEffect { .init(duration: 0) }
     var textLayout: TextLayout { .init(decodeEffect: .init(duration: 0)) }
-    var artworkStyle: ArtworkStyle { .init() }
+    var artworkStyle: ArtworkStyle { .init(opacity: opacity) }
 }
 
 // MARK: - HeaderView
@@ -86,8 +89,23 @@ struct HeaderViewRenderingTests {
         #expect(presenter.titleState == .idle)
     }
 
-    @Test("active state with artwork renders without crash")
-    func activeWithArtwork() async {
+    @Test("artwork hidden when opacity is 0")
+    func artworkHidden() async {
+        let presenter = withDependencies {
+            $0.trackInteractor = FixtureTrackInteractor(title: "Song", artist: "Artist", lyrics: [], opacity: 0)
+        } operation: {
+            HeaderPresenter()
+        }
+        presenter.start()
+        defer { presenter.stop() }
+        await waitUntil { presenter.displayTitle == "Song" }
+
+        #expect(presenter.artworkOpacity == 0)
+        render(HeaderView(presenter: presenter), size: CGSize(width: 600, height: 120))
+    }
+
+    @Test("artwork placeholder when no image data")
+    func artworkPlaceholder() async {
         let presenter = withDependencies {
             $0.trackInteractor = FixtureTrackInteractor(title: "Song", artist: "Artist", lyrics: [])
         } operation: {
@@ -97,8 +115,32 @@ struct HeaderViewRenderingTests {
         defer { presenter.stop() }
         await waitUntil { presenter.displayTitle == "Song" }
 
+        #expect(presenter.artworkOpacity > 0)
+        #expect(presenter.artworkData == nil)
         render(HeaderView(presenter: presenter), size: CGSize(width: 600, height: 120))
-        #expect(presenter.displayTitle == "Song")
+    }
+
+    @Test("artwork image rendered with valid data")
+    func artworkWithImage() async {
+        let image = NSImage(size: NSSize(width: 1, height: 1))
+        image.lockFocus()
+        NSColor.red.drawSwatch(in: NSRect(x: 0, y: 0, width: 1, height: 1))
+        image.unlockFocus()
+        let pngData = image.tiffRepresentation!
+
+        let presenter = withDependencies {
+            $0.trackInteractor = FixtureTrackInteractor(
+                title: "Song", artist: "Artist", lyrics: [], artworkData: pngData
+            )
+        } operation: {
+            HeaderPresenter()
+        }
+        presenter.start()
+        defer { presenter.stop() }
+        await waitUntil { presenter.artworkData != nil && presenter.displayTitle == "Song" }
+
+        #expect(presenter.artworkData != nil)
+        render(HeaderView(presenter: presenter), size: CGSize(width: 600, height: 120))
     }
 }
 
