@@ -194,4 +194,28 @@ struct SwiftUIResolverTests {
         let large = resolver.lineHeight(from: TextAppearance(fontSize: 24))
         #expect(large > small)
     }
+
+    @MainActor
+    @Test("lineHeight with zero spacing equals font ascent+descent+leading")
+    func lineHeightZeroSpacing() {
+        let height = resolver.lineHeight(from: TextAppearance(spacing: 0, fontName: "Helvetica", fontSize: 14))
+        #expect(height > 0)
+        let withSpacing = resolver.lineHeight(from: TextAppearance(spacing: 6, fontName: "Helvetica", fontSize: 14))
+        #expect(withSpacing > height)
+    }
+
+    @MainActor
+    @Test("lineHeight with unknown font falls back to system font")
+    func lineHeightUnknownFont() {
+        let height = resolver.lineHeight(from: TextAppearance(fontName: "NonExistentFont999", fontSize: 16))
+        #expect(height > 0)
+    }
+
+    @MainActor
+    @Test("lineHeight increases with spacing")
+    func lineHeightScalesWithSpacing() {
+        let noSpacing = resolver.lineHeight(from: TextAppearance(spacing: 0, fontSize: 14))
+        let largeSpacing = resolver.lineHeight(from: TextAppearance(spacing: 20, fontSize: 14))
+        #expect(largeSpacing > noSpacing)
+    }
 }
