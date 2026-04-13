@@ -88,6 +88,7 @@ public final class AppRouter {
     public func stop() {
         guard appWindow != nil || displayLinkDriver != nil else { return }
 
+        appPresenter?.stop()
         headerPresenter?.stop()
         lyricsPresenter?.stop()
         wallpaperPresenter?.stop()

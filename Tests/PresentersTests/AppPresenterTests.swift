@@ -1,3 +1,4 @@
+import ConcurrencyExtras
 import CoreGraphics
 import Dependencies
 import Domain
@@ -9,6 +10,7 @@ import Testing
 
 private struct StubScreenInteractor: ScreenInteractor, @unchecked Sendable {
     var screenSelector: ScreenSelector = .main
+    var screenDebounce: Double = 5
     var layoutToReturn: ScreenLayout
 
     func resolveLayout() -> ScreenLayout { layoutToReturn }
@@ -57,6 +59,7 @@ struct AppPresenterTests {
         // Use a mutable reference so we can change the return value mid-test
         final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
             var screenSelector: ScreenSelector = .main
+            var screenDebounce: Double = 5
             var layoutToReturn: ScreenLayout
             init(layout: ScreenLayout) { layoutToReturn = layout }
             func resolveLayout() -> ScreenLayout { layoutToReturn }
@@ -96,5 +99,60 @@ struct AppPresenterTests {
             #expect(presenter.layout.windowFrame == .zero)
             #expect(presenter.layout.hostingFrame == .zero)
         }
+    }
+
+    @MainActor
+    @Test("vacant mode triggers periodic recalculation")
+    func vacantPolling() async {
+        let initial = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        let updated = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 2560, height: 1440))
+
+        final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
+            var screenSelector: ScreenSelector = .vacant
+            var screenDebounce: Double = 1
+            var layoutToReturn: ScreenLayout
+            init(layout: ScreenLayout) { layoutToReturn = layout }
+            func resolveLayout() -> ScreenLayout { layoutToReturn }
+        }
+
+        let interactor = MutableInteractor(layout: initial)
+        let presenter = withDependencies {
+            $0.screenInteractor = interactor
+            $0.continuousClock = ImmediateClock()
+        } operation: {
+            AppPresenter()
+        }
+
+        presenter.start()
+        #expect(presenter.layout.windowFrame == initial.windowFrame)
+
+        interactor.layoutToReturn = updated
+
+        let deadline = ContinuousClock.now + .seconds(3)
+        while presenter.layout.windowFrame != updated.windowFrame, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(presenter.layout.windowFrame == updated.windowFrame)
+        presenter.stop()
+    }
+
+    @MainActor
+    @Test("stop() cancels vacant polling")
+    func stopCancelsPolling() async {
+        let layout = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        let presenter = withDependencies {
+            $0.screenInteractor = StubScreenInteractor(
+                screenSelector: .vacant,
+                layoutToReturn: layout
+            )
+            $0.continuousClock = ImmediateClock()
+        } operation: {
+            AppPresenter()
+        }
+
+        presenter.start()
+        presenter.stop()
+        // No crash or infinite loop — polling task is cancelled
     }
 }

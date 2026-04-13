@@ -1,8 +1,10 @@
+import CoreGraphics
 import Dependencies
 
 public protocol ScreenProvider: Sendable {
     var screens: [ScreenInfo] { get }
     var mainScreen: ScreenInfo? { get }
+    var visibleWindowBounds: [CGRect] { get }
 }
 
 public enum ScreenProviderKey: TestDependencyKey {
@@ -19,4 +21,5 @@ extension DependencyValues {
 private struct UnimplementedScreenProvider: ScreenProvider {
     var screens: [ScreenInfo] { [] }
     var mainScreen: ScreenInfo? { nil }
+    var visibleWindowBounds: [CGRect] { [] }
 }

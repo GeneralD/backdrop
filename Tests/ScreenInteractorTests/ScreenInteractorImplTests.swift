@@ -18,6 +18,7 @@ private struct StubConfigUseCase: ConfigUseCase, Sendable {
 private struct StubScreenProvider: ScreenProvider {
     var screens: [ScreenInfo] = []
     var mainScreen: ScreenInfo? = nil
+    var visibleWindowBounds: [CGRect] = []
 }
 
 private let largeScreen = ScreenInfo(
@@ -196,6 +197,65 @@ struct ScreenInteractorImplTests {
             let layout = interactor.resolveLayout()
             #expect(layout.screenOrigin.x == 1920)
             #expect(layout.screenOrigin.y == 25)
+        }
+
+        @Test(".vacant selector picks screen with least window coverage")
+        func vacantSelector() {
+            // Windows cover most of the large screen, small screen is empty
+            let windowOnLargeScreen = CGRect(x: 100, y: 100, width: 1600, height: 900)
+            let interactor = withDependencies {
+                $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .vacant))
+                $0.screenProvider = StubScreenProvider(
+                    screens: twoScreens,
+                    visibleWindowBounds: [windowOnLargeScreen]
+                )
+            } operation: {
+                ScreenInteractorImpl()
+            }
+            let layout = interactor.resolveLayout()
+            #expect(layout.windowFrame == smallScreen.frame)
+        }
+
+        @Test(".vacant prefers current when all screens equally occupied")
+        func vacantEqualOccupancy() {
+            // No windows on any screen — picks first (stable default)
+            let interactor = withDependencies {
+                $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .vacant))
+                $0.screenProvider = StubScreenProvider(
+                    screens: twoScreens,
+                    visibleWindowBounds: []
+                )
+            } operation: {
+                ScreenInteractorImpl()
+            }
+            let layout = interactor.resolveLayout()
+            #expect(layout.windowFrame == largeScreen.frame)
+        }
+
+        @Test(".vacant with single screen returns that screen")
+        func vacantSingleScreen() {
+            let interactor = withDependencies {
+                $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .vacant))
+                $0.screenProvider = StubScreenProvider(
+                    screens: [smallScreen],
+                    visibleWindowBounds: [CGRect(x: 1920, y: 0, width: 1000, height: 600)]
+                )
+            } operation: {
+                ScreenInteractorImpl()
+            }
+            let layout = interactor.resolveLayout()
+            #expect(layout.windowFrame == smallScreen.frame)
+        }
+
+        @Test("screenDebounce reflects config value")
+        func screenDebounceFromConfig() {
+            let interactor = withDependencies {
+                $0.configUseCase = StubConfigUseCase(style: AppStyle(screenDebounce: 10))
+                $0.screenProvider = StubScreenProvider()
+            } operation: {
+                ScreenInteractorImpl()
+            }
+            #expect(interactor.screenDebounce == 10)
         }
     }
 }

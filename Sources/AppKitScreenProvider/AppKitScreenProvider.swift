@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Domain
 
 public struct AppKitScreenProvider {
@@ -12,5 +13,24 @@ extension AppKitScreenProvider: ScreenProvider {
 
     public var mainScreen: ScreenInfo? {
         NSScreen.main.map { ScreenInfo(frame: $0.frame, visibleFrame: $0.visibleFrame) }
+    }
+
+    public var visibleWindowBounds: [CGRect] {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let infoList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
+            return []
+        }
+        let myPID = Int(ProcessInfo.processInfo.processIdentifier)
+        return infoList.compactMap { info -> CGRect? in
+            guard
+                let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
+                let pid = info[kCGWindowOwnerPID as String] as? Int, pid != myPID,
+                let bounds = info[kCGWindowBounds as String] as? NSDictionary
+            else { return nil }
+            var rect = CGRect.zero
+            guard CGRectMakeWithDictionaryRepresentation(bounds, &rect), rect.width > 0, rect.height > 0
+            else { return nil }
+            return rect
+        }
     }
 }
