@@ -34,7 +34,7 @@ private struct IdleTrackInteractor: TrackInteractor, @unchecked Sendable {
     let artwork: AnyPublisher<Data?, Never> = Empty().eraseToAnyPublisher()
     let playbackPosition: AnyPublisher<PlaybackPosition, Never> = Empty().eraseToAnyPublisher()
     var decodeEffectConfig: DecodeEffect { .init(duration: 0) }
-    var textLayout: TextLayout { .init() }
+    var textLayout: TextLayout { .init(decodeEffect: .init(duration: 0)) }
     var artworkStyle: ArtworkStyle { .init() }
 }
 
@@ -65,7 +65,7 @@ private struct FixtureTrackInteractor: TrackInteractor, @unchecked Sendable {
     let artwork: AnyPublisher<Data?, Never> = Just(nil).eraseToAnyPublisher()
     let playbackPosition: AnyPublisher<PlaybackPosition, Never> = Empty().eraseToAnyPublisher()
     var decodeEffectConfig: DecodeEffect { .init(duration: 0) }
-    var textLayout: TextLayout { .init() }
+    var textLayout: TextLayout { .init(decodeEffect: .init(duration: 0)) }
     var artworkStyle: ArtworkStyle { .init() }
 }
 
