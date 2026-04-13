@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 public final class RipplePresenter: ObservableObject {
     public private(set) var rippleState: RippleState?
-    public let screenOrigin: CGPoint
+    public var screenOrigin: CGPoint
     private var mouseMonitor: Any?
 
     @Dependency(\.wallpaperInteractor) private var interactor

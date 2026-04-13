@@ -18,7 +18,11 @@ private struct StubConfigUseCase: ConfigUseCase, Sendable {
 private struct StubScreenProvider: ScreenProvider {
     var screens: [ScreenInfo] = []
     var mainScreen: ScreenInfo? = nil
-    var visibleWindowBounds: [CGRect] = []
+    var occupancyHandler: @Sendable (ScreenInfo) -> Double = { _ in 0 }
+
+    func windowOccupancy(for screen: ScreenInfo) -> Double {
+        occupancyHandler(screen)
+    }
 }
 
 private let largeScreen = ScreenInfo(
@@ -201,13 +205,11 @@ struct ScreenInteractorImplTests {
 
         @Test(".vacant selector picks screen with least window coverage")
         func vacantSelector() {
-            // Windows cover most of the large screen, small screen is empty
-            let windowOnLargeScreen = CGRect(x: 100, y: 100, width: 1600, height: 900)
             let interactor = withDependencies {
                 $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .vacant))
                 $0.screenProvider = StubScreenProvider(
                     screens: twoScreens,
-                    visibleWindowBounds: [windowOnLargeScreen]
+                    occupancyHandler: { $0.frame == largeScreen.frame ? 0.7 : 0.1 }
                 )
             } operation: {
                 ScreenInteractorImpl()
@@ -216,15 +218,11 @@ struct ScreenInteractorImplTests {
             #expect(layout.windowFrame == smallScreen.frame)
         }
 
-        @Test(".vacant prefers current when all screens equally occupied")
+        @Test(".vacant prefers first when all screens equally occupied")
         func vacantEqualOccupancy() {
-            // No windows on any screen — picks first (stable default)
             let interactor = withDependencies {
                 $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .vacant))
-                $0.screenProvider = StubScreenProvider(
-                    screens: twoScreens,
-                    visibleWindowBounds: []
-                )
+                $0.screenProvider = StubScreenProvider(screens: twoScreens)
             } operation: {
                 ScreenInteractorImpl()
             }
@@ -238,7 +236,7 @@ struct ScreenInteractorImplTests {
                 $0.configUseCase = StubConfigUseCase(style: AppStyle(screen: .vacant))
                 $0.screenProvider = StubScreenProvider(
                     screens: [smallScreen],
-                    visibleWindowBounds: [CGRect(x: 1920, y: 0, width: 1000, height: 600)]
+                    occupancyHandler: { _ in 0.8 }
                 )
             } operation: {
                 ScreenInteractorImpl()

@@ -15,7 +15,17 @@ extension AppKitScreenProvider: ScreenProvider {
         NSScreen.main.map { ScreenInfo(frame: $0.frame, visibleFrame: $0.visibleFrame) }
     }
 
-    public var visibleWindowBounds: [CGRect] {
+    public func windowOccupancy(for screen: ScreenInfo) -> Double {
+        let screenArea = screen.frame.width * screen.frame.height
+        guard screenArea > 0 else { return 1 }
+        let coveredArea = visibleWindowBounds()
+            .map { $0.intersection(screen.frame) }
+            .filter { !$0.isNull && !$0.isEmpty }
+            .reduce(0.0) { $0 + $1.width * $1.height }
+        return coveredArea / screenArea
+    }
+
+    private func visibleWindowBounds() -> [CGRect] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let infoList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return []

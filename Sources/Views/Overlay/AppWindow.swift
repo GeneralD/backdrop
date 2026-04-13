@@ -9,8 +9,10 @@ import SwiftUI
 public final class AppWindow: NSWindow {
     private let hostingView: NSHostingView<OverlayContentView>
     private let appPresenter: AppPresenter
+    private let ripplePresenter: RipplePresenter
     private var screenObserver: NSObjectProtocol?
     private var playerCancellable: AnyCancellable?
+    private var layoutCancellable: AnyCancellable?
 
     public init(
         appPresenter: AppPresenter,
@@ -20,6 +22,7 @@ public final class AppWindow: NSWindow {
         ripplePresenter: RipplePresenter
     ) {
         self.appPresenter = appPresenter
+        self.ripplePresenter = ripplePresenter
         let layout = appPresenter.layout
 
         let hostingView = NSHostingView(
@@ -53,6 +56,15 @@ public final class AppWindow: NSWindow {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] player in
                 self?.attachPlayer(player)
+            }
+
+        // Observe presenter layout changes (e.g. vacant screen migration)
+        layoutCancellable = appPresenter.$layout
+            .dropFirst()
+            .removeDuplicates { $0.windowFrame == $1.windowFrame }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.recalculateLayout() }
             }
 
         orderFront(nil)
@@ -89,6 +101,7 @@ public final class AppWindow: NSWindow {
         let layout = appPresenter.layout
         setFrame(layout.windowFrame, display: false)
         hostingView.frame = layout.hostingFrame
+        ripplePresenter.screenOrigin = layout.screenOrigin
         if let containerView = contentView, containerView !== hostingView {
             containerView.frame = CGRect(origin: .zero, size: layout.windowFrame.size)
         }

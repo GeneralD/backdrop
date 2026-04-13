@@ -53,23 +53,8 @@ extension ScreenInteractorImpl: ScreenInteractor {
             return screens.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
                 ?? fallback
         case .vacant:
-            return mostVacantScreen(among: screens) ?? fallback
+            return screens.min { screenProvider.windowOccupancy(for: $0) < screenProvider.windowOccupancy(for: $1) }
+                ?? fallback
         }
-    }
-
-    private func mostVacantScreen(among screens: [ScreenInfo]) -> ScreenInfo? {
-        let windowBounds = screenProvider.visibleWindowBounds
-        return screens.min { occupancy($0, windowBounds: windowBounds) < occupancy($1, windowBounds: windowBounds) }
-    }
-
-    private func occupancy(_ screen: ScreenInfo, windowBounds: [CGRect]) -> Double {
-        let screenArea = screen.frame.width * screen.frame.height
-        guard screenArea > 0 else { return 1 }
-        let coveredArea =
-            windowBounds
-            .compactMap { $0.intersection(screen.frame) }
-            .filter { !$0.isNull && !$0.isEmpty }
-            .reduce(0.0) { $0 + $1.width * $1.height }
-        return coveredArea / screenArea
     }
 }
