@@ -32,15 +32,13 @@ graph TD
         AsyncParsableCommand[AsyncParsableCommand]
     end
 
-    subgraph Router
+    subgraph AppLayer["App"]
         App[App]
     end
 
-    subgraph View
+    subgraph GUI
+        AppRouter[AppRouter]
         Views[Views]
-    end
-
-    subgraph Presenter
         Presenters[Presenters]
     end
 
@@ -65,7 +63,6 @@ graph TD
             TrackHandler[TrackHandler]
             ConfigHandler[ConfigHandler]
             BenchmarkHandler[BenchmarkHandler]
-            StandardOutput[StandardOutput]
         end
 
         subgraph Interactor
@@ -98,22 +95,33 @@ graph TD
             WallpaperDataSource[WallpaperDataSource]
         end
 
+        subgraph Support["Provider / Support"]
+            AppKitScreenProvider[AppKitScreenProvider]
+            StandardOutput[StandardOutput]
+            DarwinGateway[DarwinGateway]
+        end
+
         subgraph DataStore
             SQLiteDataStore[SQLiteDataStore]
         end
-
-        subgraph Gateway
-            DarwinGateway[DarwinGateway]
-        end
     end
 
-    CLI --> App & AsyncParsableCommand
-    App --> Views & Presenters & DependencyInjection
+    CLI --> App & AppRouter & AsyncParsableCommand
+    App --> AppRouter
+    AppRouter --> Views & Presenters & DependencyInjection
     DependencyInjection --> Implementations
     Views --> Presenters
     Presenters --> Domain
     Implementations --> Domain
     Domain --> Entity
+
+    CLI -.-> CommandHandler
+    Presenters -.-> Interactor
+    TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
+    ConfigHandler -.-> ConfigUseCase
+    ProcessHandler -.-> DarwinGateway
+    ServiceHandler -.-> DarwinGateway
+    BenchmarkHandler -.-> DarwinGateway
     TrackInteractor -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase & ConfigUseCase
     ScreenInteractor -.-> ConfigUseCase
     WallpaperInteractor -.-> WallpaperUseCase & ConfigUseCase
@@ -122,26 +130,18 @@ graph TD
     PlaybackUseCase -.-> NowPlayingRepository
     NowPlayingRepository -.-> MediaRemoteDataSource
     LyricsUseCase -.-> LyricsRepository
-    LyricsRepository -.-> LyricsDataSource
-    LyricsRepository -.-> SQLiteDataStore
+    LyricsRepository -.-> LyricsDataSource & SQLiteDataStore
     MetadataUseCase -.-> MetadataRepository
-    MetadataRepository -.-> MetadataDataSource
-    MetadataRepository -.-> SQLiteDataStore
+    MetadataRepository -.-> MetadataDataSource & SQLiteDataStore
     WallpaperUseCase -.-> WallpaperRepository
     WallpaperRepository -.-> WallpaperDataSource
-    ProcessHandler -.-> Domain
-    ServiceHandler -.-> Domain
-    BenchmarkHandler -.-> Domain
-    DependencyInjection -.-> DarwinGateway
-
-    CLI -.-> CommandHandler
-    Presenters -.-> Interactor
-    TrackHandler -.-> PlaybackUseCase & MetadataUseCase & LyricsUseCase
-    ConfigHandler -.-> ConfigUseCase
+    MediaRemoteDataSource -.-> DarwinGateway
+    WallpaperDataSource -.-> DarwinGateway
 
     style AsyncParsableCommand fill:#555,stroke:#333,color:#fff
     style CLI fill:#555,stroke:#333,color:#fff
-    style App fill:#6a5,stroke:#333,color:#fff
+    style App fill:#4c78a8,stroke:#333,color:#fff
+    style AppRouter fill:#6a5,stroke:#333,color:#fff
     style Views fill:#6a5,stroke:#333,color:#fff
     style Presenters fill:#6a5,stroke:#333,color:#fff
     style TrackInteractor fill:#7b5,stroke:#333,color:#fff
@@ -165,7 +165,9 @@ graph TD
     style ConfigDataSource fill:#c84,stroke:#333,color:#fff
     style MediaRemoteDataSource fill:#c84,stroke:#333,color:#fff
     style WallpaperDataSource fill:#c84,stroke:#333,color:#fff
-    style BenchmarkHandler fill:#555,stroke:#333,color:#fff
+    style AppKitScreenProvider fill:#a75,stroke:#333,color:#fff
+    style StandardOutput fill:#a75,stroke:#333,color:#fff
+    style DarwinGateway fill:#a75,stroke:#333,color:#fff
     style SQLiteDataStore fill:#a75,stroke:#333,color:#fff
 ```
 
@@ -176,7 +178,7 @@ graph TD
 | **View** | `HeaderView`, `LyricsColumnView`, `LyricLineView`, `RippleView`, `OverlayContentView`, `AppWindow` | Pure rendering. SwiftUI views get data from Presenters via `@ObservedObject`. `AppWindow` (NSWindow subclass) in Views module |
 | **Presenter** | `HeaderPresenter`, `LyricsPresenter`, `WallpaperPresenter`, `RipplePresenter`, `AppPresenter` | Display logic, decode animations, Combine subscriptions. `@Published` state for Views. Each Presenter maps 1:1 to an Interactor |
 | **Interactor** | `TrackInteractor`, `WallpaperInteractor`, `ScreenInteractor` | Business logic. Abstractions in Domain, implementations in dedicated modules. TrackInteractor uses Combine hot stream |
-| **Router** | `AppRouter` | Pure wireframe: creates Presenters in correct order, builds AppWindow, manages DisplayLink. No Interactor references |
+| **Router** | `AppRouter` | Pure wireframe: creates Presenters in correct order, builds AppWindow, manages DisplayLink. For UI-test mode, app launch reads environment once and bootstraps fixture dependencies before Presenter creation |
 | **Entity** | `Entity` module | Pure data types (`TrackUpdate`, `PlaybackPosition`, `WallpaperState`, `ScreenLayout`, `AppStyle`, etc.) |
 
 ### Dependency Direction
@@ -194,12 +196,11 @@ Presenters subscribe to Interactors via Combine. Interactors access UseCases via
 |---|---|---|
 | Executable / CLI | `CLI` | Entry point (`@main RootCommand: ParsableCommand`), ArgumentParser commands, LaunchAgent. Product name: `lyra` |
 | Async Bridge | `AsyncRunnableCommand` | `AsyncRunnableCommand` protocol — bridges `async run()` to sync `ParsableCommand` via `DispatchSemaphore`, keeping the main thread free for `NSApplication.run()` |
-| Router | `App` | `AppRouter` (pure wireframe), `AppDelegate` |
+| Router | `App`, `AppRouter` | `App` holds `AppDelegate`; `AppRouter` holds `AppRouter`, bootstrap, and launch environment wiring |
 | View | `Views` | SwiftUI views + `AppWindow` (NSWindow subclass). Feature dirs: `Header/`, `Lyrics/`, `Ripple/`, `Overlay/`, `Shared/` |
 | Presenter | `Presenters` | `Track/` (Header, Lyrics), `Wallpaper/` (Wallpaper, Ripple), `App/` (AppPresenter). DecodeEffect engine, RippleState |
-    | Handler | `ProcessHandler`, `VersionHandler`, `ServiceHandler`, `HealthHandler`, `TrackHandler`, `ConfigHandler`, `BenchmarkHandler` | CLI command logic. ProcessHandler: process lifecycle. VersionHandler: version string. ServiceHandler: LaunchAgent install/uninstall. HealthHandler: connectivity checks. TrackHandler: now-playing info with metadata/lyrics resolution. ConfigHandler: config template/init/path resolution. BenchmarkHandler: CPU/memory measurement via `ProcessGateway`. Protocols in Domain, injected via `@Dependency`. All handlers return `Result<Success, Failure>` — never throw |
-    | StandardOutput | `StandardOutput` | `StandardOutput` protocol (Domain/Misc) + `PrintStandardOutput` impl. CLI commands call `write(_ result:)` for typed results (success → stdout, failure → stderr), `write(_ message:)` for strings, `writeJson` for Encodable. Single source of all CLI message strings |
-    | Gateway | `DarwinGateway` | macOS/OS boundary implementation for `ProcessGateway`: process spawning, signals, PID-file flock locking, resource sampling, launchctl, executable discovery, and streaming subprocess output |
+| Handler | `ProcessHandler`, `VersionHandler`, `ServiceHandler`, `HealthHandler`, `TrackHandler`, `ConfigHandler`, `BenchmarkHandler` | CLI command logic. ProcessHandler: process lifecycle. VersionHandler: version string. ServiceHandler: LaunchAgent install/uninstall. HealthHandler: connectivity checks. TrackHandler: now-playing info with metadata/lyrics resolution. ConfigHandler: config template/init/path resolution. BenchmarkHandler: CPU/memory measurement via `ProcessGateway`. Protocols in Domain, injected via `@Dependency`. All handlers return `Result<Success, Failure>` — never throw |
+| Provider / Support | `AppKitScreenProvider`, `StandardOutput`, `DarwinGateway` | Platform/provider implementations that do not fit the core Clean Architecture layers directly. `AppKitScreenProvider` adapts `NSScreen` into `ScreenProvider`; `StandardOutput` owns CLI output rendering; `DarwinGateway` owns macOS process/system calls |
 | Interactor | `TrackInteractor`, `ScreenInteractor`, `WallpaperInteractor` | Combine-based reactive pipelines over UseCases (GUI) |
 | DI Wiring | `DependencyInjection` | All liveValue registrations, FontMetrics, HealthCheck |
 | Entity | `Entity` | Pure data types, zero external dependencies |
@@ -261,7 +262,9 @@ Cache is Repository's responsibility, not DataSource's. DataSources are pure API
 
 **ColorStyle**: Domain-level enum (`.solid(hex)`, `.gradient([hex])`) enabling any text style to use either solid colors or gradients. Polymorphic TOML decoding supports both `color = "#FFF"` and `color = ["#AAA", "#BBB"]`.
 
-**DI with swift-dependencies**: Protocol definitions + `TestDependencyKey` in `Domain`, all `liveValue` registrations centralized in `DependencyInjection` module (`InteractorRegistration`, `UseCaseRegistration`, `RepositoryRegistration`, `DataSourceRegistration`, `DataStoreRegistration`, `HealthCheckRegistration`). No direct instantiation — everything through `@Dependency`.
+**DI with swift-dependencies**: Protocol definitions + `TestDependencyKey` in `Domain`, all `liveValue` registrations centralized in `DependencyInjection` module (`InteractorRegistration`, `UseCaseRegistration`, `RepositoryRegistration`, `DataSourceRegistration`, `DataStoreRegistration`, `HealthCheckRegistration`). No direct instantiation — everything through `@Dependency`. UI-test mode is the one exception in wiring location: `AppRouter` may override a small fixture graph at launch based on environment variables, but feature code still reads dependencies normally through `@Dependency`.
+
+**UI Test Bootstrap**: `XCUIApplication` launches the app as a separate process, so UI tests cannot directly override in-memory `DependencyValues` the way unit tests do with `withDependencies`. Any UI-test fixture graph must therefore be selected during app startup (for example via launch arguments/environment in `AppDelegate`/`AppRouter`). Treat this as bootstrap responsibility, not Presenter responsibility: avoid sprinkling `isUITest` checks through feature code.
 
 **Config commands**: `lyra config template` (stdout), `lyra config init` (file creation), `lyra config edit` ($EDITOR), `lyra config open` (GUI). Template generation flows through UseCase→Repository→DataSource. `ConfigDataSource.template(format:)` encodes `AppConfig.defaults` via `TOMLEncoder`/`JSONEncoder`. `ConfigFormat` enum in Entity. `ConfigWriteError` for init failure handling.
 

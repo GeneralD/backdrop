@@ -6,7 +6,7 @@ let package = Package(
     name: "Lyra",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "lyra", targets: ["CLI"]),
+        .executable(name: "lyra", targets: ["CLI"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
@@ -60,7 +60,13 @@ let package = Package(
         .target(
             name: "DarwinGateway",
             dependencies: [
-                "Domain",
+                "Domain"
+            ]
+        ),
+        .target(
+            name: "AppKitScreenProvider",
+            dependencies: [
+                "Domain"
             ]
         ),
 
@@ -86,7 +92,7 @@ let package = Package(
         .target(
             name: "StandardOutput",
             dependencies: [
-                "Domain",
+                "Domain"
             ]
         ),
 
@@ -103,10 +109,10 @@ let package = Package(
         .target(
             name: "VersionHandler",
             dependencies: [
-                "Domain",
+                "Domain"
             ],
             resources: [
-                .copy("Resources/version.txt"),
+                .copy("Resources/version.txt")
             ]
         ),
 
@@ -114,7 +120,7 @@ let package = Package(
         .target(
             name: "AsyncRunnableCommand",
             dependencies: [
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ),
 
@@ -122,8 +128,15 @@ let package = Package(
         .target(
             name: "App",
             dependencies: [
+                "AppRouter",
+            ]
+        ),
+        .target(
+            name: "AppRouter",
+            dependencies: [
                 "Views",
                 "Presenters",
+                "Domain",
                 "DependencyInjection",
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
@@ -152,6 +165,7 @@ let package = Package(
         .target(
             name: "DependencyInjection",
             dependencies: [
+                "AppKitScreenProvider",
                 "Domain",
                 "TrackInteractor",
                 "ScreenInteractor",
@@ -401,6 +415,7 @@ let package = Package(
             ]
         ),
         .testTarget(name: "DarwinGatewayTests", dependencies: ["DarwinGateway"]),
+        .testTarget(name: "AppKitScreenProviderTests", dependencies: ["AppKitScreenProvider", "Domain"]),
         .testTarget(
             name: "ProcessHandlerTests",
             dependencies: [
@@ -459,6 +474,16 @@ let package = Package(
             ]
         ),
         .testTarget(name: "ViewsTests", dependencies: ["Views", "Domain"]),
+        .testTarget(
+            name: "AppRouterTests",
+            dependencies: [
+                "AppRouter",
+                "Presenters",
+                "Views",
+                "Domain",
+                .product(name: "Dependencies", package: "swift-dependencies"),
+            ]
+        ),
         .testTarget(
             name: "PresentersTests",
             dependencies: [

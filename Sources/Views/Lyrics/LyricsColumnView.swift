@@ -27,12 +27,14 @@ public struct LyricsColumnView: View {
                                 lyricStyle: presenter.lyricStyle,
                                 highlightStyle: presenter.highlightStyle
                             )
+                            .accessibilityIdentifier("lyrics-line-\(entry.index)")
                         }
                         Spacer()
                     }
                     .frame(width: result.columnWidth)
                 }
             }
+            .accessibilityIdentifier("lyrics-columns")
         }
     }
 }

@@ -28,6 +28,7 @@ public struct OverlayContentView: View {
             .padding(.bottom, 32)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
+        .accessibilityIdentifier("overlay-content")
     }
 }
 

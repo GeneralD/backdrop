@@ -26,6 +26,7 @@ public struct RippleView: View {
                     }
                 }
             }
+            .accessibilityIdentifier("ripple-view")
         }
     }
 }
