@@ -158,6 +158,35 @@ struct AppDependencyBootstrapTests {
         #expect(ripplePresenter.isEnabled == false)
         #expect(ripplePresenter.rippleState != nil)
     }
+
+    @Test("exposes stub screenDebounce / screenChanges / systemSleepChanges publishers")
+    func exposesStubPublishers() {
+        let bootstrap = AppDependencyBootstrap(
+            launchEnvironment: .init(environment: [.uiTestMode: "1"])
+        )
+
+        let (debounce, screenChanges, sleepChanges) = withDependencies {
+            bootstrap.apply(to: &$0)
+        } operation: {
+            @Dependency(\.screenInteractor) var screen
+            @Dependency(\.wallpaperInteractor) var wallpaper
+            return (screen.screenDebounce, screen.screenChanges, wallpaper.systemSleepChanges)
+        }
+
+        final class Counter: @unchecked Sendable {
+            var screen = 0
+            var sleep = 0
+        }
+        let counter = Counter()
+        let c1 = screenChanges.sink { counter.screen += 1 }
+        let c2 = sleepChanges.sink { _ in counter.sleep += 1 }
+
+        #expect(debounce == 5)
+        #expect(counter.screen == 0)  // Empty publisher emits nothing.
+        #expect(counter.sleep == 0)
+        c1.cancel()
+        c2.cancel()
+    }
 }
 
 @MainActor

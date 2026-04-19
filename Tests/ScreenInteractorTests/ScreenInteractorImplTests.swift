@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import CoreGraphics
 import Dependencies
 import Domain
@@ -254,6 +256,34 @@ struct ScreenInteractorImplTests {
                 ScreenInteractorImpl()
             }
             #expect(interactor.screenDebounce == 10)
+        }
+    }
+
+    @Suite("screenChanges")
+    struct ScreenChangesTests {
+        @Test("emits when screen parameters change notification fires")
+        func emitsOnNotification() async {
+            let interactor = withDependencies {
+                $0.configUseCase = StubConfigUseCase()
+                $0.screenProvider = StubScreenProvider()
+            } operation: {
+                ScreenInteractorImpl()
+            }
+
+            final class Counter: @unchecked Sendable { var count = 0 }
+            let counter = Counter()
+            let cancellable = interactor.screenChanges.sink { counter.count += 1 }
+
+            NotificationCenter.default.post(
+                name: NSApplication.didChangeScreenParametersNotification, object: nil)
+
+            let deadline = ContinuousClock.now + .seconds(1)
+            while counter.count < 1, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+
+            #expect(counter.count >= 1)
+            cancellable.cancel()
         }
     }
 }

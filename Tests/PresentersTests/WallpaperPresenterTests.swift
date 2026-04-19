@@ -1,5 +1,5 @@
 @preconcurrency import AVFoundation
-import Combine
+@preconcurrency import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -12,9 +12,12 @@ import Testing
 private struct StubWallpaperInteractor: WallpaperInteractor {
     var wallpaperState: WallpaperState = .init()
     var rippleConfig: RippleStyle = .init()
+    var sleepChangesSubject: PassthroughSubject<SleepWakeEvent, Never>? = nil
 
     func resolveWallpaper() async throws -> WallpaperState { wallpaperState }
-    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> {
+        sleepChangesSubject?.eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()
+    }
 }
 
 private struct FailingWallpaperInteractor: WallpaperInteractor {
@@ -197,6 +200,56 @@ struct WallpaperPresenterTests {
                 await presenter.waitForLoad()
                 presenter.stop()
                 // Exercises cancellables.removeAll() branch — no crash expected.
+            }
+        }
+    }
+
+    @Suite("sleep / wake observation")
+    struct SleepWake {
+        @MainActor
+        @Test(".willSleep pauses the player")
+        func willSleepPauses() async {
+            let url = URL(fileURLWithPath: "/tmp/bg.mp4")
+            let state = WallpaperState(url: url, start: nil, end: nil)
+            let subject = PassthroughSubject<SleepWakeEvent, Never>()
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(
+                    wallpaperState: state, sleepChangesSubject: subject)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.start()
+                await presenter.waitForLoad()
+
+                // setupPlayer started playback; emit .willSleep and observe pause.
+                subject.send(.willSleep)
+
+                let deadline = ContinuousClock.now + .seconds(1)
+                while presenter.player?.rate != 0, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
+                #expect(presenter.player?.rate == 0)
+            }
+        }
+
+        @MainActor
+        @Test(".didWake resumes the player")
+        func didWakeResumes() async {
+            let url = URL(fileURLWithPath: "/tmp/bg.mp4")
+            let state = WallpaperState(url: url, start: nil, end: nil)
+            let subject = PassthroughSubject<SleepWakeEvent, Never>()
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(
+                    wallpaperState: state, sleepChangesSubject: subject)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.start()
+                await presenter.waitForLoad()
+
+                subject.send(.willSleep)
+                subject.send(.didWake)
+                // Exercising the .didWake branch of observeSleepWake sink.
             }
         }
     }
