@@ -21,7 +21,7 @@ public final class AppRouter {
 
     public convenience init(launchEnvironment: AppLaunchEnvironment = .current) {
         self.init(
-            launchEnvironment: launchEnvironment,
+            bootstrap: AppDependencyBootstrap(launchEnvironment: launchEnvironment),
             windowFactory: { layout, headerPresenter, lyricsPresenter, ripplePresenter in
                 AppWindow(
                     initialLayout: layout,
@@ -36,12 +36,24 @@ public final class AppRouter {
         )
     }
 
-    init(
+    convenience init(
         launchEnvironment: AppLaunchEnvironment,
         windowFactory: @escaping @MainActor (ScreenLayout, HeaderPresenter, LyricsPresenter, RipplePresenter) -> any OverlayWindow,
         frameSchedulerFactory: @escaping @MainActor (@escaping @MainActor () -> Void) -> any FrameScheduler
     ) {
-        self.bootstrap = AppDependencyBootstrap(launchEnvironment: launchEnvironment)
+        self.init(
+            bootstrap: AppDependencyBootstrap(launchEnvironment: launchEnvironment),
+            windowFactory: windowFactory,
+            frameSchedulerFactory: frameSchedulerFactory
+        )
+    }
+
+    init(
+        bootstrap: AppDependencyBootstrap,
+        windowFactory: @escaping @MainActor (ScreenLayout, HeaderPresenter, LyricsPresenter, RipplePresenter) -> any OverlayWindow,
+        frameSchedulerFactory: @escaping @MainActor (@escaping @MainActor () -> Void) -> any FrameScheduler
+    ) {
+        self.bootstrap = bootstrap
         self.windowFactory = windowFactory
         self.frameSchedulerFactory = frameSchedulerFactory
     }
