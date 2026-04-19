@@ -101,7 +101,8 @@ public final class AppWindow: NSWindow {
         let layout = appPresenter.layout
         setFrame(layout.windowFrame, display: false)
         hostingView.frame = layout.hostingFrame
-        ripplePresenter.screenOrigin = layout.screenOrigin
+        ripplePresenter.updateScreenRect(
+            CGRect(origin: layout.screenOrigin, size: layout.hostingFrame.size))
         if let containerView = contentView, containerView !== hostingView {
             containerView.frame = CGRect(origin: .zero, size: layout.windowFrame.size)
         }
