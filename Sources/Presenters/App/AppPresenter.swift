@@ -11,13 +11,21 @@ public final class AppPresenter: ObservableObject {
     @Dependency(\.screenInteractor) private var screenInteractor
     @Dependency(\.continuousClock) private var clock
 
+    private let vacantTicks = PassthroughSubject<Void, Never>()
     private var vacantTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
 
     public init() {}
 
     public func start() {
-        recalculateLayout()
+        let interactor = screenInteractor
+        layout = interactor.resolveLayout()
+        interactor.screenChanges
+            .merge(with: vacantTicks)
+            .receive(on: DispatchQueue.main)
+            .map { interactor.resolveLayout() }
+            .sink { [weak self] layout in self?.layout = layout }
+            .store(in: &cancellables)
         startVacantPollingIfNeeded()
     }
 
@@ -25,10 +33,6 @@ public final class AppPresenter: ObservableObject {
         vacantTask?.cancel()
         vacantTask = nil
         cancellables.removeAll()
-    }
-
-    public func recalculateLayout() {
-        layout = screenInteractor.resolveLayout()
     }
 
     /// Push the derived ripple rect to the presenter whenever layout changes.
@@ -45,26 +49,26 @@ public final class AppPresenter: ObservableObject {
     }
 
     /// Register a side-effect to run when the window frame actually changes.
-    /// AppWindow uses this to call `setFrame` without owning the subscription.
+    /// The wireframe uses this to drive `OverlayWindow.applyLayout` without
+    /// owning the subscription.
     public func onWindowFrameChange(_ handler: @escaping @MainActor (ScreenLayout) -> Void) {
         $layout
             .removeDuplicates { $0.windowFrame == $1.windowFrame }
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { layout in
-                MainActor.assumeIsolated { handler(layout) }
-            }
+            .sink { layout in handler(layout) }
             .store(in: &cancellables)
     }
 
     private func startVacantPollingIfNeeded() {
         guard screenInteractor.screenSelector == .vacant else { return }
         let interval = max(screenInteractor.screenDebounce, 1)
-        vacantTask = Task { [weak self, clock] in
+        let subject = vacantTicks
+        vacantTask = Task { [clock] in
             while !Task.isCancelled {
                 try? await clock.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { break }
-                self?.recalculateLayout()
+                subject.send(())
             }
         }
     }

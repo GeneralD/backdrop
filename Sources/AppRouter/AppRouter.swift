@@ -1,5 +1,6 @@
 import CoreGraphics
 import Dependencies
+import Domain
 import Presenters
 import Views
 
@@ -7,30 +8,29 @@ import Views
 @MainActor
 public final class AppRouter {
     private let bootstrap: AppDependencyBootstrap
-    private let windowFactory: @MainActor (AppPresenter, WallpaperPresenter, HeaderPresenter, LyricsPresenter, RipplePresenter) -> any AppWindowing
-    private let displayLinkDriverFactory: @MainActor (@escaping @MainActor () -> Void) -> any DisplayLinkDriving
+    private let windowFactory: @MainActor (ScreenLayout, HeaderPresenter, LyricsPresenter, RipplePresenter) -> any OverlayWindow
+    private let frameSchedulerFactory: @MainActor (@escaping @MainActor () -> Void) -> any FrameScheduler
     private var appPresenter: AppPresenter?
     private var headerPresenter: HeaderPresenter?
     private var lyricsPresenter: LyricsPresenter?
     private var wallpaperPresenter: WallpaperPresenter?
     private var ripplePresenter: RipplePresenter?
 
-    private var appWindow: (any AppWindowing)?
-    private var displayLinkDriver: (any DisplayLinkDriving)?
+    private var appWindow: (any OverlayWindow)?
+    private var frameScheduler: (any FrameScheduler)?
 
     public convenience init(launchEnvironment: AppLaunchEnvironment = .current) {
         self.init(
             launchEnvironment: launchEnvironment,
-            windowFactory: { appPresenter, wallpaperPresenter, headerPresenter, lyricsPresenter, ripplePresenter in
+            windowFactory: { layout, headerPresenter, lyricsPresenter, ripplePresenter in
                 AppWindow(
-                    appPresenter: appPresenter,
-                    wallpaperPresenter: wallpaperPresenter,
+                    initialLayout: layout,
                     headerPresenter: headerPresenter,
                     lyricsPresenter: lyricsPresenter,
                     ripplePresenter: ripplePresenter
                 )
             },
-            displayLinkDriverFactory: { onFrame in
+            frameSchedulerFactory: { onFrame in
                 DisplayLinkDriver(onFrame: onFrame)
             }
         )
@@ -38,16 +38,16 @@ public final class AppRouter {
 
     init(
         launchEnvironment: AppLaunchEnvironment,
-        windowFactory: @escaping @MainActor (AppPresenter, WallpaperPresenter, HeaderPresenter, LyricsPresenter, RipplePresenter) -> any AppWindowing,
-        displayLinkDriverFactory: @escaping @MainActor (@escaping @MainActor () -> Void) -> any DisplayLinkDriving
+        windowFactory: @escaping @MainActor (ScreenLayout, HeaderPresenter, LyricsPresenter, RipplePresenter) -> any OverlayWindow,
+        frameSchedulerFactory: @escaping @MainActor (@escaping @MainActor () -> Void) -> any FrameScheduler
     ) {
         self.bootstrap = AppDependencyBootstrap(launchEnvironment: launchEnvironment)
         self.windowFactory = windowFactory
-        self.displayLinkDriverFactory = displayLinkDriverFactory
+        self.frameSchedulerFactory = frameSchedulerFactory
     }
 
     public func start() {
-        guard appWindow == nil, displayLinkDriver == nil else { return }
+        guard appWindow == nil, frameScheduler == nil else { return }
 
         withBootstrap {
             let appPresenter = AppPresenter()
@@ -70,36 +70,38 @@ public final class AppRouter {
             ripplePresenter.start()
             wallpaperPresenter.start()
 
-            let window = windowFactory(
-                appPresenter,
-                wallpaperPresenter,
-                headerPresenter,
-                lyricsPresenter,
-                ripplePresenter
-            )
+            let window = windowFactory(layout, headerPresenter, lyricsPresenter, ripplePresenter)
             appWindow = window
 
-            let driver = displayLinkDriverFactory { [weak self] in
+            appPresenter.bind(ripplePresenter: ripplePresenter)
+            appPresenter.onWindowFrameChange { [weak window] layout in
+                window?.applyLayout(layout)
+            }
+            wallpaperPresenter.onPlayerAvailable { [weak window] player in
+                window?.attachPlayerLayer(for: player)
+            }
+
+            let scheduler = frameSchedulerFactory { [weak self] in
                 self?.ripplePresenter?.idle()
                 self?.lyricsPresenter?.updateActiveLineTick()
             }
-            self.displayLinkDriver = driver
-            driver.start(in: window)
+            self.frameScheduler = scheduler
+            scheduler.start(in: window)
         }
     }
 
     public func stop() {
-        guard appWindow != nil || displayLinkDriver != nil else { return }
+        guard appWindow != nil || frameScheduler != nil else { return }
 
         appPresenter?.stop()
         headerPresenter?.stop()
         lyricsPresenter?.stop()
         wallpaperPresenter?.stop()
         ripplePresenter?.stop()
-        displayLinkDriver?.stop()
+        frameScheduler?.stop()
         appWindow?.orderOut(nil)
         appWindow?.close()
-        displayLinkDriver = nil
+        frameScheduler = nil
         appWindow = nil
         ripplePresenter = nil
         wallpaperPresenter = nil

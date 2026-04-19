@@ -1,6 +1,5 @@
 @preconcurrency import AVFoundation
 import AppKit
-import Combine
 import Domain
 import Presenters
 import SwiftUI
@@ -8,31 +7,24 @@ import SwiftUI
 @MainActor
 public final class AppWindow: NSWindow {
     private let hostingView: NSHostingView<OverlayContentView>
-    private let appPresenter: AppPresenter
-    private var screenObserver: NSObjectProtocol?
-    private var playerCancellable: AnyCancellable?
 
     public init(
-        appPresenter: AppPresenter,
-        wallpaperPresenter: WallpaperPresenter,
+        initialLayout: ScreenLayout,
         headerPresenter: HeaderPresenter,
         lyricsPresenter: LyricsPresenter,
         ripplePresenter: RipplePresenter
     ) {
-        self.appPresenter = appPresenter
-        let layout = appPresenter.layout
-
         let hostingView = NSHostingView(
             rootView: OverlayContentView(
                 headerPresenter: headerPresenter,
                 lyricsPresenter: lyricsPresenter,
                 ripplePresenter: ripplePresenter
             ))
-        hostingView.frame = layout.hostingFrame
+        hostingView.frame = initialLayout.hostingFrame
         self.hostingView = hostingView
 
         super.init(
-            contentRect: layout.windowFrame,
+            contentRect: initialLayout.windowFrame,
             styleMask: .borderless,
             backing: .buffered,
             defer: false
@@ -46,40 +38,21 @@ public final class AppWindow: NSWindow {
 
         contentView = hostingView
 
-        // When player becomes available (async wallpaper DL or cached), attach AVPlayerLayer
-        playerCancellable = wallpaperPresenter.$player
-            .compactMap { $0 }
-            .first()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] player in
-                self?.attachPlayer(player)
-            }
-
-        // Presenter owns the Combine wiring; AppWindow only reacts with AppKit side-effects.
-        appPresenter.bind(ripplePresenter: ripplePresenter)
-        appPresenter.onWindowFrameChange { [weak self] _ in
-            self?.recalculateLayout()
-        }
-
         orderFront(nil)
+    }
 
-        screenObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.recalculateLayout() }
+    public func applyLayout(_ layout: ScreenLayout) {
+        setFrame(layout.windowFrame, display: false)
+        hostingView.frame = layout.hostingFrame
+        if let containerView = contentView, containerView !== hostingView {
+            containerView.frame = CGRect(origin: .zero, size: layout.windowFrame.size)
         }
     }
 
-    deinit {
-        screenObserver.map(NotificationCenter.default.removeObserver)
-    }
-
-    private func attachPlayer(_ player: AVPlayer) {
-        let layout = appPresenter.layout
+    public func attachPlayerLayer(for player: AVPlayer) {
         backgroundColor = .black
 
-        let containerView = NSView(frame: CGRect(origin: .zero, size: layout.windowFrame.size))
+        let containerView = NSView(frame: CGRect(origin: .zero, size: frame.size))
         let playerLayer = AVPlayerLayer(player: player)
         playerLayer.frame = containerView.bounds
         playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
@@ -88,15 +61,5 @@ public final class AppWindow: NSWindow {
         containerView.layer?.addSublayer(playerLayer)
         containerView.addSubview(hostingView)
         contentView = containerView
-    }
-
-    private func recalculateLayout() {
-        appPresenter.recalculateLayout()
-        let layout = appPresenter.layout
-        setFrame(layout.windowFrame, display: false)
-        hostingView.frame = layout.hostingFrame
-        if let containerView = contentView, containerView !== hostingView {
-            containerView.frame = CGRect(origin: .zero, size: layout.windowFrame.size)
-        }
     }
 }

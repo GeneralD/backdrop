@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import CoreGraphics
 import Dependencies
 import Domain
@@ -16,6 +18,13 @@ extension ScreenInteractorImpl: ScreenInteractor {
 
     public var screenDebounce: Double {
         configService.appStyle.screenDebounce
+    }
+
+    public var screenChanges: AnyPublisher<Void, Never> {
+        NotificationCenter.default
+            .publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .map { _ in () }
+            .eraseToAnyPublisher()
     }
 
     public func resolveLayout() -> ScreenLayout {

@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -84,5 +86,55 @@ struct WallpaperInteractorImplTests {
 
         #expect(interactor.rippleConfig.enabled == true)
         #expect(interactor.rippleConfig.idle == 3.0)
+    }
+
+    @Test("systemSleepChanges emits .willSleep on NSWorkspace sleep notification")
+    func emitsWillSleep() async {
+        let interactor = withDependencies {
+            $0.configUseCase = StubConfigUseCase()
+            $0.wallpaperUseCase = StubWallpaperUseCase()
+        } operation: {
+            WallpaperInteractorImpl()
+        }
+
+        final class Collector: @unchecked Sendable { var events: [SleepWakeEvent] = [] }
+        let collector = Collector()
+        let cancellable = interactor.systemSleepChanges.sink { collector.events.append($0) }
+
+        NSWorkspace.shared.notificationCenter.post(
+            name: NSWorkspace.screensDidSleepNotification, object: nil)
+
+        let deadline = ContinuousClock.now + .seconds(1)
+        while collector.events.isEmpty, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(collector.events.contains(.willSleep))
+        cancellable.cancel()
+    }
+
+    @Test("systemSleepChanges emits .didWake on NSWorkspace wake notification")
+    func emitsDidWake() async {
+        let interactor = withDependencies {
+            $0.configUseCase = StubConfigUseCase()
+            $0.wallpaperUseCase = StubWallpaperUseCase()
+        } operation: {
+            WallpaperInteractorImpl()
+        }
+
+        final class Collector: @unchecked Sendable { var events: [SleepWakeEvent] = [] }
+        let collector = Collector()
+        let cancellable = interactor.systemSleepChanges.sink { collector.events.append($0) }
+
+        NSWorkspace.shared.notificationCenter.post(
+            name: NSWorkspace.screensDidWakeNotification, object: nil)
+
+        let deadline = ContinuousClock.now + .seconds(1)
+        while collector.events.isEmpty, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(collector.events.contains(.didWake))
+        cancellable.cancel()
     }
 }

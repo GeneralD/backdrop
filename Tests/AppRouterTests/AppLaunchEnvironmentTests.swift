@@ -1,4 +1,6 @@
+@preconcurrency import AVFoundation
 import AppKit
+import Combine
 import Dependencies
 import Domain
 import Presenters
@@ -140,6 +142,7 @@ struct AppDependencyBootstrapTests {
 
         let ripplePresenter = withDependencies {
             bootstrap.apply(to: &$0)
+            $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
         } operation: {
             RipplePresenter()
         }
@@ -155,6 +158,35 @@ struct AppDependencyBootstrapTests {
         #expect(ripplePresenter.isEnabled == false)
         #expect(ripplePresenter.rippleState != nil)
     }
+
+    @Test("exposes stub screenDebounce / screenChanges / systemSleepChanges publishers")
+    func exposesStubPublishers() {
+        let bootstrap = AppDependencyBootstrap(
+            launchEnvironment: .init(environment: [.uiTestMode: "1"])
+        )
+
+        let (debounce, screenChanges, sleepChanges) = withDependencies {
+            bootstrap.apply(to: &$0)
+        } operation: {
+            @Dependency(\.screenInteractor) var screen
+            @Dependency(\.wallpaperInteractor) var wallpaper
+            return (screen.screenDebounce, screen.screenChanges, wallpaper.systemSleepChanges)
+        }
+
+        final class Counter: @unchecked Sendable {
+            var screen = 0
+            var sleep = 0
+        }
+        let counter = Counter()
+        let c1 = screenChanges.sink { counter.screen += 1 }
+        let c2 = sleepChanges.sink { _ in counter.sleep += 1 }
+
+        #expect(debounce == 5)
+        #expect(counter.screen == 0)  // Empty publisher emits nothing.
+        #expect(counter.sleep == 0)
+        c1.cancel()
+        c2.cancel()
+    }
 }
 
 @MainActor
@@ -169,7 +201,7 @@ struct AppRouterTests {
     @Test("start applies bootstrap fixture graph and stop tears it down")
     func startAndStop() async {
         let window = SpyWindow()
-        let driver = SpyDisplayLinkDriver()
+        let driver = SpyFrameScheduler()
 
         let router = AppRouter(
             launchEnvironment: .init(
@@ -180,8 +212,8 @@ struct AppRouterTests {
                     .lyricsLines: "One\nTwo",
                 ]
             ),
-            windowFactory: { _, _, _, _, _ in window },
-            displayLinkDriverFactory: { onFrame in
+            windowFactory: { _, _, _, _ in window },
+            frameSchedulerFactory: { onFrame in
                 driver.onFrame = onFrame
                 return driver
             }
@@ -225,12 +257,12 @@ struct AppRouterTests {
     @Test("start ignores duplicate calls and stop clears router state")
     func startIsIdempotent() {
         let window = SpyWindow()
-        let driver = SpyDisplayLinkDriver()
+        let driver = SpyFrameScheduler()
 
         let router = AppRouter(
             launchEnvironment: .init(environment: [.uiTestMode: "true"]),
-            windowFactory: { _, _, _, _, _ in window },
-            displayLinkDriverFactory: { onFrame in
+            windowFactory: { _, _, _, _ in window },
+            frameSchedulerFactory: { onFrame in
                 driver.onFrame = onFrame
                 return driver
             }
@@ -250,13 +282,23 @@ struct AppRouterTests {
         #expect(!hasValue(named: "lyricsPresenter", from: router))
         #expect(!hasValue(named: "wallpaperPresenter", from: router))
         #expect(!hasValue(named: "ripplePresenter", from: router))
-        #expect(!hasValue(named: "displayLinkDriver", from: router))
+        #expect(!hasValue(named: "frameScheduler", from: router))
         #expect(!hasValue(named: "appWindow", from: router))
     }
 
-    private final class SpyWindow: AppWindowing {
+    final class SpyWindow: OverlayWindow {
         var orderOutCallCount = 0
         var closeCallCount = 0
+        var appliedLayouts: [ScreenLayout] = []
+        var attachedPlayers: [AVPlayer] = []
+
+        func applyLayout(_ layout: ScreenLayout) {
+            appliedLayouts.append(layout)
+        }
+
+        func attachPlayerLayer(for player: AVPlayer) {
+            attachedPlayers.append(player)
+        }
 
         func orderOut(_ sender: Any?) {
             orderOutCallCount += 1
@@ -267,12 +309,12 @@ struct AppRouterTests {
         }
     }
 
-    private final class SpyDisplayLinkDriver: DisplayLinkDriving {
+    final class SpyFrameScheduler: FrameScheduler {
         var startCallCount = 0
         var stopCallCount = 0
         var onFrame: (@MainActor () -> Void)?
 
-        func start(in window: any AppWindowing) {
+        func start(in window: any OverlayWindow) {
             startCallCount += 1
         }
 
@@ -320,6 +362,7 @@ struct AccessibilityHooksTests {
     private struct EnabledRippleWallpaperInteractor: WallpaperInteractor {
         var rippleConfig: RippleStyle { .init(enabled: true) }
         func resolveWallpaper() async throws -> WallpaperState { .init() }
+        var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
     }
 
     @Test("renders header, lyrics, overlay, and ripple test surfaces")
@@ -347,11 +390,13 @@ struct AccessibilityHooksTests {
         }
         let overlayRipplePresenter = withDependencies {
             bootstrap.apply(to: &$0)
+            $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
         } operation: {
             RipplePresenter()
         }
         let ripplePresenter = withDependencies {
             $0.wallpaperInteractor = EnabledRippleWallpaperInteractor()
+            $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
         } operation: {
             RipplePresenter()
         }
