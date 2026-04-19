@@ -55,9 +55,7 @@ public final class WallpaperPresenter: ObservableObject {
             .compactMap { $0 }
             .first()
             .receive(on: DispatchQueue.main)
-            .sink { player in
-                MainActor.assumeIsolated { handler(player) }
-            }
+            .sink { player in handler(player) }
             .store(in: &cancellables)
     }
 }
@@ -108,11 +106,9 @@ extension WallpaperPresenter {
         interactor.systemSleepChanges
             .receive(on: DispatchQueue.main)
             .sink { [weak self] event in
-                MainActor.assumeIsolated {
-                    switch event {
-                    case .willSleep: self?.player?.pause()
-                    case .didWake: self?.player?.play()
-                    }
+                switch event {
+                case .willSleep: self?.player?.pause()
+                case .didWake: self?.player?.play()
                 }
             }
             .store(in: &cancellables)

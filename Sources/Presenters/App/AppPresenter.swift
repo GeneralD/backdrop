@@ -22,11 +22,9 @@ public final class AppPresenter: ObservableObject {
         layout = interactor.resolveLayout()
         interactor.screenChanges
             .merge(with: vacantTicks)
-            .map { interactor.resolveLayout() }
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] layout in
-                MainActor.assumeIsolated { self?.layout = layout }
-            }
+            .map { interactor.resolveLayout() }
+            .sink { [weak self] layout in self?.layout = layout }
             .store(in: &cancellables)
         startVacantPollingIfNeeded()
     }
@@ -58,9 +56,7 @@ public final class AppPresenter: ObservableObject {
             .removeDuplicates { $0.windowFrame == $1.windowFrame }
             .dropFirst()
             .receive(on: DispatchQueue.main)
-            .sink { layout in
-                MainActor.assumeIsolated { handler(layout) }
-            }
+            .sink { layout in handler(layout) }
             .store(in: &cancellables)
     }
 
