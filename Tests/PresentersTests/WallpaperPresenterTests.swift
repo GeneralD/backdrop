@@ -68,7 +68,9 @@ private final class SpyAVPlayer: AVPlayer, @unchecked Sendable {
     func completePendingSeeks() {
         let completions = pendingSeekCompletions
         pendingSeekCompletions = []
-        completions.forEach { $0(true) }
+        for completion in completions {
+            completion(true)
+        }
     }
 }
 
