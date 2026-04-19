@@ -25,22 +25,32 @@ extension AppKitScreenProvider: ScreenProvider {
         return coveredArea / screenArea
     }
 
+    /// Window bounds from `CGWindowListCopyWindowInfo` are in CoreGraphics coordinates
+    /// (origin = top-left of primary display, y grows downward), while `NSScreen.frame`
+    /// is in AppKit coordinates (origin = bottom-left of primary display, y grows upward).
+    /// Convert each rect so the intersection with `screen.frame` is geometrically correct.
     private func visibleWindowBounds() -> [CGRect] {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let infoList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return []
         }
         let myPID = Int(ProcessInfo.processInfo.processIdentifier)
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
         return infoList.compactMap { info -> CGRect? in
             guard
                 let layer = info[kCGWindowLayer as String] as? Int, layer == 0,
                 let pid = info[kCGWindowOwnerPID as String] as? Int, pid != myPID,
                 let bounds = info[kCGWindowBounds as String] as? NSDictionary
             else { return nil }
-            var rect = CGRect.zero
-            guard CGRectMakeWithDictionaryRepresentation(bounds, &rect), rect.width > 0, rect.height > 0
+            var cgRect = CGRect.zero
+            guard CGRectMakeWithDictionaryRepresentation(bounds, &cgRect), cgRect.width > 0, cgRect.height > 0
             else { return nil }
-            return rect
+            return CGRect(
+                x: cgRect.origin.x,
+                y: primaryHeight - cgRect.origin.y - cgRect.height,
+                width: cgRect.width,
+                height: cgRect.height
+            )
         }
     }
 }
