@@ -1,3 +1,4 @@
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -11,7 +12,11 @@ private struct StubWallpaperInteractor: WallpaperInteractor {
     var rippleConfig: RippleStyle = .init()
 
     func resolveWallpaper() async throws -> WallpaperState { .init() }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
 }
+
+// Fixed date used for all tests to make RippleState deterministic.
+private let fixedDate = Date(timeIntervalSinceReferenceDate: 0)
 
 // MARK: - Tests
 
@@ -25,6 +30,7 @@ struct RipplePresenterTests {
         func enabledReflectsConfig() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 #expect(presenter.isEnabled == true)
@@ -36,6 +42,7 @@ struct RipplePresenterTests {
         func disabledReflectsConfig() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: false))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 #expect(presenter.isEnabled == false)
@@ -50,6 +57,7 @@ struct RipplePresenterTests {
         func createsRippleState() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, idle: 2.5))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 #expect(presenter.rippleState == nil)
@@ -63,6 +71,7 @@ struct RipplePresenterTests {
         func createsStateWhenDisabled() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: false))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 presenter.start()
@@ -80,6 +89,7 @@ struct RipplePresenterTests {
         func idleDelegatesToState() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, idle: 0.05))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 presenter.start()
@@ -105,6 +115,7 @@ struct RipplePresenterTests {
             let config = RippleStyle(enabled: true, duration: 2.0, idle: 5.0)
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 #expect(presenter.rippleConfig.enabled == true)
@@ -118,6 +129,7 @@ struct RipplePresenterTests {
         func isEnabledReflectsConfig() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: false))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 #expect(presenter.isEnabled == false)
@@ -132,6 +144,7 @@ struct RipplePresenterTests {
         func stopCleansUp() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 presenter.start()
@@ -148,6 +161,7 @@ struct RipplePresenterTests {
         func emptyWithoutState() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor()
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 let commands = presenter.drawingContexts(
@@ -161,6 +175,7 @@ struct RipplePresenterTests {
         func commandsForActiveRipples() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, duration: 2.0))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 presenter.start()
@@ -170,7 +185,7 @@ struct RipplePresenterTests {
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
 
                 let commands = presenter.drawingContexts(
-                    canvasSize: CGSize(width: 400, height: 300), now: Date())
+                    canvasSize: CGSize(width: 400, height: 300), now: fixedDate)
                 #expect(!commands.isEmpty, "Should have draw commands for active ripples")
                 #expect(commands.first!.rect.width >= 0)
                 #expect(commands.first!.color.alpha > 0)
@@ -182,6 +197,7 @@ struct RipplePresenterTests {
         func expiredExcluded() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, duration: 0.1))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 presenter.start()
@@ -190,7 +206,7 @@ struct RipplePresenterTests {
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
 
                 // Query far in the future — all ripples expired
-                let future = Date().addingTimeInterval(10)
+                let future = fixedDate.addingTimeInterval(10)
                 let commands = presenter.drawingContexts(
                     canvasSize: CGSize(width: 400, height: 300), now: future)
                 #expect(commands.isEmpty, "Expired ripples should not generate commands")
@@ -203,6 +219,7 @@ struct RipplePresenterTests {
             let config = RippleStyle(enabled: true, color: .gradient(["#FF0000", "#00FF00"]), duration: 2.0)
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter()
                 presenter.start()
@@ -211,7 +228,7 @@ struct RipplePresenterTests {
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 100, y: 100))
 
                 let commands = presenter.drawingContexts(
-                    canvasSize: CGSize(width: 400, height: 300), now: Date())
+                    canvasSize: CGSize(width: 400, height: 300), now: fixedDate)
                 #expect(!commands.isEmpty)
                 #expect(commands.first!.color.alpha > 0)
             }
@@ -223,6 +240,7 @@ struct RipplePresenterTests {
             let screenRect = CGRect(x: 100, y: 200, width: 1920, height: 1080)
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: .init(enabled: true, duration: 2.0))
+                $0.date = .init { fixedDate }
             } operation: {
                 let presenter = RipplePresenter(screenRect: screenRect)
                 presenter.start()
@@ -231,7 +249,7 @@ struct RipplePresenterTests {
                 presenter.rippleState?.update(screenPoint: CGPoint(x: 200, y: 300))
 
                 let commands = presenter.drawingContexts(
-                    canvasSize: CGSize(width: 400, height: 400), now: Date())
+                    canvasSize: CGSize(width: 400, height: 400), now: fixedDate)
                 guard let cmd = commands.first else {
                     #expect(Bool(false), "Should have at least one command")
                     return

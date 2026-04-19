@@ -1,3 +1,5 @@
+@preconcurrency import AVFoundation
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -12,12 +14,14 @@ private struct StubWallpaperInteractor: WallpaperInteractor {
     var rippleConfig: RippleStyle = .init()
 
     func resolveWallpaper() async throws -> WallpaperState { wallpaperState }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
 }
 
 private struct FailingWallpaperInteractor: WallpaperInteractor {
     var rippleConfig: RippleStyle = .init()
 
     func resolveWallpaper() async throws -> WallpaperState { throw StubError.resolveFailed }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
 }
 
 private enum StubError: Error {
@@ -118,6 +122,81 @@ struct WallpaperPresenterTests {
                 #expect(presenter.wallpaperURL == url)
                 #expect(presenter.startTime == 10.0)
                 #expect(presenter.endTime == nil)
+            }
+        }
+    }
+
+    @Suite("onPlayerAvailable")
+    struct OnPlayerAvailable {
+        @MainActor
+        @Test("fires once when player becomes available")
+        func firesOnceOnPlayerReady() async {
+            let url = URL(fileURLWithPath: "/tmp/bg.mp4")
+            let state = WallpaperState(url: url, start: nil, end: nil)
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: state)
+            } operation: {
+                let presenter = WallpaperPresenter()
+
+                final class Counter: @unchecked Sendable {
+                    var count = 0
+                    var player: AVPlayer?
+                }
+                let counter = Counter()
+
+                presenter.onPlayerAvailable { player in
+                    counter.count += 1
+                    counter.player = player
+                }
+
+                presenter.start()
+                await presenter.waitForLoad()
+
+                let deadline = ContinuousClock.now + .seconds(2)
+                while counter.count < 1, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(10))
+                }
+
+                #expect(counter.count == 1)
+                #expect(counter.player === presenter.player)
+            }
+        }
+
+        @MainActor
+        @Test("never fires when no wallpaper is configured")
+        func doesNotFireWhenNoPlayer() async {
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: .init())
+            } operation: {
+                let presenter = WallpaperPresenter()
+                final class Counter: @unchecked Sendable { var count = 0 }
+                let counter = Counter()
+
+                presenter.onPlayerAvailable { _ in counter.count += 1 }
+                presenter.start()
+                await presenter.waitForLoad()
+
+                #expect(counter.count == 0)
+                #expect(presenter.player == nil)
+            }
+        }
+
+        @MainActor
+        @Test("stop clears onPlayerAvailable subscription")
+        func stopClearsSubscription() async {
+            let url = URL(fileURLWithPath: "/tmp/bg.mp4")
+            let state = WallpaperState(url: url, start: nil, end: nil)
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: state)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.onPlayerAvailable { _ in }
+                presenter.start()
+                await presenter.waitForLoad()
+                presenter.stop()
+                // Exercises cancellables.removeAll() branch — no crash expected.
             }
         }
     }

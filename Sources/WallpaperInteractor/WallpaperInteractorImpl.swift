@@ -1,3 +1,5 @@
+import AppKit
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -24,5 +26,14 @@ extension WallpaperInteractorImpl: WallpaperInteractor {
 
     public var rippleConfig: RippleStyle {
         configService.appStyle.ripple
+    }
+
+    public var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> {
+        let ws = NSWorkspace.shared.notificationCenter
+        let sleep = ws.publisher(for: NSWorkspace.screensDidSleepNotification)
+            .map { _ in SleepWakeEvent.willSleep }
+        let wake = ws.publisher(for: NSWorkspace.screensDidWakeNotification)
+            .map { _ in SleepWakeEvent.didWake }
+        return sleep.merge(with: wake).eraseToAnyPublisher()
     }
 }

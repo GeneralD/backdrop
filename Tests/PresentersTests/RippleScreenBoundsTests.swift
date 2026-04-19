@@ -1,3 +1,4 @@
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -11,6 +12,20 @@ private struct StubWallpaperInteractor: WallpaperInteractor {
     var rippleConfig: RippleStyle = .init()
 
     func resolveWallpaper() async throws -> WallpaperState { .init() }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
+}
+
+// MARK: - Test helper
+
+/// Mutable date source for deterministic time advancement in tests.
+private final class MutableClock: @unchecked Sendable {
+    var now: Date
+    init(_ initial: Date = Date(timeIntervalSinceReferenceDate: 0)) {
+        now = initial
+    }
+    func advance(by seconds: TimeInterval) {
+        now = now.addingTimeInterval(seconds)
+    }
 }
 
 // MARK: - Screen Rects
@@ -34,6 +49,7 @@ struct RippleScreenBoundsTests {
         func insideAddsRipple() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -50,6 +66,7 @@ struct RippleScreenBoundsTests {
         func outsideIgnored() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -67,6 +84,7 @@ struct RippleScreenBoundsTests {
         func edgeCountsAsInside() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -84,6 +102,7 @@ struct RippleScreenBoundsTests {
         func multipleMovementsRegister() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -108,6 +127,7 @@ struct RippleScreenBoundsTests {
         func mainScreenPreservesExisting() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: mainScreenRect)
                 presenter.start()
@@ -124,6 +144,7 @@ struct RippleScreenBoundsTests {
         func negativeOriginAccepts() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: leftScreenRect)
                 presenter.start()
@@ -140,6 +161,7 @@ struct RippleScreenBoundsTests {
         func negativeOriginRejectsMainPoints() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: leftScreenRect)
                 presenter.start()
@@ -156,6 +178,7 @@ struct RippleScreenBoundsTests {
         func zeroSizeRejectsAll() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: .zero)
                 presenter.start()
@@ -174,10 +197,12 @@ struct RippleScreenBoundsTests {
     struct IdleWithScreenBounds {
         @MainActor
         @Test("idle fires when mouse last moved within screen")
-        func idleFiresWhenInside() async throws {
+        func idleFiresWhenInside() {
+            let clock = MutableClock()
             let config = RippleStyle(enabled: true, duration: 2.0, idle: 0.01)
-            try await withDependencies {
+            withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+                $0.date = .init { clock.now }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -185,24 +210,22 @@ struct RippleScreenBoundsTests {
                 // Move mouse inside screen
                 presenter.handleMouseLocation(CGPoint(x: 2000, y: 500))
 
-                let deadline = ContinuousClock.now + .seconds(2)
-                var idleRippleFound = false
-                while !idleRippleFound, ContinuousClock.now < deadline {
-                    presenter.idle()
-                    idleRippleFound = presenter.rippleState?.ripples.contains(where: \.idle) ?? false
-                    try await Task.sleep(for: .milliseconds(20))
-                }
+                clock.advance(by: 0.05)
+                presenter.idle()
 
+                let idleRippleFound = presenter.rippleState?.ripples.contains(where: \.idle) ?? false
                 #expect(idleRippleFound, "Idle ripple should fire when mouse is inside screen")
             }
         }
 
         @MainActor
         @Test("idle suppressed when mouse never entered screen")
-        func idleSuppressedWhenOutside() async throws {
+        func idleSuppressedWhenOutside() {
+            let clock = MutableClock()
             let config = RippleStyle(enabled: true, duration: 2.0, idle: 0.01)
-            try await withDependencies {
+            withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+                $0.date = .init { clock.now }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -210,7 +233,7 @@ struct RippleScreenBoundsTests {
                 // Mouse only outside screen
                 presenter.handleMouseLocation(CGPoint(x: 500, y: 500))
 
-                try await Task.sleep(for: .milliseconds(50))
+                clock.advance(by: 0.05)
                 for _ in 0..<10 {
                     presenter.idle()
                 }
@@ -222,10 +245,12 @@ struct RippleScreenBoundsTests {
 
         @MainActor
         @Test("mouse leaving screen suppresses subsequent idle ripples")
-        func leavingSuppressesIdle() async throws {
+        func leavingSuppressesIdle() {
+            let clock = MutableClock()
             let config = RippleStyle(enabled: true, duration: 2.0, idle: 0.01)
-            try await withDependencies {
+            withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+                $0.date = .init { clock.now }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -236,7 +261,7 @@ struct RippleScreenBoundsTests {
 
                 let countBefore = presenter.rippleState?.ripples.filter(\.idle).count ?? 0
 
-                try await Task.sleep(for: .milliseconds(50))
+                clock.advance(by: 0.05)
                 for _ in 0..<10 {
                     presenter.idle()
                 }
@@ -248,10 +273,12 @@ struct RippleScreenBoundsTests {
 
         @MainActor
         @Test("mouse re-entering screen resumes idle ripples")
-        func reEntryResumesIdle() async throws {
+        func reEntryResumesIdle() {
+            let clock = MutableClock()
             let config = RippleStyle(enabled: true, duration: 2.0, idle: 0.01)
-            try await withDependencies {
+            withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: config)
+                $0.date = .init { clock.now }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -262,14 +289,10 @@ struct RippleScreenBoundsTests {
                 presenter.handleMouseLocation(CGPoint(x: 2200, y: 600))  // re-enter
                 presenter.handleMouseLocation(CGPoint(x: 2300, y: 700))
 
-                let deadline = ContinuousClock.now + .seconds(2)
-                var idleRippleFound = false
-                while !idleRippleFound, ContinuousClock.now < deadline {
-                    presenter.idle()
-                    idleRippleFound = presenter.rippleState?.ripples.contains(where: \.idle) ?? false
-                    try await Task.sleep(for: .milliseconds(20))
-                }
+                clock.advance(by: 0.05)
+                presenter.idle()
 
+                let idleRippleFound = presenter.rippleState?.ripples.contains(where: \.idle) ?? false
                 #expect(idleRippleFound, "Idle should resume after mouse re-enters screen")
             }
         }
@@ -284,6 +307,7 @@ struct RippleScreenBoundsTests {
         func updateChangesFilterBoundary() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: mainScreenRect)
                 presenter.start()
@@ -308,6 +332,7 @@ struct RippleScreenBoundsTests {
         func updateChangesDrawingOrigin() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()
@@ -316,7 +341,7 @@ struct RippleScreenBoundsTests {
                 presenter.handleMouseLocation(CGPoint(x: 2100, y: 500))
 
                 let canvasSize = CGSize(width: 1920, height: 1080)
-                let commands = presenter.drawingContexts(canvasSize: canvasSize, now: Date())
+                let commands = presenter.drawingContexts(canvasSize: canvasSize, now: Date(timeIntervalSinceReferenceDate: 0))
                 guard let cmd = commands.last else {
                     Issue.record("Should have at least one command")
                     return
@@ -333,6 +358,7 @@ struct RippleScreenBoundsTests {
         func oldRectNoLongerApplies() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: mainScreenRect)
                 presenter.start()
@@ -360,6 +386,7 @@ struct RippleScreenBoundsTests {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(
                     rippleConfig: .init(enabled: true, duration: 2.0))
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: screenRect)
                 presenter.start()
@@ -368,7 +395,7 @@ struct RippleScreenBoundsTests {
                 presenter.handleMouseLocation(point)
 
                 let commands = presenter.drawingContexts(
-                    canvasSize: CGSize(width: 1920, height: 1080), now: Date())
+                    canvasSize: CGSize(width: 1920, height: 1080), now: Date(timeIntervalSinceReferenceDate: 0))
                 guard let cmd = commands.last else {
                     Issue.record("Should have command")
                     return
@@ -389,6 +416,7 @@ struct RippleScreenBoundsTests {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(
                     rippleConfig: .init(enabled: true, duration: 2.0))
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: screenRect)
                 presenter.start()
@@ -397,7 +425,7 @@ struct RippleScreenBoundsTests {
                 presenter.handleMouseLocation(point)
 
                 let commands = presenter.drawingContexts(
-                    canvasSize: CGSize(width: 1920, height: canvasHeight), now: Date())
+                    canvasSize: CGSize(width: 1920, height: canvasHeight), now: Date(timeIntervalSinceReferenceDate: 0))
                 guard let cmd = commands.last else {
                     Issue.record("Should have command")
                     return
@@ -414,6 +442,7 @@ struct RippleScreenBoundsTests {
         func noIncreaseWhenOutside() {
             withDependencies {
                 $0.wallpaperInteractor = StubWallpaperInteractor(rippleConfig: enabledConfig)
+                $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
             } operation: {
                 let presenter = RipplePresenter(screenRect: secondaryScreenRect)
                 presenter.start()

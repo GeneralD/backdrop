@@ -41,11 +41,13 @@ private struct IdleTrackInteractor: TrackInteractor, @unchecked Sendable {
 private struct DisabledRippleInteractor: WallpaperInteractor {
     var rippleConfig: RippleStyle { .init(enabled: false) }
     func resolveWallpaper() async throws -> WallpaperState { .init() }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
 }
 
 private struct EnabledRippleInteractor: WallpaperInteractor {
     var rippleConfig: RippleStyle { .init(enabled: true) }
     func resolveWallpaper() async throws -> WallpaperState { .init() }
+    var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
 }
 
 private struct FixtureTrackInteractor: TrackInteractor, @unchecked Sendable {
@@ -153,6 +155,7 @@ struct RippleViewRenderingTests {
     func disabledRipple() {
         let presenter = withDependencies {
             $0.wallpaperInteractor = DisabledRippleInteractor()
+            $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
         } operation: {
             RipplePresenter()
         }
@@ -167,6 +170,7 @@ struct RippleViewRenderingTests {
     func enabledRipple() {
         let presenter = withDependencies {
             $0.wallpaperInteractor = EnabledRippleInteractor()
+            $0.date = .init { Date(timeIntervalSinceReferenceDate: 0) }
         } operation: {
             RipplePresenter()
         }

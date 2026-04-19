@@ -1,4 +1,5 @@
 @preconcurrency import Combine
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -39,6 +40,7 @@ import Foundation
     private struct UITestScreenInteractor: ScreenInteractor {
         var screenSelector: ScreenSelector { .main }
         var screenDebounce: Double { 5 }
+        var screenChanges: AnyPublisher<Void, Never> { Empty().eraseToAnyPublisher() }
 
         func resolveLayout() -> ScreenLayout {
             .init(
@@ -71,6 +73,7 @@ import Foundation
     private struct UITestWallpaperInteractor: WallpaperInteractor {
         func resolveWallpaper() async throws -> WallpaperState { .init() }
         var rippleConfig: RippleStyle { .init(enabled: false) }
+        var systemSleepChanges: AnyPublisher<SleepWakeEvent, Never> { Empty().eraseToAnyPublisher() }
     }
 #else
     struct AppDependencyBootstrap {

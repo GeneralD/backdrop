@@ -1,5 +1,5 @@
 @preconcurrency import AVFoundation
-import AppKit
+import Combine
 import Dependencies
 import Domain
 import Foundation
@@ -15,9 +15,8 @@ public final class WallpaperPresenter: ObservableObject {
     private var loopObserver: NSObjectProtocol?
     private var endTimeObserver: Any?
     private var isSeeking: Bool = false
-    private var sleepObserver: NSObjectProtocol?
-    private var wakeObserver: NSObjectProtocol?
     private var loadTask: Task<Void, Never>?
+    private var cancellables: Set<AnyCancellable> = []
 
     @Dependency(\.wallpaperInteractor) private var interactor
 
@@ -44,10 +43,22 @@ public final class WallpaperPresenter: ObservableObject {
         player?.pause()
         endTimeObserver.map { player?.removeTimeObserver($0) }
         loopObserver.map(NotificationCenter.default.removeObserver)
-        let ws = NSWorkspace.shared.notificationCenter
-        sleepObserver.map(ws.removeObserver)
-        wakeObserver.map(ws.removeObserver)
+        cancellables.removeAll()
         player = nil
+    }
+
+    /// Register a side-effect to run the first time a player becomes available.
+    /// The wireframe uses this to drive `OverlayWindow.attachPlayerLayer` without
+    /// owning the subscription.
+    public func onPlayerAvailable(_ handler: @escaping @MainActor (AVPlayer) -> Void) {
+        $player
+            .compactMap { $0 }
+            .first()
+            .receive(on: DispatchQueue.main)
+            .sink { player in
+                MainActor.assumeIsolated { handler(player) }
+            }
+            .store(in: &cancellables)
     }
 }
 
@@ -94,19 +105,17 @@ extension WallpaperPresenter {
     }
 
     private func observeSleepWake() {
-        let ws = NSWorkspace.shared.notificationCenter
-        sleepObserver = ws.addObserver(
-            forName: NSWorkspace.screensDidSleepNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.player?.pause() }
-        }
-        wakeObserver = ws.addObserver(
-            forName: NSWorkspace.screensDidWakeNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.player?.play() }
-        }
+        interactor.systemSleepChanges
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] event in
+                MainActor.assumeIsolated {
+                    switch event {
+                    case .willSleep: self?.player?.pause()
+                    case .didWake: self?.player?.play()
+                    }
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func waitForLoad() async {

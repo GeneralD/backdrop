@@ -1,3 +1,4 @@
+import Combine
 import ConcurrencyExtras
 import CoreGraphics
 import Dependencies
@@ -12,6 +13,23 @@ private struct StubScreenInteractor: ScreenInteractor, @unchecked Sendable {
     var screenSelector: ScreenSelector = .main
     var screenDebounce: Double = 5
     var layoutToReturn: ScreenLayout
+    var screenChanges: AnyPublisher<Void, Never> = Empty().eraseToAnyPublisher()
+
+    func resolveLayout() -> ScreenLayout { layoutToReturn }
+}
+
+private final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
+    var screenSelector: ScreenSelector
+    var screenDebounce: Double
+    var layoutToReturn: ScreenLayout
+    let changes = PassthroughSubject<Void, Never>()
+    var screenChanges: AnyPublisher<Void, Never> { changes.eraseToAnyPublisher() }
+
+    init(layout: ScreenLayout, selector: ScreenSelector = .main, debounce: Double = 5) {
+        layoutToReturn = layout
+        screenSelector = selector
+        screenDebounce = debounce
+    }
 
     func resolveLayout() -> ScreenLayout { layoutToReturn }
 }
@@ -23,28 +41,33 @@ struct AppPresenterTests {
 
     @MainActor
     @Test("start() sets layout from ScreenInteractor")
-    func startSetsLayout() {
+    func startSetsLayout() async {
         let expected = ScreenLayout(
             windowFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
             hostingFrame: CGRect(x: 0, y: 0, width: 1920, height: 1040),
             screenOrigin: CGPoint(x: 0, y: 40)
         )
 
-        withDependencies {
+        let presenter = withDependencies {
             $0.screenInteractor = StubScreenInteractor(layoutToReturn: expected)
         } operation: {
-            let presenter = AppPresenter()
-            presenter.start()
-
-            #expect(presenter.layout.windowFrame == expected.windowFrame)
-            #expect(presenter.layout.hostingFrame == expected.hostingFrame)
-            #expect(presenter.layout.screenOrigin == expected.screenOrigin)
+            AppPresenter()
         }
+        presenter.start()
+
+        let deadline = ContinuousClock.now + .seconds(1)
+        while presenter.layout.windowFrame != expected.windowFrame, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(presenter.layout.windowFrame == expected.windowFrame)
+        #expect(presenter.layout.hostingFrame == expected.hostingFrame)
+        #expect(presenter.layout.screenOrigin == expected.screenOrigin)
     }
 
     @MainActor
-    @Test("recalculateLayout() updates layout with new values")
-    func recalculateLayoutUpdates() {
+    @Test("screenChanges publisher triggers layout refresh")
+    func screenChangesUpdates() async {
         let initial = ScreenLayout(
             windowFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
             hostingFrame: CGRect(x: 0, y: 0, width: 1920, height: 1040),
@@ -56,31 +79,32 @@ struct AppPresenterTests {
             screenOrigin: CGPoint(x: 0, y: 40)
         )
 
-        // Use a mutable reference so we can change the return value mid-test
-        final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
-            var screenSelector: ScreenSelector = .main
-            var screenDebounce: Double = 5
-            var layoutToReturn: ScreenLayout
-            init(layout: ScreenLayout) { layoutToReturn = layout }
-            func resolveLayout() -> ScreenLayout { layoutToReturn }
-        }
-
         let interactor = MutableInteractor(layout: initial)
 
-        withDependencies {
+        let presenter = withDependencies {
             $0.screenInteractor = interactor
         } operation: {
-            let presenter = AppPresenter()
-            presenter.start()
-            #expect(presenter.layout.windowFrame == initial.windowFrame)
-
-            // Simulate screen change
-            interactor.layoutToReturn = updated
-            presenter.recalculateLayout()
-
-            #expect(presenter.layout.windowFrame == updated.windowFrame)
-            #expect(presenter.layout.hostingFrame == updated.hostingFrame)
+            AppPresenter()
         }
+        presenter.start()
+
+        // Wait for initial Just(()) to flush
+        let deadline1 = ContinuousClock.now + .seconds(1)
+        while presenter.layout.windowFrame != initial.windowFrame, ContinuousClock.now < deadline1 {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(presenter.layout.windowFrame == initial.windowFrame)
+
+        interactor.layoutToReturn = updated
+        interactor.changes.send(())
+
+        let deadline2 = ContinuousClock.now + .seconds(1)
+        while presenter.layout.windowFrame != updated.windowFrame, ContinuousClock.now < deadline2 {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(presenter.layout.windowFrame == updated.windowFrame)
+        #expect(presenter.layout.hostingFrame == updated.hostingFrame)
     }
 
     @MainActor
@@ -107,18 +131,11 @@ struct AppPresenterTests {
         let initial = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080))
         let updated = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 2560, height: 1440))
 
-        final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
-            var screenSelector: ScreenSelector = .vacant
-            var screenDebounce: Double = 1
-            var layoutToReturn: ScreenLayout
-            init(layout: ScreenLayout) { layoutToReturn = layout }
-            func resolveLayout() -> ScreenLayout { layoutToReturn }
-        }
-
-        let interactor = MutableInteractor(layout: initial)
+        let interactor = MutableInteractor(layout: initial, selector: .vacant, debounce: 1)
+        let testClock = TestClock()
         let presenter = withDependencies {
             $0.screenInteractor = interactor
-            $0.continuousClock = ImmediateClock()
+            $0.continuousClock = testClock
         } operation: {
             AppPresenter()
         }
@@ -128,9 +145,14 @@ struct AppPresenterTests {
 
         interactor.layoutToReturn = updated
 
-        let deadline = ContinuousClock.now + .seconds(3)
+        // Let the polling task reach `clock.sleep` before advancing.
+        await Task.yield()
+        await Task.yield()
+        await testClock.advance(by: .seconds(1))
+
+        let deadline = ContinuousClock.now + .seconds(2)
         while presenter.layout.windowFrame != updated.windowFrame, ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
         }
 
         #expect(presenter.layout.windowFrame == updated.windowFrame)
@@ -146,7 +168,7 @@ struct AppPresenterTests {
                 screenSelector: .vacant,
                 layoutToReturn: layout
             )
-            $0.continuousClock = ImmediateClock()
+            $0.continuousClock = TestClock()
         } operation: {
             AppPresenter()
         }
@@ -165,14 +187,6 @@ struct AppPresenterTests {
             screenOrigin: CGPoint(x: 100, y: 40)
         )
 
-        final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
-            var screenSelector: ScreenSelector = .main
-            var screenDebounce: Double = 5
-            var layoutToReturn: ScreenLayout
-            init(layout: ScreenLayout) { layoutToReturn = layout }
-            func resolveLayout() -> ScreenLayout { layoutToReturn }
-        }
-
         let interactor = MutableInteractor(layout: layout)
         let (presenter, ripple) = withDependencies {
             $0.screenInteractor = interactor
@@ -183,7 +197,10 @@ struct AppPresenterTests {
         presenter.bind(ripplePresenter: ripple)
         presenter.start()
 
-        // screenOrigin (100, 40), size 1920x1040 → ripple rect matches
+        let deadline = ContinuousClock.now + .seconds(1)
+        while ripple.screenOrigin != CGPoint(x: 100, y: 40), ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         #expect(ripple.screenOrigin == CGPoint(x: 100, y: 40))
     }
 
@@ -201,14 +218,6 @@ struct AppPresenterTests {
             screenOrigin: CGPoint(x: 1920, y: 40)
         )
 
-        final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
-            var screenSelector: ScreenSelector = .main
-            var screenDebounce: Double = 5
-            var layoutToReturn: ScreenLayout
-            init(layout: ScreenLayout) { layoutToReturn = layout }
-            func resolveLayout() -> ScreenLayout { layoutToReturn }
-        }
-
         let interactor = MutableInteractor(layout: initial)
         let (presenter, ripple) = withDependencies {
             $0.screenInteractor = interactor
@@ -218,11 +227,19 @@ struct AppPresenterTests {
 
         presenter.bind(ripplePresenter: ripple)
         presenter.start()
+        let deadline1 = ContinuousClock.now + .seconds(1)
+        while ripple.screenOrigin != CGPoint(x: 0, y: 40), ContinuousClock.now < deadline1 {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         #expect(ripple.screenOrigin == CGPoint(x: 0, y: 40))
 
         interactor.layoutToReturn = updated
-        presenter.recalculateLayout()
+        interactor.changes.send(())
 
+        let deadline2 = ContinuousClock.now + .seconds(1)
+        while ripple.screenOrigin != CGPoint(x: 1920, y: 40), ContinuousClock.now < deadline2 {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         #expect(ripple.screenOrigin == CGPoint(x: 1920, y: 40))
     }
 
@@ -235,14 +252,6 @@ struct AppPresenterTests {
             hostingFrame: CGRect(x: 0, y: 0, width: 1920, height: 1040)
         )
         let different = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 2560, height: 1440))
-
-        final class MutableInteractor: ScreenInteractor, @unchecked Sendable {
-            var screenSelector: ScreenSelector = .main
-            var screenDebounce: Double = 5
-            var layoutToReturn: ScreenLayout
-            init(layout: ScreenLayout) { layoutToReturn = layout }
-            func resolveLayout() -> ScreenLayout { layoutToReturn }
-        }
 
         let interactor = MutableInteractor(layout: first)
         let presenter = withDependencies {
@@ -257,16 +266,21 @@ struct AppPresenterTests {
         let counter = Counter()
 
         presenter.start()
+        // Wait for initial layout to flush
+        let warm = ContinuousClock.now + .seconds(1)
+        while presenter.layout.windowFrame != first.windowFrame, ContinuousClock.now < warm {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         // Subscribe after start so the current layout is dropped.
         presenter.onWindowFrameChange { _ in counter.count += 1 }
 
         // Same windowFrame (different hostingFrame) → deduped.
         interactor.layoutToReturn = sameFrame
-        presenter.recalculateLayout()
+        interactor.changes.send(())
 
         // Different windowFrame → fires.
         interactor.layoutToReturn = different
-        presenter.recalculateLayout()
+        interactor.changes.send(())
 
         // Give the DispatchQueue.main scheduling a tick to flush.
         let deadline = ContinuousClock.now + .seconds(1)
@@ -274,6 +288,34 @@ struct AppPresenterTests {
             try? await Task.sleep(for: .milliseconds(10))
         }
         #expect(counter.count == 1)
+    }
+
+    @MainActor
+    @Test("stop() unsubscribes from screenChanges")
+    func stopUnsubscribesScreenChanges() async {
+        let initial = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        let updated = ScreenLayout(windowFrame: CGRect(x: 0, y: 0, width: 2560, height: 1440))
+
+        let interactor = MutableInteractor(layout: initial)
+        let presenter = withDependencies {
+            $0.screenInteractor = interactor
+        } operation: {
+            AppPresenter()
+        }
+
+        presenter.start()
+        let warm = ContinuousClock.now + .seconds(1)
+        while presenter.layout.windowFrame != initial.windowFrame, ContinuousClock.now < warm {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        presenter.stop()
+
+        interactor.layoutToReturn = updated
+        interactor.changes.send(())
+
+        // Give the publisher a chance to propagate; layout should stay at initial.
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(presenter.layout.windowFrame == initial.windowFrame)
     }
 
     @MainActor
