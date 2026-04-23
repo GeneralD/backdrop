@@ -94,6 +94,10 @@ private struct FixtureTrackInteractor: TrackInteractor, @unchecked Sendable {
     var artworkStyle: ArtworkStyle { .init(opacity: 0) }
 }
 
+@Suite(.serialized)
+struct SerializedAppRouterSuites {}
+
+extension SerializedAppRouterSuites {
 @Suite("AppLaunchEnvironment")
 struct AppLaunchEnvironmentTests {
     @Test("parses UI test launch environment and lyrics lines")
@@ -586,4 +590,5 @@ struct AccessibilityHooksTests {
         hostingView.layoutSubtreeIfNeeded()
         _ = hostingView.fittingSize
     }
+}
 }
