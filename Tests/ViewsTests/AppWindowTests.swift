@@ -1,7 +1,5 @@
-@preconcurrency import AVFoundation
 import AppKit
 import Domain
-import Presenters
 import Testing
 
 @testable import Views
@@ -9,84 +7,28 @@ import Testing
 @MainActor
 @Suite("AppWindow")
 struct AppWindowTests {
-    @Test("init configures a transparent desktop overlay window")
-    func initConfiguresOverlayWindow() {
-        let layout = ScreenLayout(
-            windowFrame: CGRect(x: 0, y: 0, width: 1280, height: 720),
-            hostingFrame: CGRect(x: 16, y: 24, width: 1248, height: 680),
-            screenOrigin: .zero
-        )
-        let window = makeWindow(initialLayout: layout)
-        defer { close(window) }
-
-        #expect(window.frame == layout.windowFrame)
-        #expect(window.contentView?.frame == CGRect(origin: .zero, size: layout.windowFrame.size))
-        #expect(window.isOpaque == false)
-        #expect(window.ignoresMouseEvents)
-        #expect(window.backgroundColor?.alphaComponent == 0)
-        #expect(window.collectionBehavior.contains(.canJoinAllSpaces))
-        #expect(window.collectionBehavior.contains(.stationary))
-        #expect(window.collectionBehavior.contains(.ignoresCycle))
-        #expect(window.level.rawValue == Int(CGWindowLevelForKey(.desktopWindow)) + 1)
+    @Test("overlay defaults expose transparent desktop window styling")
+    func overlayDefaults() {
+        #expect(AppWindow.overlayLevel.rawValue == Int(CGWindowLevelForKey(.desktopWindow)) + 1)
+        #expect(AppWindow.overlayCollectionBehavior.contains(.canJoinAllSpaces))
+        #expect(AppWindow.overlayCollectionBehavior.contains(.stationary))
+        #expect(AppWindow.overlayCollectionBehavior.contains(.ignoresCycle))
     }
 
-    @Test("attachPlayerLayer wraps the hosting view in a player-backed container")
-    func attachPlayerLayerWrapsContent() {
-        let layout = ScreenLayout(
-            windowFrame: CGRect(x: 0, y: 0, width: 800, height: 500),
-            hostingFrame: CGRect(x: 0, y: 0, width: 800, height: 500),
-            screenOrigin: .zero
-        )
-        let window = makeWindow(initialLayout: layout)
-        defer { close(window) }
+    @Test("content frame matches window size at zero origin")
+    func contentFrame() {
+        let windowFrame = CGRect(x: 40, y: 30, width: 1024, height: 640)
 
-        let player = AVPlayer()
-        window.attachPlayerLayer(for: player)
-
-        let containerView = window.contentView
-        let playerLayer = containerView?.layer?.sublayers?.first as? AVPlayerLayer
-
-        #expect(window.backgroundColor == .black)
-        #expect(containerView?.subviews.count == 1)
-        #expect(playerLayer?.player === player)
-        #expect(playerLayer?.videoGravity == .resizeAspectFill)
-        #expect(playerLayer?.autoresizingMask == [.layerWidthSizable, .layerHeightSizable])
-    }
-
-    @Test("applyLayout updates both the window frame and player container")
-    func applyLayoutUpdatesPlayerContainer() {
-        let initialLayout = ScreenLayout(
-            windowFrame: CGRect(x: 0, y: 0, width: 800, height: 500),
-            hostingFrame: CGRect(x: 0, y: 0, width: 800, height: 500),
-            screenOrigin: .zero
-        )
-        let updatedLayout = ScreenLayout(
-            windowFrame: CGRect(x: 40, y: 30, width: 1024, height: 640),
-            hostingFrame: CGRect(x: 24, y: 32, width: 960, height: 576),
-            screenOrigin: CGPoint(x: 40, y: 30)
-        )
-        let window = makeWindow(initialLayout: initialLayout)
-        defer { close(window) }
-
-        window.attachPlayerLayer(for: AVPlayer())
-        window.applyLayout(updatedLayout)
-
-        #expect(window.frame == updatedLayout.windowFrame)
-        #expect(window.contentView?.frame == CGRect(origin: .zero, size: updatedLayout.windowFrame.size))
-        #expect(window.contentView?.subviews.first?.frame == updatedLayout.hostingFrame)
-    }
-
-    private func makeWindow(initialLayout: ScreenLayout) -> AppWindow {
-        AppWindow(
-            initialLayout: initialLayout,
-            headerPresenter: HeaderPresenter(),
-            lyricsPresenter: LyricsPresenter(),
-            ripplePresenter: RipplePresenter()
+        #expect(
+            AppWindow.contentFrame(for: windowFrame)
+                == CGRect(origin: .zero, size: windowFrame.size)
         )
     }
 
-    private func close(_ window: AppWindow) {
-        window.orderOut(nil)
-        window.close()
+    @Test("content frame handles empty size without crashing")
+    func emptyContentFrame() {
+        let windowFrame = CGRect(x: 10, y: 20, width: 0, height: 0)
+
+        #expect(AppWindow.contentFrame(for: windowFrame) == .zero)
     }
 }

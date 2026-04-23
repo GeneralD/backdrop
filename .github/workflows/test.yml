@@ -32,34 +32,21 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests
-        run: |
-          # AppKit / SwiftUI-heavy suites become unstable when Swift Testing runs
-          # the full package in a single invocation on GitHub-hosted runners.
-          # Keep the logical coverage the same, but isolate the problematic
-          # suites into their own plain test runs.
-          swift test --skip 'AppRouterTests|ViewsTests'
-          swift test --filter 'AppRouterTests'
-          swift test --filter 'ViewsTests'
-
-      - name: Run coverage-safe tests
+      - name: Run tests with coverage
         id: run_tests
         run: |
           BIN=$(swift build --show-bin-path)
           PROFDATA="$BIN/codecov/default.profdata"
           COVERAGE_DIR="$RUNNER_TEMP/coverage"
           mkdir -p "$COVERAGE_DIR"
-          # AppKit / SwiftUI-heavy suites still crash under Swift Testing
-          # coverage on the GitHub runner. Keep them in the plain test step
-          # above, and collect coverage from the stable subset here.
-          swift test --enable-code-coverage --skip 'AppRouterTests|ViewsTests'
+          swift test --enable-code-coverage
 
           if [[ ! -f "$PROFDATA" ]]; then
             echo "Coverage profile not found: $PROFDATA"
             exit 1
           fi
 
-          cp "$PROFDATA" "$COVERAGE_DIR/base.profdata"
+          cp "$PROFDATA" "$COVERAGE_DIR/default.profdata"
 
           echo "coverage_dir=$COVERAGE_DIR" >> "$GITHUB_OUTPUT"
 

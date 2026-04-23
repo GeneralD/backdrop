@@ -6,6 +6,18 @@ import SwiftUI
 
 @MainActor
 public final class AppWindow: NSWindow {
+    static var overlayLevel: NSWindow.Level {
+        .init(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) + 1)
+    }
+
+    static var overlayCollectionBehavior: NSWindow.CollectionBehavior {
+        [.canJoinAllSpaces, .stationary, .ignoresCycle]
+    }
+
+    static func contentFrame(for windowFrame: CGRect) -> CGRect {
+        CGRect(origin: .zero, size: windowFrame.size)
+    }
+
     private let hostingView: NSHostingView<OverlayContentView>
 
     public init(
@@ -30,14 +42,16 @@ public final class AppWindow: NSWindow {
             defer: false
         )
 
-        level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) + 1)
+        level = Self.overlayLevel
         backgroundColor = .clear
         isOpaque = false
         ignoresMouseEvents = true
-        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        collectionBehavior = Self.overlayCollectionBehavior
 
         contentView = hostingView
+    }
 
+    public func show() {
         orderFront(nil)
     }
 
@@ -52,7 +66,7 @@ public final class AppWindow: NSWindow {
     public func attachPlayerLayer(for player: AVPlayer) {
         backgroundColor = .black
 
-        let containerView = NSView(frame: CGRect(origin: .zero, size: frame.size))
+        let containerView = NSView(frame: Self.contentFrame(for: frame))
         let playerLayer = AVPlayerLayer(player: player)
         playerLayer.frame = containerView.bounds
         playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]

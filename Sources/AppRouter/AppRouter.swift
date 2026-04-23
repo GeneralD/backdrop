@@ -19,20 +19,31 @@ public final class AppRouter {
     private var appWindow: (any OverlayWindow)?
     private var frameScheduler: (any FrameScheduler)?
 
+    static func defaultWindowFactory(
+        layout: ScreenLayout,
+        headerPresenter: HeaderPresenter,
+        lyricsPresenter: LyricsPresenter,
+        ripplePresenter: RipplePresenter
+    ) -> any OverlayWindow {
+        AppWindow(
+            initialLayout: layout,
+            headerPresenter: headerPresenter,
+            lyricsPresenter: lyricsPresenter,
+            ripplePresenter: ripplePresenter
+        )
+    }
+
+    static func defaultFrameSchedulerFactory(
+        onFrame: @escaping @MainActor () -> Void
+    ) -> any FrameScheduler {
+        DisplayLinkDriver(onFrame: onFrame)
+    }
+
     public convenience init(launchEnvironment: AppLaunchEnvironment = .current) {
         self.init(
             bootstrap: AppDependencyBootstrap(launchEnvironment: launchEnvironment),
-            windowFactory: { layout, headerPresenter, lyricsPresenter, ripplePresenter in
-                AppWindow(
-                    initialLayout: layout,
-                    headerPresenter: headerPresenter,
-                    lyricsPresenter: lyricsPresenter,
-                    ripplePresenter: ripplePresenter
-                )
-            },
-            frameSchedulerFactory: { onFrame in
-                DisplayLinkDriver(onFrame: onFrame)
-            }
+            windowFactory: Self.defaultWindowFactory,
+            frameSchedulerFactory: Self.defaultFrameSchedulerFactory
         )
     }
 
@@ -84,6 +95,7 @@ public final class AppRouter {
 
             let window = windowFactory(layout, headerPresenter, lyricsPresenter, ripplePresenter)
             appWindow = window
+            window.show()
 
             appPresenter.bind(ripplePresenter: ripplePresenter)
             appPresenter.onWindowFrameChange { [weak window] layout in
