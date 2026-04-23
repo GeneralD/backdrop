@@ -33,7 +33,34 @@ jobs:
           fi
 
       - name: Run tests with coverage
-        run: swift test --enable-code-coverage
+        id: run_tests
+        run: |
+          BIN=$(swift build --show-bin-path)
+          PROFDATA="$BIN/codecov/default.profdata"
+          COVERAGE_DIR="$RUNNER_TEMP/coverage"
+          mkdir -p "$COVERAGE_DIR"
+
+          run_chunk() {
+            local name="$1"
+            shift
+
+            swift test --enable-code-coverage "$@"
+
+            if [[ ! -f "$PROFDATA" ]]; then
+              echo "Coverage profile not found: $PROFDATA"
+              exit 1
+            fi
+
+            cp "$PROFDATA" "$COVERAGE_DIR/$name.profdata"
+          }
+
+          # Swift Testing crashes under coverage when AppRouterTests and ViewsTests
+          # run in the same invocation, so collect their coverage in isolated runs.
+          run_chunk base --skip 'AppRouterTests|ViewsTests'
+          run_chunk approuter --filter 'AppRouterTests'
+          run_chunk views --filter 'ViewsTests'
+
+          echo "coverage_dir=$COVERAGE_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Generate lcov report
         id: generate_lcov
@@ -41,19 +68,27 @@ jobs:
         run: |
           BIN=$(swift build --show-bin-path)
           TEST_BIN="$BIN/lyraPackageTests.xctest/Contents/MacOS/lyraPackageTests"
+          COVERAGE_DIR="${{ steps.run_tests.outputs.coverage_dir }}"
+          MERGED_PROFDATA="$COVERAGE_DIR/merged.profdata"
           COVERAGE_FILE="$GITHUB_WORKSPACE/coverage.lcov"
-          PROFDATA=$(find .build -name 'default.profdata' -print -quit)
-          if [[ -z "$PROFDATA" || ! -f "$PROFDATA" ]]; then
-            echo "Coverage profile not found under .build (expected default.profdata)."
+          if [[ -z "$COVERAGE_DIR" || ! -d "$COVERAGE_DIR" ]]; then
+            echo "Coverage directory not found: $COVERAGE_DIR"
+            exit 1
+          fi
+          if ! compgen -G "$COVERAGE_DIR/*.profdata" > /dev/null; then
+            echo "Coverage profiles not found in $COVERAGE_DIR"
             exit 1
           fi
           if [[ ! -x "$TEST_BIN" ]]; then
             echo "Test binary not found: $TEST_BIN"
             exit 1
           fi
+          xcrun llvm-profdata merge -sparse \
+            "$COVERAGE_DIR"/*.profdata \
+            -o "$MERGED_PROFDATA"
           xcrun llvm-cov export \
             "$TEST_BIN" \
-            -instr-profile "$PROFDATA" \
+            -instr-profile "$MERGED_PROFDATA" \
             -format lcov \
             -ignore-filename-regex '.build|Tests/' \
             > "$COVERAGE_FILE"
