@@ -368,6 +368,38 @@ struct WallpaperPresenterTests {
             #expect(player.seekTimes == [seekStart])
             #expect(player.playCallCount == 1)
         }
+
+        @MainActor
+        @Test("AVPlayerItemDidPlayToEndTime notification schedules playback restart")
+        func endNotificationSchedulesRestart() async {
+            let state = WallpaperState(
+                url: URL(fileURLWithPath: "/tmp/loop.mp4"),
+                start: 2.0,
+                end: 4.0
+            )
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(wallpaperState: state)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.start()
+                await presenter.waitForLoad()
+
+                guard let item = presenter.player?.currentItem else {
+                    Issue.record("expected currentItem to exist after setupPlayer")
+                    return
+                }
+
+                NotificationCenter.default.post(
+                    name: .AVPlayerItemDidPlayToEndTime,
+                    object: item
+                )
+
+                // Yield so the @MainActor Task scheduled by the observer runs.
+                await Task.yield()
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
     }
 
     @Suite("sleep / wake observation")

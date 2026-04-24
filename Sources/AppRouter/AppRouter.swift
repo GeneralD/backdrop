@@ -19,20 +19,6 @@ public final class AppRouter {
     private var appWindow: (any OverlayWindow)?
     private var frameScheduler: (any FrameScheduler)?
 
-    static func defaultWindowFactory(
-        layout: ScreenLayout,
-        headerPresenter: HeaderPresenter,
-        lyricsPresenter: LyricsPresenter,
-        ripplePresenter: RipplePresenter
-    ) -> any OverlayWindow {
-        AppWindow(
-            initialLayout: layout,
-            headerPresenter: headerPresenter,
-            lyricsPresenter: lyricsPresenter,
-            ripplePresenter: ripplePresenter
-        )
-    }
-
     static func defaultFrameSchedulerFactory(
         onFrame: @escaping @MainActor () -> Void
     ) -> any FrameScheduler {
@@ -42,7 +28,14 @@ public final class AppRouter {
     public convenience init(launchEnvironment: AppLaunchEnvironment = .current) {
         self.init(
             bootstrap: AppDependencyBootstrap(launchEnvironment: launchEnvironment),
-            windowFactory: Self.defaultWindowFactory,
+            windowFactory: { layout, headerPresenter, lyricsPresenter, ripplePresenter in
+                AppWindow(
+                    initialLayout: layout,
+                    headerPresenter: headerPresenter,
+                    lyricsPresenter: lyricsPresenter,
+                    ripplePresenter: ripplePresenter
+                )
+            },
             frameSchedulerFactory: Self.defaultFrameSchedulerFactory
         )
     }
