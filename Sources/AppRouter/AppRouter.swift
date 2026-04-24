@@ -116,7 +116,6 @@ public final class AppRouter {
         wallpaperPresenter?.stop()
         ripplePresenter?.stop()
         frameScheduler?.stop()
-        appWindow?.orderOut(nil)
         appWindow?.close()
         frameScheduler = nil
         appWindow = nil

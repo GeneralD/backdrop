@@ -69,6 +69,11 @@ public final class AppWindow: NSWindow {
     public func attachPlayerLayer(for player: AVPlayer) {
         Self.attachPlayer(player, to: self, hostingView: hostingView)
     }
+
+    public override func close() {
+        orderOut(nil)
+        super.close()
+    }
 }
 
 extension AppWindow: OverlayWindowSurface {

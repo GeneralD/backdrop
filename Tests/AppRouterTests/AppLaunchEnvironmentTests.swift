@@ -330,7 +330,6 @@ struct AppRouterTests {
         router.stop()
 
         #expect(!hasValue(named: "appWindow", from: router))
-        #expect(window.orderOutCallCount == 1)
         #expect(window.closeCallCount == 1)
         #expect(driver.stopCallCount == 1)
     }
@@ -421,7 +420,6 @@ struct AppRouterTests {
 
     final class SpyWindow: OverlayWindow {
         var showCallCount = 0
-        var orderOutCallCount = 0
         var closeCallCount = 0
         var appliedLayouts: [ScreenLayout] = []
         var attachedPlayers: [AVPlayer] = []
@@ -436,10 +434,6 @@ struct AppRouterTests {
 
         func attachPlayerLayer(for player: AVPlayer) {
             attachedPlayers.append(player)
-        }
-
-        func orderOut(_ sender: Any?) {
-            orderOutCallCount += 1
         }
 
         func close() {
