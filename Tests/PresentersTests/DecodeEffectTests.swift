@@ -215,6 +215,97 @@ struct DecodeEffectStateTests {
     }
 
     @MainActor
+    @Test("startLoading with empty charset fills with '?'")
+    func startLoadingEmptyPool() {
+        withDependencies {
+            $0.continuousClock = ImmediateClock()
+        } operation: {
+            let state = DecodeEffectState(config: DecodeEffect(duration: 1.0, charsets: []))
+            state.startLoading(placeholderLength: 5)
+            #expect(state.displayText == "?????")
+            state.stop()
+        }
+    }
+
+    @MainActor
+    @Test("decode with empty charset fills non-target slots with '?'")
+    func decodeEmptyPool() {
+        withDependencies {
+            $0.continuousClock = TestClock()
+            $0.randomSource = SequenceRandomSource(values: [0])
+        } operation: {
+            let state = DecodeEffectState(config: DecodeEffect(duration: 1.0, charsets: []))
+            state.decode(to: "ABCD")
+            #expect(state.displayText == "????")
+            state.stop()
+        }
+    }
+
+    @MainActor
+    @Test("decode called while animating restarts cleanly")
+    func decodeRestart() async {
+        let testClock = TestClock()
+        await withDependencies {
+            $0.continuousClock = testClock
+            $0.randomSource = SequenceRandomSource(values: [0])
+        } operation: {
+            let state = DecodeEffectState(config: DecodeEffect(duration: 1.0, charsets: [.latin]))
+            state.decode(to: "FIRST")
+            #expect(state.isAnimating)
+
+            state.decode(to: "SECOND")
+            #expect(state.isAnimating)
+
+            await testClock.advance(by: .seconds(2))
+            await state.task?.value
+            #expect(state.displayText == "SECOND")
+        }
+    }
+
+    @MainActor
+    @Test("startLoading then decode transitions to decode target")
+    func startLoadingThenDecode() async {
+        await withDependencies {
+            $0.continuousClock = ImmediateClock()
+        } operation: {
+            let state = DecodeEffectState(config: DecodeEffect(duration: 0.1, charsets: [.latin]))
+            state.startLoading(placeholderLength: 4)
+            #expect(state.isAnimating)
+            state.decode(to: "DONE")
+            await state.task?.value
+            #expect(state.displayText == "DONE")
+            #expect(!state.isAnimating)
+        }
+    }
+
+    @MainActor
+    @Test("decode gradually locks characters from left when source returns 0")
+    func decodeProgressiveLock() async {
+        let testClock = TestClock()
+        await withDependencies {
+            $0.continuousClock = testClock
+            $0.randomSource = SequenceRandomSource(values: [0])
+        } operation: {
+            let state = DecodeEffectState(config: DecodeEffect(duration: 0.3, charsets: [.latin]))
+            var snapshots: [String] = []
+            state.onUpdate = { snapshots.append($0) }
+            state.decode(to: "ABCD")
+
+            // Let loop run to completion by advancing clock well past duration
+            await Task.yield()
+            await testClock.advance(by: .seconds(1))
+            await state.task?.value
+
+            #expect(state.displayText == "ABCD")
+            // At least one intermediate frame where some target chars are already visible
+            let hadPartial = snapshots.contains { frame in
+                frame != "ABCD" && frame.contains("A")
+            }
+            #expect(hadPartial, "expected at least one frame with partial lock visible")
+        }
+    }
+
+    @MainActor
     @Test("stop prevents decode completion callback")
     func stopPreventsCallback() async {
         let testClock = TestClock()
