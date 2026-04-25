@@ -6,7 +6,9 @@ public protocol RandomSource: Sendable {
 }
 
 public enum RandomSourceKey: TestDependencyKey {
-    public static let testValue: any RandomSource = SystemRandomSource()
+    /// Deterministic stub: always returns 0. Tests that depend on randomness must
+    /// override via `withDependencies { $0.randomSource = ... }`.
+    public static let testValue: any RandomSource = ZeroRandomSource()
 }
 
 extension DependencyValues {
@@ -16,9 +18,6 @@ extension DependencyValues {
     }
 }
 
-public struct SystemRandomSource: RandomSource {
-    public init() {}
-    public func next(below count: Int) -> Int {
-        .random(in: 0..<count)
-    }
+private struct ZeroRandomSource: RandomSource {
+    func next(below count: Int) -> Int { 0 }
 }
