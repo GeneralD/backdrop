@@ -569,6 +569,36 @@ struct WallpaperPresenterTests {
                 #expect(player.seekTimes.isEmpty)  // no manual seek — advance instead
             }
         }
+
+        @MainActor
+        @Test("repeated handleLoopBoundary firings advance only once (no double-advance race)")
+        func repeatedLoopBoundaryAdvancesOnce() async {
+            let a = ResolvedWallpaperItem(url: URL(fileURLWithPath: "/tmp/a.mp4"))
+            let b = ResolvedWallpaperItem(url: URL(fileURLWithPath: "/tmp/b.mp4"))
+            let c = ResolvedWallpaperItem(url: URL(fileURLWithPath: "/tmp/c.mp4"))
+            let player = SpyAVPlayer()
+            let seekStart = CMTime(seconds: 1, preferredTimescale: 600)
+            let seekEnd = CMTime(seconds: 5, preferredTimescale: 600)
+
+            await withDependencies {
+                $0.wallpaperInteractor = StubWallpaperInteractor(items: [a, b, c], mode: .cycle)
+            } operation: {
+                let presenter = WallpaperPresenter()
+                presenter.start()
+                await presenter.waitForLoad()
+                #expect(presenter.wallpaperURL == a.url)
+
+                // Simulate periodic time observer firing several times before the
+                // first advance Task gets to run on the actor.
+                presenter.handleLoopBoundary(at: seekEnd, seekEnd: seekEnd, seekStart: seekStart, player: player)
+                presenter.handleLoopBoundary(at: seekEnd, seekEnd: seekEnd, seekStart: seekStart, player: player)
+                presenter.handleLoopBoundary(at: seekEnd, seekEnd: seekEnd, seekStart: seekStart, player: player)
+
+                await waitUntil { presenter.wallpaperURL == b.url }
+                // Should land on b (one advance from a), not skip to c.
+                #expect(presenter.wallpaperURL == b.url)
+            }
+        }
     }
 
     @Suite("sleep / wake observation")

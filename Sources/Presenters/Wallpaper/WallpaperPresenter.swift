@@ -151,21 +151,23 @@ extension WallpaperPresenter {
 
     func handleLoopBoundary(at time: CMTime, seekEnd: CMTime, seekStart: CMTime, player: AVPlayer?) {
         guard !isSeeking, time >= seekEnd else { return }
+        isSeeking = true
         guard items.count <= 1 else {
             Task { @MainActor [weak self] in await self?.advanceToNextItem() }
             return
         }
-        isSeeking = true
         player?.seek(to: seekStart, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             Task { @MainActor in self?.isSeeking = false }
         }
     }
 
     func handleItemCompletion(seekStart: CMTime) async {
+        guard !isSeeking else { return }
         guard items.count > 1 else {
             Self.restartPlayback(from: seekStart, player: player)
             return
         }
+        isSeeking = true
         await advanceToNextItem()
     }
 
