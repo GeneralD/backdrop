@@ -109,15 +109,21 @@ extension WallpaperPresenter {
         if let seekEnd {
             let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
             endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self, weak player] time in
-                Task { @MainActor in self?.handleLoopBoundary(at: time, seekEnd: seekEnd, seekStart: seekStart, player: player) }
+                Task { @MainActor in
+                    guard let self, let player, player === self.player else { return }
+                    self.handleLoopBoundary(at: time, seekEnd: seekEnd, seekStart: seekStart, player: player)
+                }
             }
         }
 
         loopObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: player.currentItem, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in await self?.handleItemCompletion(seekStart: seekStart) }
+        ) { [weak self, weak player] _ in
+            Task { @MainActor in
+                guard let self, let player, player === self.player else { return }
+                await self.handleItemCompletion(seekStart: seekStart, player: player)
+            }
         }
 
         player.play()
@@ -161,10 +167,10 @@ extension WallpaperPresenter {
         }
     }
 
-    func handleItemCompletion(seekStart: CMTime) async {
+    func handleItemCompletion(seekStart: CMTime, player: AVPlayer?) async {
         guard !isSeeking else { return }
         guard items.count > 1 else {
-            Self.restartPlayback(from: seekStart, player: player)
+            Self.restartPlayback(from: seekStart, player: player ?? self.player)
             return
         }
         isSeeking = true

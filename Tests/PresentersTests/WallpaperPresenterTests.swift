@@ -519,7 +519,7 @@ struct WallpaperPresenterTests {
                 await presenter.waitForLoad()
                 let urlBefore = presenter.wallpaperURL
 
-                await presenter.handleItemCompletion(seekStart: CMTime(seconds: 1, preferredTimescale: 600))
+                await presenter.handleItemCompletion(seekStart: CMTime(seconds: 1, preferredTimescale: 600), player: nil)
 
                 #expect(presenter.wallpaperURL == urlBefore)
             }
@@ -539,7 +539,7 @@ struct WallpaperPresenterTests {
                 await presenter.waitForLoad()
                 #expect(presenter.wallpaperURL == a.url)
 
-                await presenter.handleItemCompletion(seekStart: .zero)
+                await presenter.handleItemCompletion(seekStart: .zero, player: nil)
 
                 #expect(presenter.wallpaperURL == b.url)
             }
