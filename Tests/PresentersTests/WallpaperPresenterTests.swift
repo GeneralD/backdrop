@@ -8,17 +8,6 @@ import Testing
 @testable import Presenters
 
 @MainActor
-private func waitUntil(
-    timeout: Duration = .seconds(2),
-    condition: @escaping @MainActor () -> Bool
-) async {
-    let deadline = ContinuousClock.now + timeout
-    while !condition(), ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(10))
-    }
-}
-
-@MainActor
 private func waitForItemsLoaded(_ presenter: WallpaperPresenter, count: Int) async {
     await waitUntil { presenter.items.count == count }
 }
@@ -78,6 +67,7 @@ private final class LiveStubWallpaperInteractor: WallpaperInteractor, @unchecked
     func resolvedWallpapers() -> AsyncStream<ResolvedWallpaperItem> {
         AsyncStream { continuation in
             lock.lock()
+            self.continuation?.finish()
             self.continuation = continuation
             lock.unlock()
         }
@@ -368,8 +358,10 @@ struct WallpaperPresenterTests {
 
                 presenter.controller.handleItemEnd()
 
-                // Give the advance Task a chance to run (loop or advance).
-                try? await Task.sleep(for: .milliseconds(50))
+                // Give the advance Task a chance to run; verify URL did not change.
+                await waitUntil(timeout: .milliseconds(50)) {
+                    presenter.wallpaperURL != urlBefore
+                }
 
                 #expect(presenter.wallpaperURL == urlBefore)
             }
@@ -499,7 +491,9 @@ struct WallpaperPresenterTests {
                 // Boundary fires while only one item is loaded — should loop, not advance.
                 presenter.controller.handleBoundary(
                     at: CMTime(seconds: 5, preferredTimescale: 600))
-                try? await Task.sleep(for: .milliseconds(50))
+                await waitUntil(timeout: .milliseconds(50)) {
+                    presenter.wallpaperURL != a.url
+                }
                 #expect(presenter.wallpaperURL == a.url)
 
                 interactor.emit(b)
@@ -534,8 +528,7 @@ struct WallpaperPresenterTests {
                 presenter.start()
                 await waitForItemsLoaded(presenter, count: items.count)
 
-                var visited: Set<URL> = [presenter.wallpaperURL].compactMap { $0 }
-                    .reduce(into: Set<URL>()) { $0.insert($1) }
+                var visited = Set<URL>([presenter.wallpaperURL].compactMap { $0 })
                 for _ in 0..<20 {
                     let prev = presenter.wallpaperURL
                     presenter.controller.handleItemEnd()

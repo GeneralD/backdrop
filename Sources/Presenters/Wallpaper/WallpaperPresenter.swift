@@ -27,7 +27,7 @@ public final class WallpaperPresenter: ObservableObject {
     public init() {
         controller.$player.assign(to: &$player)
         controller.onAdvanceRequested = { [weak self] in
-            Task { @MainActor [weak self] in
+            Task { @MainActor in
                 await self?.handleAdvanceRequest()
             }
         }

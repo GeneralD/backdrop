@@ -34,6 +34,7 @@ extension WallpaperPlaybackController {
         let avItem = AVPlayerItem(url: item.url)
         player.replaceCurrentItem(with: avItem)
         rebindLoopObserver(for: avItem)
+        rebindBoundaryObserver(on: player)
 
         if seekStart != .zero {
             await player.seek(to: seekStart, toleranceBefore: .zero, toleranceAfter: .zero)
@@ -82,7 +83,15 @@ extension WallpaperPlaybackController {
         player.preventsDisplaySleepDuringVideoPlayback = false
         player.actionAtItemEnd = .none
         self.player = player
+        return player
+    }
 
+    private func rebindBoundaryObserver(on player: AVPlayer) {
+        if let endTimeObserver {
+            player.removeTimeObserver(endTimeObserver)
+            self.endTimeObserver = nil
+        }
+        guard seekEnd != nil else { return }
         let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
         endTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
             [weak self, weak player] time in
@@ -91,7 +100,6 @@ extension WallpaperPlaybackController {
                 self.handleBoundary(at: time)
             }
         }
-        return player
     }
 
     private func rebindLoopObserver(for item: AVPlayerItem) {
