@@ -1,5 +1,5 @@
 {
-  "originHash" : "fe164333c82d36ba2ab97cadbcf58aa3fbb416b1dc72cb990430ebc9f5fc6f8a",
+  "originHash" : "b7c3cd67fc1fb72f30e824878e47351c7918c8cc7c20ce59e93fc8f6f59d08f2",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -35,6 +35,15 @@
       "state" : {
         "revision" : "36e30a6f1ef10e4194f6af0cff90888526f0c115",
         "version" : "7.10.0"
+      }
+    },
+    {
+      "identity" : "papyrus",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/joshuawright11/papyrus",
+      "state" : {
+        "revision" : "0a424d90f7a31b40e3b850a58062bb3aa701323f",
+        "version" : "0.6.16"
       }
     },
     {
@@ -76,10 +85,10 @@
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax",
+      "location" : "https://github.com/apple/swift-syntax",
       "state" : {
-        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
-        "version" : "602.0.0"
+        "revision" : "2bc86522d115234d1f588efe2bcb4ce4be8f8b82",
+        "version" : "510.0.3"
       }
     },
     {

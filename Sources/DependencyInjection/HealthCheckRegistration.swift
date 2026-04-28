@@ -11,12 +11,16 @@ extension HealthCheckersKey: DependencyKey {
 
         var checkers: [any HealthCheckable] = [
             ConfigRepositoryImpl(),
-            LRCLibAPI.search(query: "test"),
-            MusicBrainzAPI.searchRecording(title: "test", artist: nil, duration: nil),
+            LRCLibHealthCheck(),
+            MusicBrainzHealthCheck(),
         ]
 
         if let ai = configDataSource.load()?.config.ai {
-            checkers.append(OpenAICompatibleAPI(config: AIEndpoint(endpoint: ai.endpoint, model: ai.model, apiKey: ai.apiKey)))
+            checkers.append(
+                OpenAICompatibleHealthCheck(
+                    config: AIEndpoint(endpoint: ai.endpoint, model: ai.model, apiKey: ai.apiKey)
+                )
+            )
         } else {
             checkers.append(SkippedHealthCheck(serviceName: "AI endpoint", reason: "not configured"))
         }

@@ -1,25 +1,21 @@
-import Alamofire
 import Domain
 import Foundation
+@preconcurrency import Papyrus
 
 public struct MusicBrainzMetadataDataSourceImpl {
-    let searchRecording: @Sendable (MusicBrainzAPI) async -> MusicBrainzResponse?
+    private let api: any MusicBrainz
 
     public init() {
-        self.init { api in
-            await AF.request(api)
-                .validate(statusCode: 200..<300)
-                .serializingDecodable(MusicBrainzResponse.self)
-                .response.value
-        }
+        self.init(api: MusicBrainzAPI(provider: Provider(baseURL: MusicBrainzAPI.baseURL)))
     }
 
-    init(searchRecording: @escaping @Sendable (MusicBrainzAPI) async -> MusicBrainzResponse?) {
-        self.searchRecording = searchRecording
+    init(api: any MusicBrainz) {
+        self.api = api
     }
 }
 
-extension MusicBrainzMetadataDataSourceImpl: Sendable {}
+// Safe: `api` is set at init and never mutated; Papyrus's Provider is configured during construction only.
+extension MusicBrainzMetadataDataSourceImpl: @unchecked Sendable {}
 
 extension MusicBrainzMetadataDataSourceImpl: MetadataDataSource {
     public func resolve(track: Track) async -> [MusicBrainzMetadata] {
@@ -28,11 +24,9 @@ extension MusicBrainzMetadataDataSourceImpl: MetadataDataSource {
         let normalized = parsed.title
         let normalizedArtist = regex.normalizeArtist(parsed.artist ?? track.artist)
 
-        for query: MusicBrainzAPI in [
-            .searchRecording(title: normalized, artist: normalizedArtist, duration: nil),
-            .searchRecording(title: normalized, artist: nil, duration: nil),
-        ] {
-            guard let response = await searchRecording(query) else { continue }
+        for (title, artist) in [(normalized, normalizedArtist), (normalized, nil as String?)] {
+            let query = MusicBrainzAPI.luceneQuery(title: title, artist: artist, duration: nil)
+            guard let response = try? await api.searchRecording(query: query, fmt: "json", limit: 5) else { continue }
             let candidates = matchRecordings(from: response, regex: regex)
             guard !candidates.isEmpty else { continue }
             return candidates
@@ -44,20 +38,17 @@ extension MusicBrainzMetadataDataSourceImpl: MetadataDataSource {
 
 extension MusicBrainzMetadataDataSourceImpl {
     func matchRecordings(from response: MusicBrainzResponse, regex: RegexMetadataDataSourceImpl) -> [MusicBrainzMetadata] {
-        var candidates: [MusicBrainzMetadata] = []
-        for recording in response.recordings {
-            guard let artistName = recording.artistName else { continue }
+        response.recordings.flatMap { recording -> [MusicBrainzMetadata] in
+            guard let artistName = recording.artistName else { return [] }
             var seen = Set<String>()
-            let titles = [recording.title, regex.normalize(recording.title), regex.stripBrackets(recording.title)]
+            return [recording.title, regex.normalize(recording.title), regex.stripBrackets(recording.title)]
                 .filter { seen.insert($0).inserted }
-            for t in titles {
-                candidates.append(
+                .map { title in
                     MusicBrainzMetadata(
-                        title: t, artist: artistName,
+                        title: title, artist: artistName,
                         duration: recording.duration, musicbrainzId: recording.id
-                    ))
-            }
+                    )
+                }
         }
-        return candidates
     }
 }

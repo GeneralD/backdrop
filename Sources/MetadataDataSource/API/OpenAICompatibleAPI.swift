@@ -1,71 +1,85 @@
 import Domain
 import Foundation
+@preconcurrency import Papyrus
 
-public struct OpenAICompatibleAPI: Sendable {
-    let config: AIEndpoint
-    let requestPerformer: @Sendable (URLRequest) async throws -> (Data, URLResponse)
+@API
+@Headers(["Content-Type": "application/json"])
+public protocol OpenAICompatible {
+    @POST("/chat/completions")
+    func chatCompletion(request: Body<ChatCompletionRequest>) async throws -> ChatCompletionResponse
+}
 
-    public init(config: AIEndpoint) {
-        self.init(
-            config: config,
-            requestPerformer: { request in
-                try await URLSession.shared.data(for: request)
-            }
-        )
-    }
-
-    init(
-        config: AIEndpoint,
-        requestPerformer: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
-    ) {
-        self.config = config
-        self.requestPerformer = requestPerformer
+extension OpenAICompatible {
+    public static func provider(for config: AIEndpoint) -> Provider {
+        let endpoint =
+            config.endpoint.hasSuffix("/")
+            ? String(config.endpoint.dropLast())
+            : config.endpoint
+        return Provider(baseURL: endpoint).modifyRequests { req in
+            req.addHeader("Authorization", value: "Bearer \(config.apiKey)")
+        }
     }
 }
 
-extension OpenAICompatibleAPI {
-    public func chatCompletion(rawTitle: String, rawArtist: String) throws -> URLRequest {
-        let endpoint = normalizedEndpoint
-        guard let url = URL(string: endpoint + "/chat/completions") else {
-            throw URLError(.badURL)
+public struct ChatCompletionRequest: Codable, Sendable {
+    public let model: String
+    public let messages: [Message]
+    public let temperature: Double
+    public let responseFormat: ResponseFormat
+
+    public init(model: String, messages: [Message], temperature: Double = 0, responseFormat: ResponseFormat = .jsonObject) {
+        self.model = model
+        self.messages = messages
+        self.temperature = temperature
+        self.responseFormat = responseFormat
+    }
+
+    public struct Message: Codable, Sendable {
+        public let role: String
+        public let content: String
+
+        public init(role: String, content: String) {
+            self.role = role
+            self.content = content
+        }
+    }
+
+    public struct ResponseFormat: Codable, Sendable {
+        public let type: String
+
+        public init(type: String) {
+            self.type = type
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10
-
-        let body: [String: Any] = [
-            "model": config.model,
-            "messages": [
-                ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": userPrompt(rawTitle: rawTitle, rawArtist: rawArtist)],
-            ],
-            "temperature": 0,
-            "response_format": ["type": "json_object"],
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        return request
+        public static let jsonObject = ResponseFormat(type: "json_object")
     }
 
-    var normalizedEndpoint: String {
-        config.endpoint.hasSuffix("/")
-            ? String(config.endpoint.dropLast())
-            : config.endpoint
+    enum CodingKeys: String, CodingKey {
+        case model, messages, temperature
+        case responseFormat = "response_format"
+    }
+}
+
+extension ChatCompletionRequest {
+    public static func metadataExtraction(model: String, rawTitle: String, rawArtist: String) -> ChatCompletionRequest {
+        ChatCompletionRequest(
+            model: model,
+            messages: [
+                .init(role: "system", content: systemPrompt),
+                .init(role: "user", content: userPrompt(rawTitle: rawTitle, rawArtist: rawArtist)),
+            ]
+        )
     }
 
-    private var systemPrompt: String {
-        """
+    private static let systemPrompt: String = """
         You are a music metadata expert with comprehensive knowledge of songs, artists, \
         and albums worldwide. You know the official/canonical names of artists and song \
         titles in their original languages. When given raw metadata from a music player, \
         you identify the actual song and return its correct, canonical metadata — not just \
         cleaned-up text, but the real names as they appear on official releases.
         """
-    }
 
-    private func userPrompt(rawTitle: String, rawArtist: String) -> String {
+    private static func userPrompt(rawTitle: String, rawArtist: String) -> String {
         """
         Identify the song and artist from the raw metadata below, then return their \
         canonical names.

@@ -1,19 +1,27 @@
 import Domain
 import Foundation
 
-extension LRCLibAPI: HealthCheckable {
-    public var serviceName: String { "LRCLIB API" }
+public struct LRCLibHealthCheck: Sendable {
+    private let requestPerformer: @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    public func healthCheck() async -> HealthCheckResult {
-        await healthCheck { request in
+    public init() {
+        self.init { request in
             try await URLSession.shared.data(for: request)
         }
     }
 
-    func healthCheck(
+    init(
         requestPerformer: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
-    ) async -> HealthCheckResult {
-        guard let url = URL(string: Self.baseURL + "/search?q=test") else {
+    ) {
+        self.requestPerformer = requestPerformer
+    }
+}
+
+extension LRCLibHealthCheck: HealthCheckable {
+    public var serviceName: String { "LRCLIB API" }
+
+    public func healthCheck() async -> HealthCheckResult {
+        guard let url = URL(string: "https://lrclib.net/api/search?q=test") else {
             return HealthCheckResult(status: .fail, detail: "invalid URL")
         }
         var request = URLRequest(url: url)

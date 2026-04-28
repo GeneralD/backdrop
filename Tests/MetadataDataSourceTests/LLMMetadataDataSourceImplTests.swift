@@ -5,6 +5,7 @@ import Testing
 
 @testable import MetadataDataSource
 
+@Suite("LLMMetadataDataSourceImpl")
 struct LLMMetadataDataSourceImplTests {
     @Test("Returns empty when AI is not configured")
     func unconfiguredReturnsEmpty() async {

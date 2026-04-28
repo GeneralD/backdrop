@@ -1,7 +1,32 @@
 import Domain
 import Foundation
 
-extension OpenAICompatibleAPI: HealthCheckable {
+public struct OpenAICompatibleHealthCheck: Sendable {
+    private let config: AIEndpoint
+    private let requestPerformer: @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
+    public init(config: AIEndpoint) {
+        self.init(config: config) { request in
+            try await URLSession.shared.data(for: request)
+        }
+    }
+
+    init(
+        config: AIEndpoint,
+        requestPerformer: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    ) {
+        self.config = config
+        self.requestPerformer = requestPerformer
+    }
+
+    private var normalizedEndpoint: String {
+        config.endpoint.hasSuffix("/")
+            ? String(config.endpoint.dropLast())
+            : config.endpoint
+    }
+}
+
+extension OpenAICompatibleHealthCheck: HealthCheckable {
     public var serviceName: String { "AI endpoint" }
 
     public func healthCheck() async -> HealthCheckResult {

@@ -1,46 +1,31 @@
-import Alamofire
 import Domain
 import Foundation
+import Papyrus
 
 public struct LyricsDataSourceImpl {
-    private let requestPerformer: @Sendable (URLRequest) async throws -> Data
+    private let api: any LRCLib
 
     public init() {
-        self.init { request in
-            try await AF.request(request)
-                .validate(statusCode: 200..<300)
-                .serializingData()
-                .value
-        }
+        self.init(api: LRCLibAPI(provider: Provider(baseURL: LRCLibAPI.baseURL)))
     }
 
-    init(
-        requestPerformer: @escaping @Sendable (URLRequest) async throws -> Data
-    ) {
-        self.requestPerformer = requestPerformer
+    init(api: any LRCLib) {
+        self.api = api
     }
 }
 
+// Safe: `api` is set at init and never mutated; Papyrus's Provider is configured during construction only.
+extension LyricsDataSourceImpl: @unchecked Sendable {}
+
 extension LyricsDataSourceImpl: LyricsDataSource {
     public func get(title: String, artist: String, duration: TimeInterval?) async -> LyricsResult? {
-        let result = await lrclib(LyricsResult.self, from: .get(title: title, artist: artist, duration: duration))
-        guard let result, result.plainLyrics != nil || result.syncedLyrics != nil else { return nil }
+        guard let result = try? await api.get(trackName: title, artistName: artist, duration: duration),
+            result.plainLyrics != nil || result.syncedLyrics != nil
+        else { return nil }
         return result
     }
 
     public func search(query: String) async -> [LyricsResult]? {
-        await lrclib([LyricsResult].self, from: .search(query: query))
-    }
-}
-
-extension LyricsDataSourceImpl {
-    fileprivate func lrclib<T: Decodable & Sendable>(_ type: T.Type, from api: LRCLibAPI) async -> T? {
-        do {
-            let request = try api.asURLRequest()
-            let data = try await requestPerformer(request)
-            return try JSONDecoder().decode(type, from: data)
-        } catch {
-            return nil
-        }
+        try? await api.search(q: query)
     }
 }
