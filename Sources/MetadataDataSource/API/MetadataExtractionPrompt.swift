@@ -1,13 +1,5 @@
 import Foundation
 
-private let metadataExtractionSystemPrompt = """
-    You are a music metadata expert with comprehensive knowledge of songs, artists, \
-    and albums worldwide. You know the official/canonical names of artists and song \
-    titles in their original languages. When given raw metadata from a music player, \
-    you identify the actual song and return its correct, canonical metadata — not just \
-    cleaned-up text, but the real names as they appear on official releases.
-    """
-
 struct MetadataExtractionPrompt {
     let rawTitle: String
     let rawArtist: String
@@ -22,7 +14,15 @@ struct MetadataExtractionPrompt {
         )
     }
 
-    private var systemPrompt: String { metadataExtractionSystemPrompt }
+    private var systemPrompt: String {
+        """
+        You are a music metadata expert with comprehensive knowledge of songs, artists, \
+        and albums worldwide. You know the official/canonical names of artists and song \
+        titles in their original languages. When given raw metadata from a music player, \
+        you identify the actual song and return its correct, canonical metadata — not just \
+        cleaned-up text, but the real names as they appear on official releases.
+        """
+    }
 
     private var userPrompt: String {
         """
