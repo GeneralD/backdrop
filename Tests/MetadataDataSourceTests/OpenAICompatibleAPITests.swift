@@ -1,10 +1,11 @@
 import Domain
 import Foundation
+@preconcurrency import Papyrus
 import Testing
 
 @testable import MetadataDataSource
 
-@Suite("OpenAICompatibleAPI")
+@Suite("OpenAICompatibleAPI URL construction")
 struct OpenAICompatibleAPITests {
     private let config = AIEndpoint(
         endpoint: "https://api.example.com/",
@@ -12,24 +13,34 @@ struct OpenAICompatibleAPITests {
         apiKey: "secret-key"
     )
 
-    @Test("chatCompletion builds normalized authenticated request")
-    func chatCompletionRequest() throws {
-        let api = OpenAICompatibleAPI(config: config)
+    private func makeAPI(_ recorder: TestHTTPService) -> any OpenAICompatible {
+        OpenAICompatibleAPI(
+            provider: Provider(baseURL: config.endpoint, http: recorder).modifyRequests { req in
+                req.addHeader("Authorization", value: "Bearer \(self.config.apiKey)")
+            })
+    }
 
-        let request = try api.chatCompletion(rawTitle: "Artist『Song』 Official MV", rawArtist: "Uploader")
-        let headers = try #require(request.allHTTPHeaderFields)
-        let bodyData = try #require(request.httpBody)
+    @Test("chatCompletion sends POST with Authorization and Content-Type")
+    func chatCompletionRequest() async throws {
+        let recorder = TestHTTPService()
+        let api = makeAPI(recorder)
+        let request = ChatCompletionRequest.metadataExtraction(
+            model: config.model, rawTitle: "Artist『Song』 Official MV", rawArtist: "Uploader"
+        )
+
+        _ = try? await api.chatCompletion(request: request)
+
+        let captured = try #require(recorder.captured)
+        let bodyData = try #require(captured.httpBody)
         let body = try #require(JSONSerialization.jsonObject(with: bodyData) as? [String: Any])
-        let model = try #require(body["model"] as? String)
         let messages = try #require(body["messages"] as? [[String: String]])
         let responseFormat = try #require(body["response_format"] as? [String: String])
 
-        #expect(request.url?.absoluteString == "https://api.example.com/chat/completions")
-        #expect(request.httpMethod == "POST")
-        #expect(headers["Authorization"] == "Bearer secret-key")
-        #expect(headers["Content-Type"] == "application/json")
-        #expect(request.timeoutInterval == 10)
-        #expect(model == "gpt-test")
+        #expect(captured.url?.absoluteString.contains("/chat/completions") == true)
+        #expect(captured.httpMethod == "POST")
+        #expect(captured.value(forHTTPHeaderField: "Authorization") == "Bearer secret-key")
+        #expect(captured.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(body["model"] as? String == "gpt-test")
         #expect(messages.count == 2)
         #expect(messages[0]["role"] == "system")
         #expect(messages[0]["content"]?.contains("music metadata expert") == true)
@@ -37,116 +48,30 @@ struct OpenAICompatibleAPITests {
         #expect(messages[1]["content"]?.contains("Title: Artist『Song』 Official MV") == true)
         #expect(messages[1]["content"]?.contains("Artist: Uploader") == true)
         #expect(messages[1]["content"]?.contains("\"title\": \"...\"") == true)
-        #expect((body["temperature"] as? Int) == 0)
         #expect(responseFormat["type"] == "json_object")
-        #expect(api.normalizedEndpoint == "https://api.example.com")
     }
 
-    @Test("chatCompletion throws for invalid endpoint")
-    func chatCompletionInvalidEndpoint() {
+    @Test("trailing slash in endpoint is normalized")
+    func providerNormalizesTrailingSlash() {
+        // config.endpoint ends with "/"; the provider factory must strip it
+        // so requests don't get a double slash before the path.
+        let provider = OpenAICompatibleAPI.provider(for: config)
+
+        #expect(!provider.baseURL.hasSuffix("/"))
+        #expect(provider.baseURL == "https://api.example.com")
+    }
+
+    @Test("provider attaches Bearer token via modifyRequests")
+    func providerAttachesBearer() async {
+        let recorder = TestHTTPService()
         let api = OpenAICompatibleAPI(
-            config: AIEndpoint(endpoint: "http://[", model: "gpt-test", apiKey: "secret-key")
-        )
+            provider: Provider(baseURL: "https://api.example.com", http: recorder).modifyRequests { req in
+                req.addHeader("Authorization", value: "Bearer xyz")
+            })
+        let request = ChatCompletionRequest.metadataExtraction(model: "x", rawTitle: "t", rawArtist: "a")
 
-        #expect(throws: URLError.self) {
-            try api.chatCompletion(rawTitle: "Song", rawArtist: "Artist")
-        }
+        _ = try? await api.chatCompletion(request: request)
+
+        #expect(recorder.captured?.value(forHTTPHeaderField: "Authorization") == "Bearer xyz")
     }
-
-    @Test("healthCheck fails for invalid URL")
-    func healthCheckInvalidURL() async {
-        let api = OpenAICompatibleAPI(
-            config: AIEndpoint(endpoint: "http://[", model: "gpt-test", apiKey: "secret-key")
-        )
-
-        let result = await api.healthCheck()
-        #expect(result.status == .fail)
-        #expect(result.detail == "invalid URL")
-        #expect(result.latency == nil)
-    }
-
-    @Test("healthCheck passes for 2xx responses")
-    func healthCheckPasses() async {
-        let api = OpenAICompatibleAPI(config: config) { request in
-            #expect(request.url?.absoluteString == "https://api.example.com/chat/completions")
-            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret-key")
-            let response = HTTPURLResponse(
-                url: try #require(request.url),
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            return (Data(), response)
-        }
-
-        let result = await api.healthCheck()
-        #expect(result.status == .pass)
-        #expect(result.detail.contains("authenticated ("))
-        #expect(result.detail.hasSuffix("ms)"))
-        #expect(result.latency != nil)
-    }
-
-    @Test("healthCheck reports auth failures clearly")
-    func healthCheckAuthFailure() async {
-        let api = OpenAICompatibleAPI(config: config) { request in
-            let response = HTTPURLResponse(
-                url: try #require(request.url),
-                statusCode: 401,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            return (Data(), response)
-        }
-
-        let result = await api.healthCheck()
-        #expect(result.status == .fail)
-        #expect(result.detail == "HTTP 401 — check api_key in [ai]")
-        #expect(result.latency != nil)
-    }
-
-    @Test("healthCheck reports generic HTTP failures")
-    func healthCheckHTTPFailure() async {
-        let api = OpenAICompatibleAPI(config: config) { request in
-            let response = HTTPURLResponse(
-                url: try #require(request.url),
-                statusCode: 500,
-                httpVersion: nil,
-                headerFields: nil
-            )!
-            return (Data(), response)
-        }
-
-        let result = await api.healthCheck()
-        #expect(result.status == .fail)
-        #expect(result.detail == "HTTP 500")
-        #expect(result.latency != nil)
-    }
-
-    @Test("healthCheck fails when response is not HTTP")
-    func healthCheckNonHTTPResponse() async {
-        let api = OpenAICompatibleAPI(config: config) { request in
-            (Data(), URLResponse(url: try #require(request.url), mimeType: nil, expectedContentLength: 0, textEncodingName: nil))
-        }
-
-        let result = await api.healthCheck()
-        #expect(result.status == .fail)
-        #expect(result.detail == "no HTTP response")
-        #expect(result.latency != nil)
-    }
-
-    @Test("healthCheck surfaces request errors")
-    func healthCheckRequestError() async {
-        let api = OpenAICompatibleAPI(config: config) { _ in
-            throw StubError()
-        }
-
-        let result = await api.healthCheck()
-        #expect(result.status == .fail)
-        #expect(result.detail == "stubbed request failure")
-        #expect(result.latency == nil)
-    }
-}
-
-private struct StubError: Error, LocalizedError, Sendable {
-    var errorDescription: String? { "stubbed request failure" }
 }

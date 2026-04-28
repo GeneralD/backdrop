@@ -1,61 +1,68 @@
 import Foundation
+@preconcurrency import Papyrus
 import Testing
 
 @testable import MetadataDataSource
 
-@Suite("MusicBrainzAPI")
+@Suite("MusicBrainzAPI URL construction")
 struct MusicBrainzAPITests {
-    @Test("searchRecording builds GET request with path and headers")
-    func searchRecordingRequestBasics() throws {
-        let api = MusicBrainzAPI.searchRecording(title: "Song", artist: nil, duration: nil)
-
-        let request = try api.asURLRequest()
-
-        #expect(request.httpMethod == "GET")
-        #expect(request.url?.scheme == "https")
-        #expect(request.url?.host == "musicbrainz.org")
-        #expect(request.url?.path == "/ws/2/recording")
-        #expect(request.value(forHTTPHeaderField: "User-Agent") == "lyra (https://github.com/GeneralD/lyra)")
+    private func makeAPI(_ recorder: TestHTTPService) -> any MusicBrainz {
+        MusicBrainzAPI(provider: Provider(baseURL: MusicBrainzAPI.baseURL, http: recorder))
     }
 
-    @Test("searchRecording encodes title-only query with default params")
-    func searchRecordingTitleOnly() throws {
-        let api = MusicBrainzAPI.searchRecording(title: "Brave Shine", artist: nil, duration: nil)
+    @Test("builds GET request with path and User-Agent")
+    func requestBasics() async {
+        let recorder = TestHTTPService()
+        let api = makeAPI(recorder)
+        let query = MusicBrainzAPI.luceneQuery(title: "Song", artist: nil, duration: nil)
 
-        let request = try api.asURLRequest()
-        let url = try #require(request.url)
-        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
-        let queryItems = try #require(components.queryItems)
-        let query = try #require(queryItems.first(where: { $0.name == "query" })?.value)
+        _ = try? await api.searchRecording(query: query, fmt: "json", limit: 5)
+        let captured = try? #require(recorder.captured)
 
-        #expect(query == "\"Brave Shine\"")
-        #expect(queryItems.first(where: { $0.name == "fmt" })?.value == "json")
-        #expect(queryItems.first(where: { $0.name == "limit" })?.value == "5")
+        #expect(captured?.httpMethod == "GET")
+        #expect(captured?.url?.scheme == "https")
+        #expect(captured?.url?.host == "musicbrainz.org")
+        #expect(captured?.url?.path == "/ws/2/recording")
+        #expect(captured?.value(forHTTPHeaderField: "User-Agent") == "lyra (https://github.com/GeneralD/lyra)")
     }
 
-    @Test("searchRecording adds artist filter when artist is provided")
-    func searchRecordingArtistFilter() throws {
-        let api = MusicBrainzAPI.searchRecording(title: "Brave Shine", artist: "Aimer", duration: nil)
+    @Test("encodes title-only query with default params")
+    func titleOnlyQuery() async {
+        let recorder = TestHTTPService()
+        let api = makeAPI(recorder)
+        let query = MusicBrainzAPI.luceneQuery(title: "Brave Shine", artist: nil, duration: nil)
 
-        let request = try api.asURLRequest()
-        let url = try #require(request.url)
-        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
-        let queryItems = try #require(components.queryItems)
-        let query = try #require(queryItems.first(where: { $0.name == "query" })?.value)
+        _ = try? await api.searchRecording(query: query, fmt: "json", limit: 5)
+        let url = try? #require(recorder.captured?.url)
+        let components = URLComponents(url: url ?? URL(string: "about:blank")!, resolvingAgainstBaseURL: false)
+        let items = components?.queryItems ?? []
 
-        #expect(query == "\"Brave Shine\" AND artist:\"Aimer\"")
+        #expect(items.first(where: { $0.name == "query" })?.value == "\"Brave Shine\"")
+        #expect(items.first(where: { $0.name == "fmt" })?.value == "json")
+        #expect(items.first(where: { $0.name == "limit" })?.value == "5")
     }
 
-    @Test("searchRecording adds duration window in milliseconds")
-    func searchRecordingDurationWindow() throws {
-        let api = MusicBrainzAPI.searchRecording(title: "Brave Shine", artist: "Aimer", duration: 225)
+    @Test("luceneQuery composes title-only filter")
+    func luceneTitleOnly() {
+        let q = MusicBrainzAPI.luceneQuery(title: "Brave Shine", artist: nil, duration: nil)
+        #expect(q == "\"Brave Shine\"")
+    }
 
-        let request = try api.asURLRequest()
-        let url = try #require(request.url)
-        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
-        let queryItems = try #require(components.queryItems)
-        let query = try #require(queryItems.first(where: { $0.name == "query" })?.value)
+    @Test("luceneQuery adds artist filter when artist is provided")
+    func luceneArtistFilter() {
+        let q = MusicBrainzAPI.luceneQuery(title: "Brave Shine", artist: "Aimer", duration: nil)
+        #expect(q == "\"Brave Shine\" AND artist:\"Aimer\"")
+    }
 
-        #expect(query == "\"Brave Shine\" AND artist:\"Aimer\" AND dur:[210000 TO 240000]")
+    @Test("luceneQuery adds duration window in milliseconds")
+    func luceneDurationWindow() {
+        let q = MusicBrainzAPI.luceneQuery(title: "Brave Shine", artist: "Aimer", duration: 225)
+        #expect(q == "\"Brave Shine\" AND artist:\"Aimer\" AND dur:[210000 TO 240000]")
+    }
+
+    @Test("luceneQuery composes title + duration without artist")
+    func luceneTitleDuration() {
+        let q = MusicBrainzAPI.luceneQuery(title: "Song", artist: nil, duration: 60)
+        #expect(q == "\"Song\" AND dur:[45000 TO 75000]")
     }
 }

@@ -1,23 +1,31 @@
 import Domain
 import Foundation
 
-extension MusicBrainzAPI: HealthCheckable {
-    public var serviceName: String { "MusicBrainz API" }
+public struct MusicBrainzHealthCheck: Sendable {
+    private let requestPerformer: @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    public func healthCheck() async -> HealthCheckResult {
-        await healthCheck { request in
+    public init() {
+        self.init { request in
             try await URLSession.shared.data(for: request)
         }
     }
 
-    func healthCheck(
+    init(
         requestPerformer: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
-    ) async -> HealthCheckResult {
-        guard let url = URL(string: Self.baseURL + "/recording?query=test&fmt=json&limit=1") else {
+    ) {
+        self.requestPerformer = requestPerformer
+    }
+}
+
+extension MusicBrainzHealthCheck: HealthCheckable {
+    public var serviceName: String { "MusicBrainz API" }
+
+    public func healthCheck() async -> HealthCheckResult {
+        guard let url = URL(string: "\(MusicBrainzAPI.baseURL)/ws/2/recording?query=test&fmt=json&limit=1") else {
             return HealthCheckResult(status: .fail, detail: "invalid URL")
         }
         var request = URLRequest(url: url)
-        request.setValue("lyra (https://github.com/GeneralD/lyra)", forHTTPHeaderField: "User-Agent")
+        request.setValue(MusicBrainzAPI.userAgent, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         let start = ContinuousClock.now

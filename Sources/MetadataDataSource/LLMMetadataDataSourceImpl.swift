@@ -1,19 +1,20 @@
 import Dependencies
 import Domain
 import Foundation
+@preconcurrency import Papyrus
 
 public struct LLMMetadataDataSourceImpl {
     @Dependency(\.configDataSource) private var configDataSource
-    let requestPerformer: @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    private let apiFactory: @Sendable (AIEndpoint) -> any OpenAICompatible
 
     public init() {
-        self.init { request in
-            try await URLSession.shared.data(for: request)
+        self.init { config in
+            OpenAICompatibleAPI(provider: OpenAICompatibleAPI.provider(for: config))
         }
     }
 
-    init(requestPerformer: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) {
-        self.requestPerformer = requestPerformer
+    init(apiFactory: @escaping @Sendable (AIEndpoint) -> any OpenAICompatible) {
+        self.apiFactory = apiFactory
     }
 }
 
@@ -31,31 +32,23 @@ extension LLMMetadataDataSourceImpl: MetadataDataSource {
 
 extension LLMMetadataDataSourceImpl {
     fileprivate func callAPI(config: AIEndpoint, rawTitle: String, rawArtist: String) async -> ExtractedMetadata? {
-        let api = OpenAICompatibleAPI(config: config)
-        guard let request = try? api.chatCompletion(rawTitle: rawTitle, rawArtist: rawArtist) else { return nil }
+        let api = apiFactory(config)
+        let request = ChatCompletionRequest.metadataExtraction(
+            model: config.model, rawTitle: rawTitle, rawArtist: rawArtist
+        )
 
-        let data: Data
-        let urlResponse: URLResponse
+        let response: ChatCompletionResponse
         do {
-            (data, urlResponse) = try await requestPerformer(request)
+            response = try await api.chatCompletion(request: request)
         } catch {
             fputs("lyra: AI extraction failed: \(error)\n", stderr)
             return nil
         }
 
-        guard let httpResponse = urlResponse as? HTTPURLResponse,
-            (200..<300).contains(httpResponse.statusCode)
-        else {
-            let code = (urlResponse as? HTTPURLResponse)?.statusCode ?? -1
-            fputs("lyra: AI extraction failed with HTTP \(code)\n", stderr)
-            return nil
-        }
-
-        guard let response = try? JSONDecoder().decode(ChatCompletionResponse.self, from: data),
-            let content = response.choices.first?.message.content,
-            let contentData = content.data(using: .utf8)
+        guard let content = response.choices.first?.message.content,
+            let data = content.data(using: .utf8)
         else { return nil }
 
-        return try? JSONDecoder().decode(ExtractedMetadata.self, from: contentData)
+        return try? JSONDecoder().decode(ExtractedMetadata.self, from: data)
     }
 }

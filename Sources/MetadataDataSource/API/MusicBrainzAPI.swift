@@ -1,37 +1,25 @@
-import Alamofire
 import Foundation
+@preconcurrency import Papyrus
 
-public enum MusicBrainzAPI {
-    case searchRecording(title: String, artist: String?, duration: TimeInterval?)
+@API
+@Headers(["User-Agent": "lyra (https://github.com/GeneralD/lyra)"])
+public protocol MusicBrainz {
+    @GET("/ws/2/recording")
+    func searchRecording(query: String, fmt: String, limit: Int) async throws -> MusicBrainzResponse
 }
 
-extension MusicBrainzAPI: URLRequestConvertible {
-    public func asURLRequest() throws -> URLRequest {
-        var request = try URLRequest(url: Self.baseURL + path, method: .get)
-        request.setValue("lyra (https://github.com/GeneralD/lyra)", forHTTPHeaderField: "User-Agent")
-        return try URLEncoding.default.encode(request, with: parameters)
-    }
-}
+extension MusicBrainz {
+    public static var baseURL: String { "https://musicbrainz.org" }
+    public static var userAgent: String { "lyra (https://github.com/GeneralD/lyra)" }
 
-extension MusicBrainzAPI {
-    static let baseURL = "https://musicbrainz.org/ws/2"
-
-    var path: String {
-        switch self {
-        case .searchRecording: "/recording"
+    /// Build the Lucene-style query string used by MusicBrainz.
+    public static func luceneQuery(title: String, artist: String?, duration: Double?) -> String {
+        var query = "\"\(title)\""
+        if let artist { query += " AND artist:\"\(artist)\"" }
+        if let duration {
+            let ms = Int(duration * 1000)
+            query += " AND dur:[\(ms - 15000) TO \(ms + 15000)]"
         }
-    }
-
-    var parameters: [String: String] {
-        switch self {
-        case .searchRecording(let title, let artist, let duration):
-            var query = "\"\(title)\""
-            if let artist { query += " AND artist:\"\(artist)\"" }
-            if let duration {
-                let ms = Int(duration * 1000)
-                query += " AND dur:[\(ms - 15000) TO \(ms + 15000)]"
-            }
-            return ["query": query, "fmt": "json", "limit": "5"]
-        }
+        return query
     }
 }

@@ -13,7 +13,7 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.6.0"),
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
         .package(url: "https://github.com/LebJe/TOMLKit", from: "0.6.0"),
-        .package(url: "https://github.com/Alamofire/Alamofire", from: "5.10.0"),
+        .package(url: "https://github.com/joshuawright11/papyrus", from: "0.6.16"),
         .package(url: "https://github.com/JohnSundell/Files", from: "4.2.0"),
     ],
     targets: [
@@ -318,14 +318,14 @@ let package = Package(
             name: "LyricsDataSource",
             dependencies: [
                 "Domain",
-                .product(name: "Alamofire", package: "Alamofire"),
+                .product(name: "Papyrus", package: "papyrus"),
             ]
         ),
         .target(
             name: "MetadataDataSource",
             dependencies: [
                 "Domain",
-                .product(name: "Alamofire", package: "Alamofire"),
+                .product(name: "Papyrus", package: "papyrus"),
                 .product(name: "Dependencies", package: "swift-dependencies"),
             ]
         ),
@@ -363,7 +363,6 @@ let package = Package(
             dependencies: [
                 "Entity",
                 .product(name: "Dependencies", package: "swift-dependencies"),
-                .product(name: "DependenciesMacros", package: "swift-dependencies"),
             ]
         ),
 
@@ -589,6 +588,7 @@ let package = Package(
                 "LyricsDataSource",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "Papyrus", package: "papyrus"),
             ]
         ),
         .testTarget(
@@ -597,6 +597,7 @@ let package = Package(
                 "MetadataDataSource",
                 "Domain",
                 .product(name: "Dependencies", package: "swift-dependencies"),
+                .product(name: "Papyrus", package: "papyrus"),
             ]
         ),
         .testTarget(

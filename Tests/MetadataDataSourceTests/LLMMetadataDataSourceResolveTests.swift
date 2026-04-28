@@ -13,17 +13,10 @@ struct LLMMetadataDataSourceResolveTests {
         let dataSource = withDependencies {
             $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
-            LLMMetadataDataSourceImpl { request in
-                let response = HTTPURLResponse(
-                    url: try #require(request.url),
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: nil
-                )!
-                let body = """
-                    {"choices":[{"message":{"content":"{\\"title\\":\\"Brave Shine\\",\\"artist\\":\\"Aimer\\"}"}}]}
-                    """.data(using: .utf8)!
-                return (body, response)
+            LLMMetadataDataSourceImpl { _ in
+                OpenAICompatibleStub { _ in
+                    .init(choices: [.init(message: .init(content: #"{"title":"Brave Shine","artist":"Aimer"}"#))])
+                }
             }
         }
 
@@ -32,61 +25,32 @@ struct LLMMetadataDataSourceResolveTests {
         #expect(result == [Track(title: "Brave Shine", artist: "Aimer")])
     }
 
-    @Test("resolve returns empty when API status is not successful")
-    func resolveHTTPFailure() async throws {
-        let config = try makeConfig()
-        let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: config)
-        } operation: {
-            LLMMetadataDataSourceImpl { request in
-                let response = HTTPURLResponse(
-                    url: try #require(request.url),
-                    statusCode: 500,
-                    httpVersion: nil,
-                    headerFields: nil
-                )!
-                return (Data(), response)
-            }
-        }
-
-        let result = await dataSource.resolve(track: Track(title: "Song", artist: "Artist"))
-
-        #expect(result.isEmpty)
-    }
-
-    @Test("resolve returns empty when response content cannot be decoded")
-    func resolveInvalidContent() async throws {
-        let config = try makeConfig()
-        let dataSource = withDependencies {
-            $0.configDataSource = StubConfigDataSource(loadResult: config)
-        } operation: {
-            LLMMetadataDataSourceImpl { request in
-                let response = HTTPURLResponse(
-                    url: try #require(request.url),
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: nil
-                )!
-                let body = """
-                    {"choices":[{"message":{"content":"not json"}}]}
-                    """.data(using: .utf8)!
-                return (body, response)
-            }
-        }
-
-        let result = await dataSource.resolve(track: Track(title: "Song", artist: "Artist"))
-
-        #expect(result.isEmpty)
-    }
-
-    @Test("resolve returns empty when request performer throws")
-    func resolveRequestError() async throws {
+    @Test("resolve returns empty when API throws")
+    func resolveAPIError() async throws {
         let config = try makeConfig()
         let dataSource = withDependencies {
             $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
             LLMMetadataDataSourceImpl { _ in
-                throw LLMStubError()
+                OpenAICompatibleStub { _ in throw StubError() }
+            }
+        }
+
+        let result = await dataSource.resolve(track: Track(title: "Song", artist: "Artist"))
+
+        #expect(result.isEmpty)
+    }
+
+    @Test("resolve returns empty when message content cannot be decoded")
+    func resolveInvalidContent() async throws {
+        let config = try makeConfig()
+        let dataSource = withDependencies {
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
+        } operation: {
+            LLMMetadataDataSourceImpl { _ in
+                OpenAICompatibleStub { _ in
+                    .init(choices: [.init(message: .init(content: "not json"))])
+                }
             }
         }
 
@@ -101,17 +65,10 @@ struct LLMMetadataDataSourceResolveTests {
         let dataSource = withDependencies {
             $0.configDataSource = StubConfigDataSource(loadResult: config)
         } operation: {
-            LLMMetadataDataSourceImpl { request in
-                let response = HTTPURLResponse(
-                    url: try #require(request.url),
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: nil
-                )!
-                let body = """
-                    {"choices":[{"message":{"content":"{\\"title\\":\\"\\",\\"artist\\":\\"Aimer\\"}"}}]}
-                    """.data(using: .utf8)!
-                return (body, response)
+            LLMMetadataDataSourceImpl { _ in
+                OpenAICompatibleStub { _ in
+                    .init(choices: [.init(message: .init(content: #"{"title":"","artist":"Aimer"}"#))])
+                }
             }
         }
 
@@ -119,6 +76,52 @@ struct LLMMetadataDataSourceResolveTests {
 
         #expect(result.isEmpty)
     }
+
+    @Test("resolve returns empty when there are no choices")
+    func resolveNoChoices() async throws {
+        let config = try makeConfig()
+        let dataSource = withDependencies {
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
+        } operation: {
+            LLMMetadataDataSourceImpl { _ in
+                OpenAICompatibleStub { _ in .init(choices: []) }
+            }
+        }
+
+        let result = await dataSource.resolve(track: Track(title: "Song", artist: "Artist"))
+
+        #expect(result.isEmpty)
+    }
+
+    @Test("resolve forwards configured model and raw track text to the prompt")
+    func resolvePassesModelAndPrompt() async throws {
+        let config = try makeConfig()
+        let captured = RequestRecorder()
+        let dataSource = withDependencies {
+            $0.configDataSource = StubConfigDataSource(loadResult: config)
+        } operation: {
+            LLMMetadataDataSourceImpl { _ in
+                OpenAICompatibleStub { request in
+                    await captured.set(request)
+                    return .init(choices: [.init(message: .init(content: #"{"title":"X","artist":"Y"}"#))])
+                }
+            }
+        }
+
+        _ = await dataSource.resolve(track: Track(title: "Some Title", artist: "Some Uploader"))
+        let request = await captured.value
+
+        #expect(request?.model == "gpt-test")
+        #expect(request?.messages.first(where: { $0.role == "user" })?.content.contains("Title: Some Title") == true)
+        #expect(request?.messages.first(where: { $0.role == "user" })?.content.contains("Artist: Some Uploader") == true)
+        #expect(request?.responseFormat.type == "json_object")
+        #expect(request?.temperature == 0)
+    }
+}
+
+private actor RequestRecorder {
+    private(set) var value: ChatCompletionRequest?
+    func set(_ value: ChatCompletionRequest) { self.value = value }
 }
 
 private enum LLMFixtureError: Error {
@@ -140,11 +143,7 @@ private func makeConfig() throws -> ConfigLoadResult {
         throw LLMFixtureError.invalidUTF8
     }
     let config = try JSONDecoder().decode(AppConfig.self, from: data)
-    return ConfigLoadResult(
-        config: config,
-        configDir: "/tmp",
-        path: "/tmp/lyra.toml"
-    )
+    return ConfigLoadResult(config: config, configDir: "/tmp", path: "/tmp/lyra.toml")
 }
 
 private struct StubConfigDataSource: ConfigDataSource {
@@ -154,8 +153,4 @@ private struct StubConfigDataSource: ConfigDataSource {
     func template(format: ConfigFormat) -> String? { nil }
     func writeTemplate(format: ConfigFormat, force: Bool) throws -> String { "" }
     var existingConfigPath: String? { nil }
-}
-
-private struct LLMStubError: Error, LocalizedError, Sendable {
-    var errorDescription: String? { "stubbed request failure" }
 }
