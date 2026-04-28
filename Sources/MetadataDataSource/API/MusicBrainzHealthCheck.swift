@@ -28,7 +28,7 @@ extension MusicBrainzHealthCheck: HealthCheckable {
         // baseURL + literal path is a known-valid URL string; cannot fail.
         let url = URL(string: "\(MusicBrainzAPI.baseURL)/ws/2/recording?query=test&fmt=json&limit=1")!
         var request = URLRequest(url: url)
-        request.setValue(MusicBrainzAPI.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("lyra (https://github.com/GeneralD/lyra)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         let start = ContinuousClock.now

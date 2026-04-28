@@ -28,7 +28,7 @@ extension LRCLibHealthCheck: HealthCheckable {
         // baseURL + literal path is a known-valid URL string; cannot fail.
         let url = URL(string: "\(LRCLibAPI.baseURL)/api/search?q=test")!
         var request = URLRequest(url: url)
-        request.setValue(LRCLibAPI.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("lyra (https://github.com/GeneralD/lyra)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 10
 
         let start = ContinuousClock.now

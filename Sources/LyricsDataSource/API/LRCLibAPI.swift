@@ -15,5 +15,4 @@ public protocol LRCLib {
 
 extension LRCLib {
     public static var baseURL: String { "https://lrclib.net" }
-    public static var userAgent: String { "lyra (https://github.com/GeneralD/lyra)" }
 }
